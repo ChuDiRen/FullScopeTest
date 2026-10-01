@@ -39,7 +39,7 @@ const HealthMonitorPage = () => {
       const values = await form.validateFields()
       setCreating(true)
       const res = await healthMonitorService.createMonitor(values)
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('healthMonitor.addSuccess'))
         setCreateModalOpen(false)
         form.resetFields()

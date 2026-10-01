@@ -6,7 +6,6 @@ import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import ErrorBoundary from './components/ErrorBoundary'
-import LanguageSwitchPrompt from './components/LanguageSwitchPrompt'
 import RequireRole from './components/RequireRole'
 import NotFound from './pages/NotFound'
 import i18n from './i18n'
@@ -46,7 +45,6 @@ const TeamMetrics = lazy(() => import('./pages/TeamMetrics'))
 const Integrations = lazy(() => import('./pages/Integrations'))
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'))
 const MockServers = lazy(() => import('./pages/MockServers'))
-const Billing = lazy(() => import('./pages/Billing'))
 const HealthMonitor = lazy(() => import('./pages/HealthMonitor'))
 const WebhookDebugger = lazy(() => import('./pages/WebhookDebugger'))
 const DataFactory = lazy(() => import('./pages/DataFactory'))
@@ -56,7 +54,6 @@ const ReportSchedules = lazy(() => import('./pages/ReportSchedules'))
 const ReportTemplateEditor = lazy(() => import('./pages/ReportTemplateEditor'))
 const ApiDocumentation = lazy(() => import('./pages/ApiDocumentation'))
 const DeviceManager = lazy(() => import('./pages/app-test/DeviceManager'))
-const VisitorStats = lazy(() => import('./pages/hidden/VisitorStats'))
 
 // 加载中组件
 const PageLoading = () => (
@@ -86,7 +83,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <ErrorBoundary>
-      <LanguageSwitchPrompt />
       <Routes>
         {/* 公开路由 */}
         <Route element={<Login />}>
@@ -382,17 +378,6 @@ function App() {
           }
         />
 
-        {/* 计费管理（admin） */}
-        <Route
-          path="billing"
-          element={
-            <Suspense fallback={<PageLoading />}>
-              <RequireRole roles={['admin']}>
-                <Billing />
-              </RequireRole>
-            </Suspense>
-          }
-        />
 
         {/* API 健康监控 */}
         <Route
@@ -540,17 +525,6 @@ function App() {
           }
         />
 
-        {/* 隐藏页面：访客统计（admin） */}
-        <Route
-          path="hidden/visitor-stats"
-          element={
-            <Suspense fallback={<PageLoading />}>
-              <RequireRole roles={['admin']}>
-                <VisitorStats />
-              </RequireRole>
-            </Suspense>
-          }
-        />
       </Route>
 
       {/* 404 */}

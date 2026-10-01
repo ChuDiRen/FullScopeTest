@@ -353,7 +353,7 @@ const Settings: React.FC = () => {
           }
         } else {
           const res = await promptVersionService.create(payload);
-          if (res.code === 200 || res.code === 201) {
+          if (res.code === 200) {
             message.success(t('prompt.created') || '版本创建成功');
             setModalOpen(false);
             loadVersions();

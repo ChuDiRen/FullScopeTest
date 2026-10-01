@@ -1035,7 +1035,7 @@ const ApiTestWorkspace = () => {
         })
       }
 
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success('用例保存成功')
         setSaveModalOpen(false)
         setSaveCaseName('')

@@ -83,7 +83,7 @@ const NotificationSettings = () => {
       const res = editingConfig
         ? await notificationService.updateNotificationConfig(editingConfig.id, payload)
         : await notificationService.createNotificationConfig(payload)
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(editingConfig ? t('notifications.updateSuccess') : t('notifications.createSuccess'))
         setModalOpen(false); resetForm(); await fetchConfigs()
       } else {

@@ -5,16 +5,14 @@
  * - mobile: < 768px
  * - tablet: 768px - 1024px
  * - desktop: > 1024px
+ *
+ * 侧边栏的移动端呈现（抽屉 + 遮罩）由 MainLayout 的 useIsMobile 条件渲染控制，
+ * 这里不再对 aside 做 display:none 一刀切（否则移动端将没有任何导航入口）。
  */
 
 /* ─── 移动端 (< 768px) ─── */
 @media (max-width: 767px) {
-  /* 侧边栏隐藏 */
-  .fst-app-root > aside {
-    display: none !important;
-  }
-
-  /* 主内容区全宽 */
+  /* 主内容区全宽（MainLayout 同步置 0，此处兜底） */
   .fst-app-root > div:last-of-type {
     margin-left: 0 !important;
   }
@@ -30,7 +28,13 @@
     padding: 12px !important;
   }
 
-  /* 表格响应式：隐藏部分列 */
+  /* 页面标题行允许换行（标题 + 操作按钮） */
+  .fst-page-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* 表格响应式：缩小字号 */
   .ant-table {
     font-size: 13px;
   }
@@ -61,15 +65,6 @@
     width: 100% !important;
   }
 
-  /* 页脚隐藏 */
-  .fst-app-footer {
-    display: none;
-  }
-
-  /* 移动端底部 Tab 栏 */
-  .fst-mobile-tab-bar {
-    display: flex !important;
-  }
 }
 
 /* ─── 平板 (768px - 1024px) ─── */
@@ -104,46 +99,3 @@ body {
 }
 
 /* ─── 桌面 (> 1024px) — 默认样式，无需额外规则 ─── */
-
-/* ─── 移动端底部 Tab 栏（默认隐藏） ─── */
-.fst-mobile-tab-bar {
-  display: none;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 56px;
-  background: var(--fst-glass-bg, #fff);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--fst-outline-soft, #f0f0f0);
-  z-index: 100;
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 8px;
-}
-
-.fst-mobile-tab-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  font-size: 11px;
-  color: var(--fst-on-surface-variant, #999);
-  text-decoration: none;
-  padding: 4px 12px;
-  border-radius: 8px;
-  transition: color 150ms;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-}
-
-.fst-mobile-tab-item.is-active {
-  color: var(--fst-primary, #2D6A64);
-  font-weight: 600;
-}
-
-.fst-mobile-tab-item .anticon {
-  font-size: 20px;
-}

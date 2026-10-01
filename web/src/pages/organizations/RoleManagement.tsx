@@ -83,7 +83,7 @@ const RoleManagement = ({ orgId, isAdmin }: RoleManagementProps) => {
         permissions: formPermissions,
         description: formDesc.trim(),
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('organizations.roleCreateSuccess'))
         setCreateModalOpen(false)
         resetForm()

@@ -118,7 +118,7 @@ const QualityGates = () => {
         res = await qualityGateService.createQualityGate(payload)
       }
 
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(editingGate ? t('qualityGates.updateSuccess') : t('qualityGates.createSuccess'))
         setModalOpen(false)
         resetForm()

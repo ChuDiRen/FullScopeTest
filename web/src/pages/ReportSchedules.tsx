@@ -41,7 +41,7 @@ const ReportSchedules: React.FC = () => {
       const values = await form.validateFields()
       values.recipients = (values.recipients_str || "").split(",").map((s: string) => s.trim()).filter(Boolean)
       const res = await api.post("/report-schedules", values)
-      if (res.data?.code === 200 || res.data?.code === 201) {
+      if (res.data?.code === 200) {
         message.success(t("reportSchedules.createSuccess"))
         setModalOpen(false); form.resetFields(); fetchSchedules()
       }

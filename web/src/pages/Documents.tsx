@@ -170,7 +170,7 @@ const Documents = () => {
         category: values.category,
         content: initialContent,
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('documents.createSuccess'))
         setIsModalOpen(false)
         form.resetFields()

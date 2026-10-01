@@ -78,7 +78,7 @@ const MemberManagement = ({ orgId, isAdmin, userRole }: MemberManagementProps) =
         user_id: inviteUserId,
         role: inviteRole,
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('organizations.inviteSuccess'))
         setInviteModalOpen(false)
         setInviteUserId(null)

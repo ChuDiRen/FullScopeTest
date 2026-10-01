@@ -72,7 +72,7 @@ const OrganizationList = () => {
         slug: formSlug.trim() || undefined,
         description: formDesc.trim() || undefined,
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('organizations.createSuccess'))
         setCreateModalOpen(false)
         resetForm()

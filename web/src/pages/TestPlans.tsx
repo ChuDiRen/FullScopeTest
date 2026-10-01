@@ -80,7 +80,7 @@ const TestPlans = () => {
         project_id: currentProjectId,
         description: formDesc.trim(),
       })
-      if ((res.code === 200 || res.code === 201) && res.data) {
+      if ((res.code === 200) && res.data) {
         message.success(t('testPlans.createSuccess'))
         setCreateModalOpen(false)
         setFormName('')
@@ -113,7 +113,7 @@ const TestPlans = () => {
   const handleRun = async (planId: number) => {
     try {
       const res = await testPlanService.createTestPlanRun(planId)
-      if ((res.code === 200 || res.code === 201)) {
+      if ((res.code === 200)) {
         message.success(t('testPlans.runCreated'))
         navigate(`/test-plans/${planId}`)
       } else {

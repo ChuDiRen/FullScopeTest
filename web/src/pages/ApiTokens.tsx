@@ -88,7 +88,7 @@ const ApiTokens = () => {
         project_ids: projectIds,
         expires_in_days: formExpiresDays,
       })
-      if ((res.code === 200 || res.code === 201) && res.data) {
+      if ((res.code === 200) && res.data) {
         message.success(t('tokens.createSuccess'))
         setNewTokenResult(res.data)
         setTokenRevealed(true)

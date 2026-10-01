@@ -217,7 +217,7 @@ const WebTestRecorder = () => {
         script_content: scriptContent,
       })
       
-      if (result.code === 200 || result.code === 201) {
+      if (result.code === 200) {
         message.success(t('recorder.scriptSaved'))
         setIsSaveModalOpen(false)
         form.resetFields()

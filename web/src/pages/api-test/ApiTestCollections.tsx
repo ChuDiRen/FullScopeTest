@@ -124,7 +124,7 @@ const ApiTestCollections = () => {
         collection_id: values.collection_id,
         description: values.description,
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('common.success'))
         setIsModalOpen(false)
         setEditingCase(null)
@@ -169,7 +169,7 @@ const ApiTestCollections = () => {
         params: record.params,
         body: record.body,
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('common.success'))
         loadData()
       }

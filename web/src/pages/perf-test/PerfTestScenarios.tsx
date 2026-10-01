@@ -189,7 +189,7 @@ const PerfTestScenarios = () => {
         step_users: values.stepUsers as number,
         step_duration: values.stepDuration as number,
       })
-      if (result.code === 200 || result.code === 201) {
+      if (result.code === 200) {
         message.success(t('perfTest.createSuccess'))
         setIsModalOpen(false)
         setEditingScenario(null)
@@ -228,7 +228,7 @@ const PerfTestScenarios = () => {
           script_content: res.data.script_content,
         } as Parameters<typeof perfTestService.createScenario>[0])
         
-        if (createRes.code === 200 || createRes.code === 201) {
+        if (createRes.code === 200) {
           loadScenarios()
           handleViewCode(createRes.data)
         }

@@ -26,7 +26,6 @@ const ROLE_PERMISSIONS: Record<string, Record<string, string[]>> = {
   project: { create: ['admin', 'member'], update: ['admin', 'member'], delete: ['admin'] },
   test_case: { create: ['admin', 'member'], update: ['admin', 'member'], delete: ['admin'] },
   environment: { create: ['admin', 'member'], update: ['admin', 'member'], delete: ['admin'] },
-  billing: { update: ['admin'] },
   settings: { update: ['admin'] },
 };
 

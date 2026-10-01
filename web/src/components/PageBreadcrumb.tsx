@@ -44,7 +44,6 @@ const ROUTE_LABEL_MAP: Record<string, string> = {
   'ci-cd': 'sidebar.cicd',
   'trigger-rules': 'sidebar.triggerRules',
   'mock-servers': 'sidebar.mockServers',
-  billing: 'sidebar.billing',
   'health-monitor': 'sidebar.healthMonitor',
   'webhook-debugger': 'sidebar.webhookDebugger',
   devices: 'sidebar.deviceManager',

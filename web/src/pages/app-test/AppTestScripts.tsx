@@ -155,7 +155,7 @@ const AppTestScripts = () => {
         ...values,
         project_id: currentProjectId,
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('appTest.createSuccess'))
         setIsModalOpen(false)
         form.resetFields()
@@ -214,7 +214,7 @@ const AppTestScripts = () => {
         script_content: record.script_content,
         project_id: currentProjectId,
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('appTest.copySuccess'))
         loadData()
       }

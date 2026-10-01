@@ -27,7 +27,7 @@ const WebhookDebugger = () => {
   const handleCreateSession = async () => {
     try {
       const res = await webhookDebuggerService.createSession()
-      if (res.code === 200 || res.code === 201) { message.success(t('webhookDebugger.createSuccess')); await loadSessions(); if (res.data) setSelectedSession(res.data) }
+      if (res.code === 200) { message.success(t('webhookDebugger.createSuccess')); await loadSessions(); if (res.data) setSelectedSession(res.data) }
       else message.error(res.message || t('webhookDebugger.createFailed'))
     } catch { message.error(t('webhookDebugger.createFailed')) }
   };

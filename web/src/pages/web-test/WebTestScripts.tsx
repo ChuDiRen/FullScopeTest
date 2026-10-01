@@ -319,7 +319,7 @@ const WebTestScripts = () => {
         target_url: values.target_url as string | undefined,
         browser: values.browser as string | undefined,
       })
-      if (result.code === 200 || result.code === 201) {
+      if (result.code === 200) {
         message.success(t('webTest.createSuccess'))
         setIsModalOpen(false)
         setEditingScript(null)
@@ -362,7 +362,7 @@ const WebTestScripts = () => {
           browser: 'chromium',
           script_content: res.data.script_content,
         })
-        if (createRes.code === 200 || createRes.code === 201) {
+        if (createRes.code === 200) {
           loadScripts()
           handleViewCode(createRes.data)
         }
@@ -874,7 +874,7 @@ const WebTestScripts = () => {
           name: values.name as string,
           description: values.description as string | undefined,
         })
-        if (result.code === 200 || result.code === 201) {
+        if (result.code === 200) {
           message.success(t('webTest.collectionCreateSuccess'))
           collectionForm.resetFields()
           loadCollections()

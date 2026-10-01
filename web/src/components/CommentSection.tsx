@@ -78,7 +78,7 @@ const CommentSection = ({ resourceType, resourceId }: CommentSectionProps) => {
         resource_id: resourceId,
         content: content.trim(),
       })
-      if ((res.code === 200 || res.code === 201) && res.data) {
+      if ((res.code === 200) && res.data) {
         setContent('')
         await fetchComments()
       } else {

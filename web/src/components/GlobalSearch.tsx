@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import logger from '@/utils/logger'
 import { globalSearchAI, GlobalSearchResult } from '@/services/aiSearchService'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Text } = Typography
 
@@ -15,6 +16,7 @@ const GlobalSearch = () => {
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<GlobalSearchResult[]>([])
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -72,16 +74,19 @@ const GlobalSearch = () => {
 
   return (
     <>
-      <div 
+      <div
         onClick={() => setOpen(true)}
+        role="button"
+        aria-label={t('common.search') || '搜索'}
         style={{
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'center',
           background: 'rgba(0,0,0,0.04)',
-          padding: '4px 12px',
+          padding: isMobile ? '4px 8px' : '4px 12px',
           borderRadius: 6,
           cursor: 'pointer',
-          width: 240,
+          width: isMobile ? 36 : 240,
           color: 'rgba(0,0,0,0.45)',
           border: '1px solid transparent',
           transition: 'all 0.3s'
@@ -89,8 +94,8 @@ const GlobalSearch = () => {
         onMouseEnter={e => e.currentTarget.style.borderColor = '#d9d9d9'}
         onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}
       >
-        <SearchOutlined style={{ marginRight: 8 }} />
-        <span style={{ flex: 1 }}>搜索 (Ctrl+K)</span>
+        <SearchOutlined style={{ marginRight: isMobile ? 0 : 8 }} />
+        {!isMobile && <span style={{ flex: 1 }}>搜索 (Ctrl+K)</span>}
       </div>
 
       <Modal

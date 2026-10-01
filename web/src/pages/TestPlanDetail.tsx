@@ -102,7 +102,7 @@ const TestPlanDetail = () => {
     if (!planIdNum) return
     try {
       const res = await testPlanService.createTestPlanRun(planIdNum)
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('testPlans.runCreated'))
         await fetchRuns()
       } else {

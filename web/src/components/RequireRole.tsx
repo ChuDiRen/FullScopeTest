@@ -23,7 +23,7 @@ interface RequireRoleProps {
 /**
  * 用法：
  * <RequireRole roles={["admin", "member"]}>
- *   <BillingPage />
+ *   <AdminPage />
  * </RequireRole>
  */
 const RequireRole: React.FC<RequireRoleProps> = ({ roles, fallback, children }) => {

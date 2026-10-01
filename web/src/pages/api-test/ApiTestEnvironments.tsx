@@ -99,7 +99,7 @@ const ApiTestEnvironments = () => {
       }
 
       const res = await environmentService.createEnvironment(processedValues)
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('apiTest.environments.createSuccess'))
         setIsModalOpen(false)
         form.resetFields()
@@ -265,7 +265,7 @@ const ApiTestEnvironments = () => {
         is_default: false,
       }
       const res = await environmentService.importEnvironment(currentProjectId, payload)
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('apiTest.environments.importSuccess'))
         setImportModalOpen(false)
         setImportData(null)

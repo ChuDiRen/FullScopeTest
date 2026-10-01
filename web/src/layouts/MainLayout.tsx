@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useBranding } from '@/hooks/useBranding'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
-import { Layout, Avatar, Dropdown, Button, Tour, ConfigProvider, Popover, Typography, Modal, Input, FloatButton, message, type TourProps } from 'antd'
+import { Layout, Avatar, Dropdown, Button, Tour, ConfigProvider, Modal, Input, FloatButton, message, type TourProps } from 'antd'
 import {
   HomeOutlined,
   ApiOutlined,
@@ -16,9 +16,6 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  CustomerServiceOutlined,
   FolderOutlined,
   TranslationOutlined,
   DotChartOutlined,
@@ -58,10 +55,9 @@ import NotificationPopover from '../components/NotificationPopover'
 import GlobalSearch from '../components/GlobalSearch'
 import ShortcutHelpModal from '../components/ShortcutHelpModal'
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut'
-import { useVisitorTracker } from '../hooks/useVisitorTracker'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const { Content, Footer } = Layout
-const { Text } = Typography
 
 /* ─── iOS Sidebar Nav Item ─── */
 interface SidebarItemProps {
@@ -153,24 +149,6 @@ const SidebarItem = ({ icon, label, path, active, expanded, currentPath, childre
   )
 }
 
-const FooterBeianIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-    <path
-      d="M12 2.8 19.4 6.2v6.1c0 5-3.1 9.2-7.4 10.9C7.7 21.5 4.6 17.3 4.6 12.3V6.2L12 2.8Z"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M9.2 12.2 11 14l3.9-4.1"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-)
-
 const FooterGithubIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg viewBox="0 0 24 24" fill="none" className={className} style={style} aria-hidden="true">
     <path
@@ -186,6 +164,10 @@ const FooterGithubIcon = ({ className, style }: { className?: string; style?: Re
 const MainLayout = () => {
   const { t, i18n } = useTranslation()
   const [collapsed, setCollapsed] = useLocalStorage('fst-sidebar-collapsed', false)
+  const isMobile = useIsMobile()
+  // 移动端折叠态不生效：侧边栏整体变为抽屉（mobileDrawerOpen 控制滑入滑出）
+  const effectiveCollapsed = isMobile ? false : collapsed
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
@@ -193,8 +175,6 @@ const MainLayout = () => {
   const { isAdmin, isMember } = useRole()
   const { currentProjectId, projects, setCurrentProject, fetchProjects } = useProjectStore()
   const { resolvedTheme, toggle: toggleTheme } = useThemeStore()
-  const [logoClickCount, setLogoClickCount] = useState(0)
-  const logoClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [projectModalOpen, setProjectModalOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDesc, setNewProjectDesc] = useState('')
@@ -213,9 +193,6 @@ const MainLayout = () => {
   const envNotice = noticeDisabled
     ? ''
     : noticeOverride || t('layout.envNotice')
-
-  // 访客追踪（仅在生产环境启用）
-  useVisitorTracker()
 
   // 用户下拉菜单
   const userMenuItems = [
@@ -257,7 +234,7 @@ const MainLayout = () => {
         name: newProjectName.trim(),
         description: newProjectDesc.trim() || undefined,
       })
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(t('layout.createProjectSuccess'))
         setProjectModalOpen(false)
         setNewProjectName('')
@@ -454,7 +431,6 @@ const MainLayout = () => {
     { icon: <FileTextOutlined />, label: t('sidebar.documents'), path: '/docs' },
     ...(isAdmin ? [
       { icon: <AuditOutlined />, label: t('sidebar.auditLogs'), path: '/audit-logs' },
-      { icon: <CustomerServiceOutlined />, label: t('sidebar.billing'), path: '/billing' },
     ] : []),
     { icon: <SettingOutlined />, label: t('sidebar.settings'), path: '/settings' },
   ]
@@ -488,9 +464,23 @@ const MainLayout = () => {
         {t('layout.skipToContent') || '跳转到主内容'}
       </a>
 
-      {/* ─── iOS Sidebar ─── */}
+      {/* 移动端抽屉遮罩 */}
+      {isMobile && mobileDrawerOpen && (
+        <div
+          onClick={() => setMobileDrawerOpen(false)}
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 60,
+          }}
+        />
+      )}
+
+      {/* ─── iOS Sidebar（移动端为抽屉） ─── */}
       <aside style={{
-        width: collapsed ? 72 : 280,
+        width: isMobile ? 280 : (collapsed ? 72 : 280),
         height: '100vh',
         position: 'fixed',
         left: 0,
@@ -502,31 +492,25 @@ const MainLayout = () => {
         backdropFilter: 'var(--fst-glass-blur)',
         WebkitBackdropFilter: 'var(--fst-glass-blur)',
         borderRight: '1px solid var(--fst-glass-border)',
-        zIndex: 50,
-        transition: 'width 250ms cubic-bezier(0.25,0.1,0.25,1)',
+        zIndex: isMobile ? 65 : 50,
+        transform: isMobile && !mobileDrawerOpen ? 'translateX(-100%)' : 'translateX(0)',
+        boxShadow: isMobile && mobileDrawerOpen ? '0 8px 32px rgba(0,0,0,0.18)' : 'none',
+        transition: isMobile
+          ? 'transform 250ms cubic-bezier(0.25,0.1,0.25,1)'
+          : 'width 250ms cubic-bezier(0.25,0.1,0.25,1)',
         overflow: 'hidden',
       }}>
-        {/* Logo - 点击5次进入访客统计 */}
+        {/* Logo */}
         <div className="fst-app-logo" style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'flex-start',
+          justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
           padding: collapsed ? '8px 4px 20px' : '8px 4px 20px',
           borderBottom: '1px solid var(--fst-outline-soft)',
           marginBottom: 12,
           minWidth: 0,
-          cursor: 'pointer',
-        }} onClick={() => {
-          if (logoClickTimerRef.current) clearTimeout(logoClickTimerRef.current)
-          const newCount = logoClickCount + 1
-          setLogoClickCount(newCount)
-          if (newCount >= 5) {
-            setLogoClickCount(0)
-            navigate('/hidden/visitor-stats')
-          }
-          logoClickTimerRef.current = setTimeout(() => setLogoClickCount(0), 2000)
         }}>
-          {collapsed ? (
+          {effectiveCollapsed ? (
             <img src={branding.logo_url || '/logo-icon.webp'} alt={branding.platform_name} style={{ width: 36, height: 36, objectFit: 'contain', display: 'block' }} />
           ) : (
             <img src={branding.logo_url || '/logo-full.webp'} alt={branding.platform_name} style={{ height: 44, width: 'auto', objectFit: 'contain', display: 'block' }} />
@@ -546,7 +530,7 @@ const MainLayout = () => {
               tourId={item.path === '/settings' ? 'tour-settings' : item.path === '/api-test' ? 'tour-api-test' : undefined}
               currentPath={location.pathname}
               children={item.children}
-              onClick={(p) => navigate(p)}
+              onClick={(p) => { navigate(p); if (isMobile) setMobileDrawerOpen(false) }}
               onToggle={() => toggleGroup(item.path)}
             />
           ))}
@@ -560,87 +544,20 @@ const MainLayout = () => {
               active={location.pathname === item.path}
               expanded={false}
               currentPath={location.pathname}
-              onClick={(p) => navigate(p)}
+              onClick={(p) => { navigate(p); if (isMobile) setMobileDrawerOpen(false) }}
               onToggle={() => {}}
             />
           ))}
         </nav>
 
-        {/* Bottom actions */}
-        <div style={{
-          paddingTop: 12,
-          borderTop: '1px solid var(--fst-outline-soft)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 4,
-        }}>
-          <Popover
-            content={
-              <div style={{ width: 280, padding: '4px' }}>
-                <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: '#3D6E66', marginBottom: 4 }}>
-                    {t("layout.contactAuthor")}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#8c8c8c' }}>
-                    {t("layout.authorRole")}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <Button
-                    type="primary"
-                    style={{ background: '#5FA59B', border: 'none', width: '100%' }}
-                    href="https://huangxuan.chat/resume"
-                    target="_blank"
-                  >
-                    {t('layout.viewProfile')}
-                  </Button>
-                  <div style={{ background: '#f6f8f8', padding: '12px', borderRadius: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-                      <PhoneOutlined style={{ color: '#5FA59B', marginRight: 10, fontSize: 16 }} />
-                      <Text copyable={{ text: '18888888888' }} style={{ color: '#333' }}>+86 188-5212-2635</Text>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <MailOutlined style={{ color: '#5FA59B', marginRight: 10, fontSize: 16 }} />
-                      <Text copyable={{ text: 'author@example.com' }} style={{ color: '#333' }}>3441578327@qq.com</Text>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center', marginTop: 4 }}>
-                    <div style={{ display: 'inline-block', padding: 8, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12 }}>
-                      <img
-                        src="https://res.huangxuan.site/thrivex/album/69c008b2e4b01ee6a7b76b39.png"
-                        alt="WeChat QRCode"
-                        style={{ width: 120, height: 120, objectFit: 'contain', display: 'block' }}
-                      />
-                    </div>
-                    <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 8 }}>{t("layout.scanWechat")}</div>
-                  </div>
-                </div>
-              </div>
-            }
-            trigger="click"
-            placement="right"
-          >
-            <SidebarItem
-              icon={<CustomerServiceOutlined />}
-              label={t('header.help') || 'Support'}
-              path="#support"
-              active={false}
-              expanded={false}
-              currentPath={location.pathname}
-              onClick={() => {}}
-              onToggle={() => {}}
-            />
-          </Popover>
-        </div>
-
         {/* ─── 版本号与环境标识 ─── */}
         <div style={{
-          padding: collapsed ? '8px 0' : '8px 16px',
+          padding: effectiveCollapsed ? '8px 0' : '8px 16px',
           textAlign: 'center',
           borderTop: '1px solid #f0f0f0',
           marginTop: 'auto',
         }}>
-          {collapsed ? (
+          {effectiveCollapsed ? (
             <div style={{ fontSize: 10, color: '#999' }}>v1.0</div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -673,7 +590,7 @@ const MainLayout = () => {
       {/* ─── Main Content ─── */}
       <div style={{
         flex: 1,
-        marginLeft: collapsed ? 72 : 280,
+        marginLeft: isMobile ? 0 : (collapsed ? 72 : 280),
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
@@ -688,16 +605,17 @@ const MainLayout = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 32px',
+          padding: isMobile ? '0 12px' : '0 32px',
           background: 'var(--fst-glass-bg)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           borderBottom: '1px solid var(--fst-outline-soft)',
         }}>
           {/* Left */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: '1 1 0', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, flex: '1 1 0', minWidth: 0 }}>
             <button
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={() => (isMobile ? setMobileDrawerOpen(v => !v) : setCollapsed(!collapsed))}
+              aria-label={t('layout.toggleNav')}
               style={{
                 width: 36, height: 36, borderRadius: 10,
                 border: 'none', background: 'transparent',
@@ -708,7 +626,9 @@ const MainLayout = () => {
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              {collapsed ? <MenuUnfoldOutlined style={{ fontSize: 18 }} /> : <MenuFoldOutlined style={{ fontSize: 18 }} />}
+              {isMobile
+                ? <MenuUnfoldOutlined style={{ fontSize: 18 }} />
+                : (collapsed ? <MenuUnfoldOutlined style={{ fontSize: 18 }} /> : <MenuFoldOutlined style={{ fontSize: 18 }} />)}
             </button>
             <Dropdown
               trigger={['click']}
@@ -773,7 +693,7 @@ const MainLayout = () => {
               }}
             >
               <Button
-                style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 180, justifyContent: 'flex-start' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: isMobile ? 0 : 180, maxWidth: isMobile ? 110 : undefined, justifyContent: 'flex-start', overflow: 'hidden' }}
                 icon={<FolderOutlined />}
               >
                 {currentProjectId
@@ -781,7 +701,7 @@ const MainLayout = () => {
                   : t('layout.selectProject')}
               </Button>
             </Dropdown>
-            <div id="tour-step-search">
+            <div id="tour-step-search" style={{ minWidth: 0 }}>
               <GlobalSearch />
             </div>
           </div>
@@ -794,69 +714,8 @@ const MainLayout = () => {
           )}
 
           {/* Right */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Popover
-              content={
-                <div style={{ width: 280, padding: '4px' }}>
-                  <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: '#3D6E66', marginBottom: 4 }}>
-                      {t("layout.contactAuthor")}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#8c8c8c' }}>
-                      {t("layout.authorRole")}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <Button
-                      type="primary"
-                      style={{ background: '#5FA59B', border: 'none', width: '100%' }}
-                      href="https://huangxuan.chat/resume"
-                      target="_blank"
-                    >
-                      {t('layout.viewProfile')}
-                    </Button>
-                    <div style={{ background: '#f6f8f8', padding: '12px', borderRadius: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-                        <PhoneOutlined style={{ color: '#5FA59B', marginRight: 10, fontSize: 16 }} />
-                        <Text copyable={{ text: '18888888888' }} style={{ color: '#333' }}>+86 188-5212-2635</Text>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <MailOutlined style={{ color: '#5FA59B', marginRight: 10, fontSize: 16 }} />
-                        <Text copyable={{ text: 'author@example.com' }} style={{ color: '#333' }}>3441578327@qq.com</Text>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'center', marginTop: 4 }}>
-                      <div style={{ display: 'inline-block', padding: 8, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12 }}>
-                        <img
-                          src="https://res.huangxuan.site/thrivex/album/69c008b2e4b01ee6a7b76b39.png"
-                          alt="WeChat QRCode"
-                          style={{ width: 120, height: 120, objectFit: 'contain', display: 'block' }}
-                        />
-                      </div>
-                      <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 8 }}>{t("layout.scanWechat")}</div>
-                    </div>
-                  </div>
-                </div>
-              }
-              trigger="hover"
-              placement="bottom"
-            >
-              <button
-                style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  border: 'none', background: 'transparent',
-                  display: 'grid', placeItems: 'center',
-                  cursor: 'pointer', color: 'var(--fst-on-surface-variant)',
-                  transition: 'all 150ms ease',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; e.currentTarget.style.color = 'var(--fst-primary)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fst-on-surface-variant)' }}
-                aria-label={t('layout.contactAuthor')}
-              >
-                <CustomerServiceOutlined style={{ fontSize: 18 }} />
-              </button>
-            </Popover>
-
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 2 : 16 }}>
+            {!isMobile && (
             <a
               href="https://github.com/05Huang/FullScopeTest"
               target="_blank"
@@ -873,9 +732,11 @@ const MainLayout = () => {
             >
               <FooterGithubIcon style={{ width: 18, height: 18 }} />
             </a>
+            )}
 
             <NotificationPopover />
 
+            {!isMobile && (
             <Dropdown
               menu={{
                 items: [
@@ -904,6 +765,7 @@ const MainLayout = () => {
                 <TranslationOutlined style={{ fontSize: 18 }} />
               </button>
             </Dropdown>
+            )}
 
             {/* 主题切换按钮 */}
             <button
@@ -922,7 +784,9 @@ const MainLayout = () => {
               {resolvedTheme === 'dark' ? <SunOutlined style={{ fontSize: 18 }} /> : <MoonOutlined style={{ fontSize: 18 }} />}
             </button>
 
-            <div style={{ width: 1, height: 20, background: 'var(--fst-outline-soft)', margin: '0 4px' }} />
+            {!isMobile && (
+              <div style={{ width: 1, height: 20, background: 'var(--fst-outline-soft)', margin: '0 4px' }} />
+            )}
 
             <Dropdown
               menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
@@ -947,9 +811,11 @@ const MainLayout = () => {
                   src={user?.avatar}
                   style={{ backgroundColor: 'var(--fst-primary)' }}
                 />
-                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--fst-on-surface)' }}>
-                  {user?.username || t('layout.user')}
-                </span>
+                {!isMobile && (
+                  <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--fst-on-surface)' }}>
+                    {user?.username || t('layout.user')}
+                  </span>
+                )}
               </div>
             </Dropdown>
           </div>
@@ -962,7 +828,7 @@ const MainLayout = () => {
           aria-label={t('layout.mainContent') || '主内容区'}
           style={{
             flex: 1,
-            padding: 24,
+            padding: isMobile ? 12 : 24,
             maxWidth: 1440,
             width: '100%',
             margin: '0 auto',
@@ -972,49 +838,6 @@ const MainLayout = () => {
           <Outlet />
         </main>
 
-        {/* ─── Footer ─── */}
-        <footer className="fst-app-footer">
-          <div className="fst-site-footer" aria-label={t('layout.footerAriaLabel') || '网站页脚'}>
-            <a className="fst-site-footer-link" href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer noopener">
-              <FooterBeianIcon className="fst-site-footer-icon" />
-              苏ICP备2025167047号-3
-            </a>
-            <span className="fst-site-footer-sep" aria-hidden="true" />
-            <a className="fst-site-footer-link" href="https://github.com/05Huang/FullScopeTest" target="_blank" rel="noreferrer noopener">
-              <FooterGithubIcon className="fst-site-footer-icon" />
-              GitHub 开源
-            </a>
-            <span className="fst-site-footer-sep" aria-hidden="true" />
-            <span
-              className="fst-site-footer-link"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '2px 8px', borderRadius: 6,
-                background: 'rgba(45, 106, 100, 0.08)',
-                border: '1px solid rgba(45, 106, 100, 0.15)',
-                fontSize: 12, fontWeight: 500,
-              }}
-              title={t('layout.accessibilityTitle') || '本系统支持无障碍访问：键盘导航、屏幕阅读器、高对比度模式、减少动画'}
-              role="note"
-              aria-label={t('layout.accessibilityTitle') || '本系统支持无障碍访问'}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="m8 12 2 0m4 0 2 0"/>
-                <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="currentColor" stroke="none"/>
-                <path d="M9 16c1.5 1 4.5 1 6 0"/>
-                <path d="M8 12l-3 4m11-4 3 4"/>
-              </svg>
-              {t('layout.accessibility') || '无障碍'}
-            </span>
-            {branding.footer_text && (
-              <>
-                <span className="fst-site-footer-sep" aria-hidden="true" />
-                <span className="fst-site-footer-link">{branding.footer_text}</span>
-              </>
-            )}
-          </div>
-        </footer>
         <GlobalCopilot />
         <SessionWarning />
         <FloatButton.BackTop visibilityHeight={300} />

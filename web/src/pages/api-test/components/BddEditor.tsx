@@ -35,7 +35,7 @@ const BddEditor = ({ open, onClose, collectionId, onImported }: BddEditorProps) 
     setImporting(true)
     try {
       const res = await apiTestService.importBdd({ feature: parseResult.feature, scenarios: parseResult.scenarios, collection_id: collectionId })
-      if (res.code === 200 || res.code === 201) { message.success(t('bddEditor.importSuccess')); onImported?.(); onClose() }
+      if (res.code === 200) { message.success(t('bddEditor.importSuccess')); onImported?.(); onClose() }
       else message.error(res.message || t('bddEditor.importFailed'))
     } catch { message.error(t('bddEditor.importFailed')) } finally { setImporting(false) }
   };

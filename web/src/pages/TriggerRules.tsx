@@ -90,7 +90,7 @@ const TriggerRules = () => {
       const res = editingRule
         ? await triggerRuleService.updateTriggerRule(editingRule.id, payload)
         : await triggerRuleService.createTriggerRule(payload)
-      if (res.code === 200 || res.code === 201) {
+      if (res.code === 200) {
         message.success(editingRule ? t('triggerRules.updateSuccess') : t('triggerRules.createSuccess'))
         setModalOpen(false); resetForm(); await fetchRules()
       } else {
