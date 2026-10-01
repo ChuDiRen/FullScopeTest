@@ -32,18 +32,20 @@ services:
     image: redis:7.2-alpine
     container_name: fullscopetest_redis
     restart: always
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - fullscopetest_network
 
-  # Flask 后端（生产环境）
+  # FastAPI 后端（生产环境）
   backend:
     image: fullscopetest/backend:1.0.0-rc1
     build:
@@ -52,15 +54,15 @@ services:
     container_name: fullscopetest_backend
     restart: always
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:5000:5000"
     environment:
-      - FLASK_ENV=production
+      - APP_ENV=production
       - DATABASE_URL=postgresql://${POSTGRES_USER:-fullscopetest}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fullscopetest}
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - SECRET_KEY=${SECRET_KEY:?请设置 SECRET_KEY 环境变量}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?请设置 JWT_SECRET_KEY 环境变量}
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - AI_ASSISTANT_ENABLED=${AI_ASSISTANT_ENABLED:-false}
       - AI_ASSISTANT_BASE_URL=${AI_ASSISTANT_BASE_URL:-}
       - AI_ASSISTANT_MODEL=${AI_ASSISTANT_MODEL:-}
@@ -82,7 +84,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -99,11 +101,11 @@ services:
     container_name: fullscopetest_celery
     restart: always
     environment:
-      - FLASK_ENV=production
+      - APP_ENV=production
       - DATABASE_URL=postgresql://${POSTGRES_USER:-fullscopetest}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fullscopetest}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - AI_ASSISTANT_ENABLED=${AI_ASSISTANT_ENABLED:-false}
       - AI_ASSISTANT_BASE_URL=${AI_ASSISTANT_BASE_URL:-}
       - AI_ASSISTANT_MODEL=${AI_ASSISTANT_MODEL:-}
@@ -115,7 +117,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.tasks worker --loglevel=warning --concurrency=4
+    command: celery -A celery_worker.celery worker --loglevel=warning --concurrency=4
     networks:
       - fullscopetest_network
 

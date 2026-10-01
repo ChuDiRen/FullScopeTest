@@ -16,12 +16,12 @@ echo "[1/3] 启动数据库服务 (Redis)..."
 docker-compose -f docker-compose.dev.yml up -d redis
 sleep 3
 
-echo "[2/3] 启动后端服务 (Flask)..."
+echo "[2/3] 启动后端服务 (FastAPI)..."
 cd backend
 if [ -d "venv" ]; then
     source venv/Scripts/activate 2>/dev/null || source venv/bin/activate 2>/dev/null
 fi
-flask run --host=0.0.0.0 --port=5000 --reload &
+HOST=0.0.0.0 PORT=5000 python run_fastapi.py &
 BACKEND_PID=$!
 cd ..
 
