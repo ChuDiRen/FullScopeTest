@@ -1,4 +1,4 @@
-# FullScopeTest 项目启动指南
+# 大熊AI测试平台 项目启动指南
 
 详细的安装、配置和启动步骤。
 
@@ -113,8 +113,8 @@ brew services start postgresql redis
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/Asukadaisiki/fullscopetest.git
-cd FullScopeTest-Web
+git clone <你的仓库地址>
+cd 大熊AI测试平台-Web
 ```
 
 ### 2. 创建 Python 虚拟环境（可选但推荐）
@@ -680,7 +680,7 @@ flask db upgrade
 
 <div align="center">
 
-**👍 成功启动？开始使用 FullScopeTest 进行测试吧！**
+**👍 成功启动？开始使用 大熊AI测试平台 进行测试吧！**
 
 参考 [API.md](API.md) 了解所有可用接口。
 

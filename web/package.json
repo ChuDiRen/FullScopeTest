@@ -1,7 +1,7 @@
 {
-  "name": "fullscopetest-web",
+  "name": "daxiong-ai-testing-web",
   "version": "1.0.0",
-  "description": "FullScopeTest 自动化测试平台前端",
+  "description": "大熊AI测试平台前端",
   "type": "module",
   "scripts": {
     "dev": "vite",

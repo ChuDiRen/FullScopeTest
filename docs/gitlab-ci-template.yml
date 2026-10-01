@@ -1,8 +1,8 @@
-# FullScopeTest GitLab CI 集成模板
+# 大熊AI测试平台 GitLab CI 集成模板
 #
 # 使用方法：
 # 1. 将此文件复制到你的项目根目录
-# 2. 修改 FULLSCOPETEST_URL 和 FULLSCOPETEST_TOKEN 为你的 FullScopeTest 服务器地址和 API Token
+# 2. 修改 FULLSCOPETEST_URL 和 FULLSCOPETEST_TOKEN 为你的 大熊AI测试平台 服务器地址和 API Token
 # 3. 根据需要修改 test-suite-id 和 quality-gate-id
 
 stages:

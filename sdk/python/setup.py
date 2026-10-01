@@ -1,15 +1,15 @@
 """
-FullScopeTest Python SDK 打包配置
+大熊AI测试平台 Python SDK 打包配置
 """
 from setuptools import setup, find_packages
 
 setup(
     name="fullscopetest",
     version="1.0.0",
-    description="FullScopeTest 自动化测试平台 Python SDK",
+    description="大熊AI测试平台 自动化测试平台 Python SDK",
     long_description=open("README.md").read() if __import__("os").path.exists("README.md") else "",
     long_description_content_type="text/markdown",
-    author="FullScopeTest Team",
+    author="大熊AI测试平台 Team",
     url="https://github.com/fullscopetest/fullscopetest",
     packages=find_packages(),
     python_requires=">=3.8",

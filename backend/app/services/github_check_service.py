@@ -239,7 +239,7 @@ class GitHubCheckService:
         Returns:
             Check Run 数据
         """
-        name = f'FullScopeTest - {test_run.test_type.upper()} Test'
+        name = f'大熊AI测试平台 - {test_run.test_type.upper()} Test'
         title = f'Running {test_run.test_type} tests'
         summary = f'Starting test run #{test_run.id} for project {test_run.project_id}'
 

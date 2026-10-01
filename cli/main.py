@@ -1,5 +1,5 @@
 """
-FullScopeTest CLI 工具
+大熊AI测试平台 CLI 工具
 
 使用方式:
     fst run --collection 123 --env staging
@@ -233,7 +233,7 @@ def _generate_junit(data, output):
         from xml.dom import minidom
 
         testsuite = ET.Element('testsuite')
-        testsuite.set('name', data.get('name', 'FullScopeTest Report'))
+        testsuite.set('name', data.get('name', '大熊AI测试平台 Report'))
         testsuite.set('tests', str(data.get('total', 0)))
         testsuite.set('failures', str(data.get('failed', 0)))
 
@@ -281,7 +281,7 @@ def _generate_csv(data, output):
 def main():
     parser = argparse.ArgumentParser(
         prog='fst',
-        description='FullScopeTest CLI - 测试平台命令行工具',
+        description='大熊AI测试平台 CLI - 测试平台命令行工具',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:

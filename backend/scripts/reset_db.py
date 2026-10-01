@@ -201,7 +201,7 @@ def reset_database(seed=False, force=False):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='FullScopeTest 数据库重置脚本（开发环境）')
+    parser = argparse.ArgumentParser(description='大熊AI测试平台 数据库重置脚本（开发环境）')
     parser.add_argument('--seed', action='store_true', help='填充种子数据')
     parser.add_argument('--force', action='store_true', help='跳过确认提示')
     args = parser.parse_args()

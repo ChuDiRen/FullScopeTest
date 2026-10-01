@@ -1,4 +1,4 @@
-# FullScopeTest JavaScript SDK
+# 大熊AI测试平台 JavaScript SDK
 
 ## Installation
 
@@ -9,9 +9,9 @@ npm install @fullscopetest/sdk
 ## Usage
 
 ```typescript
-import { FullScopeTestClient } from '@fullscopetest/sdk';
+import { 大熊AI测试平台Client } from '@fullscopetest/sdk';
 
-const client = new FullScopeTestClient({
+const client = new 大熊AI测试平台Client({
   baseUrl: 'https://api.fullscopetest.com',
   apiToken: 'fst_xxx',
 });

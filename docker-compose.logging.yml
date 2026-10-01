@@ -1,4 +1,4 @@
-# FullScopeTest 日志聚合配置
+# 大熊AI测试平台 日志聚合配置
 # 使用方法: docker-compose -f docker-compose.prod.yml -f docker-compose.logging.yml up -d
 
 version: '3.8'

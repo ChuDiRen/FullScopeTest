@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "FullScopeTest Recorder",
+  "name": "大熊AI测试平台 Recorder",
   "version": "1.0.0",
-  "description": "Record browser actions and export as FullScopeTest steps",
+  "description": "Record browser actions and export as 大熊AI测试平台 steps",
   "permissions": [
     "activeTab",
     "scripting",

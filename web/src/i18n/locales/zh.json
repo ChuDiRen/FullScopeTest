@@ -61,7 +61,7 @@
     "view": "查看"
   },
   "login": {
-    "title": "欢迎使用 FullScopeTest",
+    "title": "欢迎使用 大熊AI测试平台",
     "subtitle": "简单高效的自动化测试平台",
     "accountLogin": "账号登录",
     "moreLoginMethods": "其他登录方式",
@@ -1079,7 +1079,7 @@
     "dashboard": "在这里，您可以直观地查看各类型测试的用例数量与通过率，实时掌握质量状况。",
     "navigation": "通过左侧菜单，您可以随时切换进入接口测试、Web自动化、性能压测等核心模块。",
     "search": "想要快速找东西？点击这里或使用快捷键 (Ctrl+K / Cmd+K) 即可唤起全局搜索。",
-    "step1Title": "👋 欢迎使用 FullScopeTest",
+    "step1Title": "👋 欢迎使用 大熊AI测试平台",
     "step1Desc": "这是一个企业级 AI 测试平台，支持接口测试、Web 自动化、APP 测试、性能压测等全方位测试能力。",
     "step2Title": "📊 工作台概览",
     "step2Desc": "在这里你可以一览所有测试数据：API 用例数、Web 脚本数、性能场景数、最近测试执行记录，以及测试趋势图表。",

@@ -1,7 +1,7 @@
 apiVersion: 1
 
 providers:
-  - name: "FullScopeTest"
+  - name: "大熊AI测试平台"
     orgId: 1
     folder: ""
     type: file

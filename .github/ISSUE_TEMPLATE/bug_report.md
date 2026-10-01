@@ -35,7 +35,7 @@ assignees: ''
 - 浏览器: [例如 Chrome 120, Firefox 121, Safari 17]
 - Python 版本: [例如 3.11.5]
 - Node.js 版本: [例如 18.19.0]
-- FullScopeTest 版本: [例如 1.0.0]
+- 大熊AI测试平台 版本: [例如 1.0.0]
 
 ## 日志信息
 

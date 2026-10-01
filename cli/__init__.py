@@ -1,1 +1,1 @@
-"""FullScopeTest CLI 工具"""
+"""大熊AI测试平台 CLI 工具"""

@@ -1,5 +1,5 @@
 /**
- * FullScopeTest 生产环境 E2E 测试配置
+ * 大熊AI测试平台 生产环境 E2E 测试配置
  *
  * 针对远程服务器 https://test.huangxuan.site 进行完整功能测试
  * 使用 Playwright 模拟真实用户操作，发现前端与后端交互的 Bug

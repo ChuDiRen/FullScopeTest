@@ -61,7 +61,7 @@
     "view": "View"
   },
   "login": {
-    "title": "Welcome to FullScopeTest",
+    "title": "Welcome to 大熊AI测试平台",
     "subtitle": "Simple & Efficient Automated Testing Platform",
     "accountLogin": "Account Login",
     "moreLoginMethods": "Other login methods",
@@ -1079,7 +1079,7 @@
     "dashboard": "Here you can view test case counts and pass rates, and monitor quality in real time.",
     "navigation": "Use the sidebar menu to switch between API testing, Web automation, performance testing, and other core modules.",
     "search": "Need to find something fast? Click here or use Ctrl+K / Cmd+K to open global search.",
-    "step1Title": "👋 Welcome to FullScopeTest",
+    "step1Title": "👋 Welcome to 大熊AI测试平台",
     "step1Desc": "An enterprise-grade AI testing platform supporting API testing, Web automation, APP testing, performance benchmarking, and more.",
     "step2Title": "📊 Dashboard Overview",
     "step2Desc": "Get a bird's-eye view of all test data: API case count, Web scripts, performance scenarios, recent test runs, and trend charts.",

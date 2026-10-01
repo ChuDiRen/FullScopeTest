@@ -1,5 +1,5 @@
 """
-FullScopeTest CLI
+大熊AI测试平台 CLI
 
 提供命令行接口用于 CI/CD 集成。
 
@@ -14,10 +14,10 @@ import json
 import sys
 import os
 
-from .client import FullScopeTestClient
+from .client import 大熊AI测试平台Client
 
 
-def get_client(args) -> FullScopeTestClient:
+def get_client(args) -> 大熊AI测试平台Client:
     """从参数创建客户端"""
     base_url = args.base_url or os.environ.get("FST_BASE_URL", "http://localhost:8000")
     api_token = args.api_token or os.environ.get("FST_API_TOKEN")
@@ -27,7 +27,7 @@ def get_client(args) -> FullScopeTestClient:
         print("错误: 必须提供 --api-token 或 --jwt-token（或设置 FST_API_TOKEN/FST_JWT_TOKEN 环境变量）")
         sys.exit(1)
 
-    return FullScopeTestClient(base_url=base_url, api_token=api_token, jwt_token=jwt_token)
+    return 大熊AI测试平台Client(base_url=base_url, api_token=api_token, jwt_token=jwt_token)
 
 
 def cmd_run(args):
@@ -112,7 +112,7 @@ def cmd_stats(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="fst", description="FullScopeTest CLI")
+    parser = argparse.ArgumentParser(prog="fst", description="大熊AI测试平台 CLI")
     parser.add_argument("--base-url", help="API 基础 URL")
     parser.add_argument("--api-token", help="API Token")
     parser.add_argument("--jwt-token", help="JWT Token")

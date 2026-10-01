@@ -1,4 +1,4 @@
-# FullScopeTest 功能路线图
+# 大熊AI测试平台 功能路线图
 
 > 最后更新：2026-06-19
 
@@ -83,5 +83,4 @@
 ## 反馈
 
 如有功能需求或建议，请通过以下方式联系我们：
-- GitHub Issues: [05Huang/FullScopeTest](https://github.com/05Huang/FullScopeTest/issues)
 - 邮箱: support@fullscopetest.com

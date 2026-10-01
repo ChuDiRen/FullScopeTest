@@ -312,7 +312,7 @@ const Login = () => {
         <img
           className="fst-login-left-img"
           src="/login-left.webp"
-          alt="FullScopeTest Dashboard"
+          alt="大熊AI测试平台 Dashboard"
           draggable={false}
         />
       </div>
@@ -325,7 +325,7 @@ const Login = () => {
             <img
               className="fst-login-right-logo"
               src="/logo-full.webp"
-              alt="FullScopeTest"
+              alt="大熊AI测试平台"
               draggable={false}
             />
           </div>
@@ -571,7 +571,7 @@ const Login = () => {
         </div>
 
         <footer className="fst-login-right-copyright">
-          © 2024 FullScopeTest. All rights reserved.
+          © 2024 大熊AI测试平台. All rights reserved.
         </footer>
 
         {/* P31-7: LDAP 登录弹窗 */}

@@ -2,7 +2,7 @@
 
 ## 概述
 
-FullScopeTest 支持与 CI/CD 工具集成，实现自动化测试执行。支持三种触发方式：
+大熊AI测试平台 支持与 CI/CD 工具集成，实现自动化测试执行。支持三种触发方式：
 
 1. **API Token 触发** — 通过 REST API 触发测试执行
 2. **Webhook 触发** — 通过 Webhook Token 触发
@@ -39,9 +39,9 @@ curl https://your-domain.com/api/v1/test-runs/RUN_ID \
 ### 3. Python SDK
 
 ```python
-from fullscopetest import FullScopeTestClient
+from fullscopetest import 大熊AI测试平台Client
 
-client = FullScopeTestClient(
+client = 大熊AI测试平台Client(
     base_url="https://your-domain.com",
     token="YOUR_API_TOKEN"
 )

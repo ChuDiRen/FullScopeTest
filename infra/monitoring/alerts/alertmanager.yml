@@ -1,4 +1,4 @@
-﻿# FullScopeTest AlertManager 配置
+﻿# 大熊AI测试平台 AlertManager 配置
 #
 # 通知渠道配置：
 #   - Webhook（通用，支持钉钉/飞书/企业微信）

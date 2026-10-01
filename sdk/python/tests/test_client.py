@@ -1,5 +1,5 @@
 """
-FullScopeTest SDK 客户端测试
+大熊AI测试平台 SDK 客户端测试
 
 覆盖：客户端初始化、认证、请求方法、CLI 命令
 """
@@ -11,7 +11,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from fullscopetest.client import FullScopeTestClient
+from fullscopetest.client import 大熊AI测试平台Client
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -22,28 +22,28 @@ class TestClientInit:
     """客户端初始化测试"""
 
     def test_init_with_api_token(self):
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="test-token")
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="test-token")
         assert client.base_url == "http://localhost:8000"
         assert "Bearer test-token" in client._session.headers["Authorization"]
 
     def test_init_with_jwt_token(self):
-        client = FullScopeTestClient(base_url="http://localhost:8000", jwt_token="jwt-token")
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", jwt_token="jwt-token")
         assert "Bearer jwt-token" in client._session.headers["Authorization"]
 
     def test_init_no_token_raises(self):
         with pytest.raises(ValueError, match="必须提供"):
-            FullScopeTestClient(base_url="http://localhost:8000")
+            大熊AI测试平台Client(base_url="http://localhost:8000")
 
     def test_init_strips_trailing_slash(self):
-        client = FullScopeTestClient(base_url="http://localhost:8000/", api_token="t")
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000/", api_token="t")
         assert client.base_url == "http://localhost:8000"
 
     def test_init_custom_timeout(self):
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t", timeout=60)
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t", timeout=60)
         assert client.timeout == 60
 
     def test_init_custom_retries(self):
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t", max_retries=5)
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t", max_retries=5)
         assert client.max_retries == 5
 
 
@@ -62,7 +62,7 @@ class TestClientRequests:
         mock_resp.raise_for_status = MagicMock()
         mock_request.return_value = mock_resp
 
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t")
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t")
         result = client._get("/api/v1/projects")
         assert result["code"] == 200
         mock_request.assert_called_once()
@@ -75,7 +75,7 @@ class TestClientRequests:
         mock_resp.raise_for_status = MagicMock()
         mock_request.return_value = mock_resp
 
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t")
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t")
         result = client._post("/api/v1/projects", json={"name": "Test"})
         assert result["data"]["id"] == 1
 
@@ -90,7 +90,7 @@ class TestClientRequests:
         ok_resp.raise_for_status = MagicMock()
         mock_request.side_effect = [fail_resp, ok_resp]
 
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t", retry_delay=0.01)
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t", retry_delay=0.01)
         with patch("fullscopetest.client.time.sleep"):
             result = client._get("/api/v1/test")
         assert result["code"] == 200
@@ -102,7 +102,7 @@ class TestClientRequests:
         mock_resp.raise_for_status.side_effect = Exception("500")
         mock_request.return_value = mock_resp
 
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t", max_retries=2, retry_delay=0.01)
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t", max_retries=2, retry_delay=0.01)
         with patch("fullscopetest.client.time.sleep"):
             with pytest.raises(Exception):
                 client._get("/api/v1/test")
@@ -124,7 +124,7 @@ class TestClientMethods:
         mock_resp.raise_for_status = MagicMock()
         mock_request.return_value = mock_resp
 
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t")
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t")
         result = client.create_project("Test")
         assert result["data"]["name"] == "Test"
 
@@ -136,7 +136,7 @@ class TestClientMethods:
         mock_resp.raise_for_status = MagicMock()
         mock_request.return_value = mock_resp
 
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t")
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t")
         result = client.create_test_run(project_id=1, test_type="api")
         assert result["data"]["status"] == "pending"
 
@@ -148,7 +148,7 @@ class TestClientMethods:
         mock_resp.raise_for_status = MagicMock()
         mock_request.return_value = mock_resp
 
-        client = FullScopeTestClient(base_url="http://localhost:8000", api_token="t")
+        client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="t")
         result = client.import_postman(project_id=1, content='{"item": []}')
         assert result["data"]["imported"] == 3
 

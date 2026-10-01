@@ -203,7 +203,7 @@ def test_notification(config_id: int, user: User = Depends(_current_user)):
         webhook_url=config.webhook_url,
         event="test",
         title="通知测试",
-        content=f"这是一条来自 FullScopeTest 的测试通知（渠道: {config.channel}）",
+        content=f"这是一条来自 大熊AI测试平台 的测试通知（渠道: {config.channel}）",
         token=config.token,
     )
 

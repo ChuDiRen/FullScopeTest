@@ -1,4 +1,4 @@
-﻿# FullScopeTest Prometheus 告警规则
+﻿# 大熊AI测试平台 Prometheus 告警规则
 #
 # 使用方式：
 #   1. 在 prometheus.yml 中添加 rule_files 指向此文件

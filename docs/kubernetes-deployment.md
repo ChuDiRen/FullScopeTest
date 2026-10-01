@@ -2,7 +2,7 @@
 
 ## 概述
 
-FullScopeTest 提供 Helm Chart，支持一键部署到 Kubernetes 集群。
+大熊AI测试平台 提供 Helm Chart，支持一键部署到 Kubernetes 集群。
 
 ## 前置要求
 
@@ -16,8 +16,8 @@ FullScopeTest 提供 Helm Chart，支持一键部署到 Kubernetes 集群。
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/05Huang/FullScopeTest.git
-cd FullScopeTest
+git clone <你的仓库地址>
+cd 大熊AI测试平台
 ```
 
 ### 2. 创建 Secret

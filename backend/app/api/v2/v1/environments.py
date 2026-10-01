@@ -587,7 +587,7 @@ def export_environment_docker(env_id: int, user: User = Depends(_current_user)):
 
     # 构建 .env 文件内容
     env_lines = [
-        "# FullScopeTest 环境配置",
+        "# 大熊AI测试平台 环境配置",
         f"# 环境名称: {env.name}",
         f"# 导出时间: {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}",
         "",
@@ -598,7 +598,7 @@ def export_environment_docker(env_id: int, user: User = Depends(_current_user)):
 
     # 构建 docker-compose snippet
     compose_lines = [
-        "# FullScopeTest 环境配置片段",
+        "# 大熊AI测试平台 环境配置片段",
         "# 将以下内容添加到 docker-compose.yml 的 service 配置中",
         f"# 环境: {env.name}",
         "",

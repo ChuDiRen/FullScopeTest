@@ -1,4 +1,4 @@
-# FullScopeTest — Agent 工作说明
+# 大熊AI测试平台 — Agent 工作说明
 
 AI 驱动的全链路自动化测试平台（API 测试 / Web UI 自动化 / APP 测试 / 性能压测）。
 **后端为纯 FastAPI + SQLAlchemy 2.0（2026-09 起 Flask 已整体移除，仓库内零 flask 依赖）**，前端 React 18 + Vite + AntD 5。

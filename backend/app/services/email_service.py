@@ -46,7 +46,7 @@ class SmtpEmailBackend(EmailBackend):
 
     def send(self, to, subject, html_body, text_body=""):
         try:
-            from_name = os.environ.get("EMAIL_FROM_NAME", "FullScopeTest")
+            from_name = os.environ.get("EMAIL_FROM_NAME", "大熊AI测试平台")
             from_addr = os.environ.get("EMAIL_FROM", "noreply@example.com")
 
             msg = MIMEMultipart("alternative")
@@ -89,7 +89,7 @@ class SendGridEmailBackend(EmailBackend):
     def __init__(self):
         self.api_key = os.environ.get("SENDGRID_API_KEY", "")
         self.from_email = os.environ.get("EMAIL_FROM", "noreply@example.com")
-        self.from_name = os.environ.get("EMAIL_FROM_NAME", "FullScopeTest")
+        self.from_name = os.environ.get("EMAIL_FROM_NAME", "大熊AI测试平台")
 
     def send(self, to, subject, html_body, text_body=""):
         try:
@@ -156,14 +156,14 @@ class EmailService:
         frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
         reset_url = f"{frontend_url}/reset-password?token={reset_token}"
 
-        subject = "[FullScopeTest] 密码重置"
+        subject = "[大熊AI测试平台] 密码重置"
         html_body = _render_reset_email_html(username, reset_url)
         text_body = (
             f"您好 {username}，\n\n"
             f"您请求了密码重置。请点击以下链接重置密码：\n"
             f"{reset_url}\n\n"
             f"此链接 1 小时内有效。如果您没有请求重置密码，请忽略此邮件。\n\n"
-            f"—— FullScopeTest 团队"
+            f"—— 大熊AI测试平台 团队"
         )
 
         return self.send_email(to, subject, html_body, text_body)
@@ -177,7 +177,7 @@ def _render_reset_email_html(username, reset_url):
         '<div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;'
         'box-shadow:0 2px 12px rgba(0,0,0,0.08);overflow:hidden;">'
         '<div style="background:linear-gradient(135deg,#5FA59B,#3D6E66);padding:24px;text-align:center;">'
-        '<h1 style="color:#fff;margin:0;font-size:20px;">FullScopeTest</h1>'
+        '<h1 style="color:#fff;margin:0;font-size:20px;">大熊AI测试平台</h1>'
         '</div>'
         '<div style="padding:32px 24px;">'
         f'<p>您好 <strong>{username}</strong>，</p>'

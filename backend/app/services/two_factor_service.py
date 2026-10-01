@@ -105,7 +105,7 @@ class TwoFactorService:
         return codes
 
     def generate_provisioning_uri(self, secret: str, email: str,
-                                  issuer: str = "FullScopeTest") -> str:
+                                  issuer: str = "大熊AI测试平台") -> str:
         """
         生成 TOTP 配置 URI（用于生成 QR Code）
 

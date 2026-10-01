@@ -1,7 +1,7 @@
-# FullScopeTest — AI-Nowered Full-Stack Automated Testing Platform
+# 大熊AI测试平台 — AI-Nowered Full-Stack Automated Testing Platform
 
 <div align="center">
-  <img src="images/docs/banner.webp" alt="FullScopeTest Banner" width="100%" />
+  <img src="images/docs/banner.webp" alt="大熊AI测试平台 Banner" width="100%" />
 
   <br />
 
@@ -31,7 +31,7 @@
 
 ## About
 
-**FullScopeTest** is an AI-driven end-to-end automated testing platform covering API testing, Web UI automation, mobile APP testing, and performance testing. Built with an **AI-Native** design philosophy, it provides natural language orchestration, automatic script generation, intelligent error analysis and self-healing to lower the barrier of test authoring and maintenance.
+**大熊AI测试平台** is an AI-driven end-to-end automated testing platform covering API testing, Web UI automation, mobile APP testing, and performance testing. Built with an **AI-Native** design philosophy, it provides natural language orchestration, automatic script generation, intelligent error analysis and self-healing to lower the barrier of test authoring and maintenance.
 
 <div align="center">
   <img src="images/docs/dashboard.webp" alt="Dashboard Preview" width="80%" />
@@ -784,7 +784,7 @@ AI_ASSISTANT_API_KEY=your_api_key_here
 ## Project Structure
 
 ```text
-FullScopeTest/
+大熊AI测试平台/
 ├── backend/                    # Flask backend
 │   ├── app/
 │   │   ├── api/                # API routes (25 modules)
@@ -997,5 +997,5 @@ For deployment issues, usage questions, or business inquiries:
 This project is licensed under the [MIT License](LICENSE).
 
 <div align="center">
-  <sub>Built with love by FullScopeTest Team</sub>
+  <sub>Built with love by 大熊AI测试平台 Team</sub>
 </div>

@@ -17,7 +17,7 @@ export const E2E_USER = {
 };
 
 async function globalSetup(_config: FullConfig) {
-  console.log("\n🔧 FullScopeTest E2E Global Setup");
+  console.log("\n🔧 大熊AI测试平台 E2E Global Setup");
   console.log(`   API: ${API_URL}`);
 
   // 检查是否是生产环境测试（通过环境变量或 URL 判断）

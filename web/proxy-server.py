@@ -1,5 +1,5 @@
 """
-FullScopeTest 代理服务器
+大熊AI测试平台 代理服务器
 前端静态文件 + API 反向代理
 """
 import http.server
@@ -87,7 +87,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             print(f"[PROXY] {args[0]}")
 
 if __name__ == '__main__':
-    print(f"FullScopeTest 代理服务器启动")
+    print(f"大熊AI测试平台 代理服务器启动")
     print(f"  前端: http://localhost:{PORT}")
     print(f"  后端: {BACKEND_URL}")
     print(f"  按 Ctrl+C 停止")

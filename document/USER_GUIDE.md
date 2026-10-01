@@ -1,6 +1,6 @@
-# FullScopeTest 用户使用指南
+# 大熊AI测试平台 用户使用指南
 
-> 本文档为 FullScopeTest 全栈自动化测试平台的完整使用说明，包含快速开始和详细功能介绍
+> 本文档为 大熊AI测试平台 全栈自动化测试平台的完整使用说明，包含快速开始和详细功能介绍
 
 ---
 
@@ -286,7 +286,7 @@ API_KEY = your-secret-key-{{env}}
 
 **首次绑定：**
 1. 登录页面点击「使用 GitHub 登录」
-2. 授权 FullScopeTest 访问 GitHub
+2. 授权 大熊AI测试平台 访问 GitHub
 3. 自动创建或关联账户
 
 **后续登录：**
@@ -647,7 +647,7 @@ console.log("用户数量:", responseJson.data.total);
 2. 切换到「Network」标签
 3. 访问需要抓取的页面
 4. 右键选择「Save all as HAR」
-5. 在 FullScopeTest 点击「导入 HAR」
+5. 在 大熊AI测试平台 点击「导入 HAR」
 6. 选择保存的 HAR 文件
 7. 系统自动解析生成测试用例
 
@@ -1968,7 +1968,7 @@ ADB 地址: 127.0.0.1:5555
 
 **录制步骤：**
 1. 设备上应用启动
-2. 在 FullScopeTest 点击录制
+2. 在 大熊AI测试平台 点击录制
 3. 在设备上进行操作
 4. 系统自动记录操作步骤
 
@@ -3093,7 +3093,7 @@ Events: Push, Pull requests
 
 **验证 Webhook：**
 1. 在 GitHub 点击「Test」→「Push events」
-2. 查看 FullScopeTest 是否收到推送
+2. 查看 大熊AI测试平台 是否收到推送
 
 ---
 
@@ -3433,7 +3433,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 
 ### 21.1 数据工厂概述
 
-数据工厂是 FullScopeTest 的 AI 驱动测试数据生成工具，可以根据 Schema 配置或自然语言描述自动生成大量高质量的测试数据。
+数据工厂是 大熊AI测试平台 的 AI 驱动测试数据生成工具，可以根据 Schema 配置或自然语言描述自动生成大量高质量的测试数据。
 
 **访问路径：** 点击左侧菜单「数据工厂」
 
@@ -3601,7 +3601,7 @@ CSV 导出:
 
 ### 22.1 Flaky 测试概述
 
-Flaky 测试是指结果不稳定的测试用例，有时通过、有时失败。FullScopeTest 提供自动检测和统计分析功能。
+Flaky 测试是指结果不稳定的测试用例，有时通过、有时失败。大熊AI测试平台 提供自动检测和统计分析功能。
 
 **访问路径：** 点击左侧菜单「Flaky 测试」
 
@@ -3671,7 +3671,7 @@ Flaky 测试是指结果不稳定的测试用例，有时通过、有时失败�
 
 ### 23.1 文档生成概述
 
-FullScopeTest 可以根据已有的 API 测试用例自动生成 OpenAPI 文档，支持导出为 YAML 或 JSON 格式。
+大熊AI测试平台 可以根据已有的 API 测试用例自动生成 OpenAPI 文档，支持导出为 YAML 或 JSON 格式。
 
 **访问路径：** 点击左侧菜单「API 文档」
 
@@ -4304,4 +4304,4 @@ Webhook 调试器用于测试和调试 Webhook 配置，查看请求/响应详�
 ---
 
 *文档更新时间：2026-09-15*
-*FullScopeTest 版本：v1.0.0*
+*大熊AI测试平台 版本：v1.0.0*

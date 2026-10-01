@@ -1,12 +1,12 @@
-name: FullScopeTest
-description: Execute tests on FullScopeTest platform and report results
+name: 大熊AI测试平台
+description: Execute tests on 大熊AI测试平台 platform and report results
 
 inputs:
   api-token:
-    description: FullScopeTest API Token
+    description: 大熊AI测试平台 API Token
     required: true
   base-url:
-    description: FullScopeTest API base URL
+    description: 大熊AI测试平台 API base URL
     required: false
     default: https://api.fullscopetest.com
   project-id:
@@ -71,7 +71,7 @@ runs:
         TOTAL_CASES: ${{ steps.run-tests.outputs.total_cases }}
         FAILED_CASES: ${{ steps.run-tests.outputs.failed_cases }}
       run: |
-        COMMENT="## FullScopeTest Results
+        COMMENT="## 大熊AI测试平台 Results
 "
         COMMENT+="
 "

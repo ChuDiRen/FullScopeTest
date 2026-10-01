@@ -37,7 +37,7 @@ router = APIRouter(tags=["branding"])
 
 # 默认品牌配置（与 v1 一致）
 DEFAULT_BRANDING = {
-    "platform_name": "FullScopeTest",
+    "platform_name": "大熊AI测试平台",
     "logo_url": None,
     "favicon_url": None,
     "primary_color": "#5FA59B",

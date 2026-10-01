@@ -1,4 +1,4 @@
-<p align="center"><img src="images/fullscopetest_logo.png" alt="FullScopeTest" width="400" /></p>
+<p align="center"><img src="images/fullscopetest_logo.png" alt="大熊AI测试平台" width="400" /></p>
 <h2 align="center" style="font-weight: 600; font-size: 1.5rem;">AI-Native 全链路自动化测试平台</h2>
 <p align="center">
   <strong>AI 编排 · API 测试 · Web 自动化 · APP 测试 · 性能压测 · 智能报告</strong>
@@ -7,7 +7,6 @@
   <a href="README.md">中文</a> | <a href="README_EN.md">English</a>
 </p>
 <p align="center">
-  <a href="https://github.com/05Huang/FullScopeTest/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10+-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/typescript-5.x-3178C6?style=flat&logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://reactjs.org/"><img src="https://img.shields.io/badge/react-18-61DAFB?style=flat&logo=react&logoColor=black" alt="React"></a>
@@ -29,7 +28,7 @@
 
 ## 📖 项目简介
 
-**FullScopeTest** 是一个 AI 驱动的全链路自动化测试平台，覆盖 API 接口测试、Web UI 自动化、APP 移动端测试和性能压测四大领域。平台以 **AI-Native** 为核心设计理念，提供自然语言编排、脚本自动生成、智能错误分析与自愈等能力，降低测试编写与维护门槛。
+**大熊AI测试平台** 是一个 AI 驱动的全链路自动化测试平台，覆盖 API 接口测试、Web UI 自动化、APP 移动端测试和性能压测四大领域。平台以 **AI-Native** 为核心设计理念，提供自然语言编排、脚本自动生成、智能错误分析与自愈等能力，降低测试编写与维护门槛。
 
 ### 核心能力
 
@@ -46,7 +45,7 @@
 
 > 🚀 **快速入门** → [用户使用指南 (USER_GUIDE.md)](document/USER_GUIDE.md)
 
-欢迎使用 FullScopeTest！为帮助你快速上手平台，我们提供了完整的用户使用文档：
+欢迎使用 大熊AI测试平台！为帮助你快速上手平台，我们提供了完整的用户使用文档：
 
 ### 快速开始
 
@@ -133,11 +132,11 @@
 
 ---
 
-## 🏆 为什么选择 FullScopeTest？— 与 MeterSphere V3 对比
+## 🏆 为什么选择 大熊AI测试平台？— 与 MeterSphere V3 对比
 
-FullScopeTest 专为需要**全方位测试覆盖**的团队打造。我们不仅实现了传统测试平台的所有核心功能，更在以下关键维度**超越 MeterSphere V3**：
+大熊AI测试平台 专为需要**全方位测试覆盖**的团队打造。我们不仅实现了传统测试平台的所有核心功能，更在以下关键维度**超越 MeterSphere V3**：
 
-| 维度 | MeterSphere V3 | FullScopeTest | 说明 |
+| 维度 | MeterSphere V3 | 大熊AI测试平台 | 说明 |
 |------|---------------|---------------|------|
 | **UI 自动化** | ❌ 已移除 | ✅ Playwright + 视觉回归 | MeterSphere V3 主动放弃了 UI 自动化，我们做得更深更好 |
 | **性能测试** | ⚠️ 基础支持 | ✅ Locust + 实时大盘 + 告警 | 时间序列数据、分位数统计、历史对比、告警引擎 |
@@ -154,7 +153,7 @@ FullScopeTest 专为需要**全方位测试覆盖**的团队打造。我们不�
 
 #### 1. UI 自动化 — MeterSphere V3 主动放弃的领域
 
-MeterSphere V3 在 2024 年正式移除了 Web 自动化测试模块（原基于 Selenium），转而推荐使用外部工具。FullScopeTest 选择 **Playwright** 作为自动化引擎，带来：
+MeterSphere V3 在 2024 年正式移除了 Web 自动化测试模块（原基于 Selenium），转而推荐使用外部工具。大熊AI测试平台 选择 **Playwright** 作为自动化引擎，带来：
 
 - **更快的执行速度**：Playwright 基于 Chromium 内核，比 Selenium 快 2-3 倍
 - **更强的稳定性**：自动等待机制、网络拦截、多标签页支持
@@ -163,7 +162,7 @@ MeterSphere V3 在 2024 年正式移除了 Web 自动化测试模块（原基于
 
 #### 2. AI 能力真正工程化 — 不是 Prompt 包装
 
-| 特性 | 常见 AI 测试工具 | FullScopeTest |
+| 特性 | 常见 AI 测试工具 | 大熊AI测试平台 |
 |------|-----------------|---------------|
 | AI 调用监控 | ❌ 黑盒 | ✅ 每次调用记录 prompt/response/latency/tokens/cost |
 | Prompt 管理 | ❌ 硬编码 | ✅ 数据库版本化 + A/B 测试 |
@@ -174,7 +173,7 @@ MeterSphere V3 在 2024 年正式移除了 Web 自动化测试模块（原基于
 
 ```yaml
 # 一行集成到 GitHub Actions
-- uses: FullScopeTest/fullscope-test/.github/actions/fullscope-test@main
+- uses: 大熊AI测试平台/fullscope-test/.github/actions/fullscope-test@main
   with:
     server-url: ${{ secrets.FULLSCOPETEST_URL }}
     api-token: ${{ secrets.FULLSCOPETEST_TOKEN }}
@@ -940,7 +939,7 @@ cp -r dist/* /var/www/test.huangxuan.site/index/
 ## 🏗 项目结构
 
 ```text
-FullScopeTest/
+大熊AI测试平台/
 ├── backend/                    # FastAPI 后端核心服务
 │   ├── app/
 │   │   ├── api/
@@ -1277,14 +1276,14 @@ docker exec openresty openresty -s reload
 
 ## 🚀 GitHub Actions 集成
 
-FullScopeTest 提供官方 GitHub Action，可在 CI/CD 流程中自动运行测试。
+大熊AI测试平台 提供官方 GitHub Action，可在 CI/CD 流程中自动运行测试。
 
 ### 快速开始
 
 在你的项目中创建 `.github/workflows/test.yml`：
 
 ```yaml
-name: FullScopeTest CI
+name: 大熊AI测试平台 CI
 on: [push, pull_request]
 
 jobs:
@@ -1292,7 +1291,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: FullScopeTest/fullscope-test/.github/actions/fullscope-test@main
+      - uses: 大熊AI测试平台/fullscope-test/.github/actions/fullscope-test@main
         with:
           server-url: ${{ secrets.FULLSCOPETEST_URL }}
           api-token: ${{ secrets.FULLSCOPETEST_TOKEN }}
@@ -1304,7 +1303,7 @@ jobs:
 
 | 参数 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `server-url` | ✅ | - | FullScopeTest 服务器地址 |
+| `server-url` | ✅ | - | 大熊AI测试平台 服务器地址 |
 | `api-token` | ✅ | - | API Token（在 Settings → Tokens 创建） |
 | `test-suite-id` | ❌ | - | 指定测试套件 ID |
 | `quality-gate-id` | ❌ | - | Quality Gate ID，用于评估质量门禁 |
@@ -1324,7 +1323,7 @@ jobs:
 **带 Quality Gate 的 CI 流程：**
 
 ```yaml
-name: FullScopeTest CI with Quality Gate
+name: 大熊AI测试平台 CI with Quality Gate
 on: [push, pull_request]
 
 jobs:
@@ -1332,7 +1331,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: FullScopeTest/fullscope-test/.github/actions/fullscope-test@main
+      - uses: 大熊AI测试平台/fullscope-test/.github/actions/fullscope-test@main
         id: test
         with:
           server-url: ${{ secrets.FULLSCOPETEST_URL }}
@@ -1396,5 +1395,5 @@ jobs:
 本项目采用 [MIT License](LICENSE) 协议开源。
 
 <div align="center">
-  <sub>Built with ❤️ by FullScopeTest Team</sub>
+  <sub>Built with ❤️ by 大熊AI测试平台 Team</sub>
 </div>

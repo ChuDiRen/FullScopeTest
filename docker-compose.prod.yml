@@ -1,4 +1,4 @@
-# FullScopeTest production Docker Compose (OpenResty on host, services in Docker)
+# 大熊AI测试平台 production Docker Compose (OpenResty on host, services in Docker)
 
 version: '3.8'
 

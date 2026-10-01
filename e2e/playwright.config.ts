@@ -1,7 +1,7 @@
 ﻿import { defineConfig, devices } from "@playwright/test";
 
 /**
- * FullScopeTest E2E 测试配置
+ * 大熊AI测试平台 E2E 测试配置
  *
  * 运行前置条件：
  *   1. 后端运行在 http://localhost:5211

@@ -1,4 +1,4 @@
-# FullScopeTest - GitHub Actions Integration Template
+# 大熊AI测试平台 - GitHub Actions Integration Template
 # Copy to .github/workflows/api-test.yml
 
 name: API Tests

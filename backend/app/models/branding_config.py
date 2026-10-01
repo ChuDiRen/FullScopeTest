@@ -21,7 +21,7 @@ class BrandingConfig(Base):
 
     id = Column(Integer, primary_key=True)
     organization_id = Column(Integer, ForeignKey('organizations.id'), nullable=True, comment='组织 ID（NULL 为全局默认）')
-    platform_name = Column(String(100), default='FullScopeTest', comment='平台名称')
+    platform_name = Column(String(100), default='大熊AI测试平台', comment='平台名称')
     logo_url = Column(String(500), comment='Logo URL')
     favicon_url = Column(String(500), comment='Favicon URL')
     primary_color = Column(String(20), default='#5FA59B', comment='主色调')

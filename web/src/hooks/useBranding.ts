@@ -17,7 +17,7 @@ interface BrandingConfig {
 }
 
 const DEFAULT_BRANDING: BrandingConfig = {
-  platform_name: 'FullScopeTest',
+  platform_name: '大熊AI测试平台',
   logo_url: null,
   favicon_url: null,
   primary_color: '#5FA59B',

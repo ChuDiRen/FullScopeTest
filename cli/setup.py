@@ -1,11 +1,11 @@
-"""FullScopeTest CLI 安装配置"""
+"""大熊AI测试平台 CLI 安装配置"""
 
 from setuptools import setup, find_packages
 
 setup(
     name='fst-cli',
     version='1.0.0',
-    description='FullScopeTest CLI - 测试平台命令行工具',
+    description='大熊AI测试平台 CLI - 测试平台命令行工具',
     packages=find_packages(),
     python_requires='>=3.8',
     install_requires=[

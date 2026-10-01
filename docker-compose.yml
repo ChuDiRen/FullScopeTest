@@ -1,4 +1,4 @@
-# FullScopeTest 开发环境 Docker Compose
+# 大熊AI测试平台 开发环境 Docker Compose
 # 启动命令: docker-compose up -d
 
 version: '3.8'

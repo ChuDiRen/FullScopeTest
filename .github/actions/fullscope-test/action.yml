@@ -1,13 +1,13 @@
-name: 'FullScopeTest Action'
-description: 'Run FullScopeTest test suites and report results'
-author: 'FullScopeTest'
+name: '大熊AI测试平台 Action'
+description: 'Run 大熊AI测试平台 test suites and report results'
+author: '大熊AI测试平台'
 
 inputs:
   server-url:
-    description: 'FullScopeTest server URL'
+    description: '大熊AI测试平台 server URL'
     required: true
   api-token:
-    description: 'FullScopeTest API token for authentication'
+    description: '大熊AI测试平台 API token for authentication'
     required: true
   test-suite-id:
     description: 'Test suite ID to run'
@@ -24,7 +24,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Run FullScopeTest
+    - name: Run 大熊AI测试平台
       shell: bash
       env:
         FST_SERVER_URL: ${{ inputs.server-url }}
@@ -33,7 +33,7 @@ runs:
         FST_QUALITY_GATE_ID: ${{ inputs.quality-gate-id }}
         FST_PROJECT_ID: ${{ inputs.project-id }}
       run: |
-        echo "Starting FullScopeTest..."
+        echo "Starting 大熊AI测试平台..."
         echo "Server URL: $FST_SERVER_URL"
         echo "Project ID: $FST_PROJECT_ID"
         

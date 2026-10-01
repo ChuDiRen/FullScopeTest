@@ -2,7 +2,7 @@
   "name": "fullscopetest",
   "version": "1.0.0",
   "private": true,
-  "description": "FullScopeTest - AI 驱动的自动化测试平台",
+  "description": "大熊AI测试平台 - AI 驱动的自动化测试平台",
   "scripts": {
     "prepare": "husky install",
     "lint:staged": "lint-staged",

@@ -663,7 +663,7 @@ const Settings: React.FC = () => {
       <div style={{ padding: '8px 0' }}>
         <Form form={form} layout="vertical">
           <Form.Item label={t('branding.platformName') || '平台名称'} name="platform_name">
-            <Input placeholder="FullScopeTest" />
+            <Input placeholder="大熊AI测试平台" />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>

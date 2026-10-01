@@ -148,7 +148,7 @@ def generate_html_report(test_run):
         </div>
         
         <div class="footer">
-            <p>由 FullScopeTest 自动化测试平台生成 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>由 大熊AI测试平台 自动化测试平台生成 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         </div>
     </div>
 </body>
@@ -676,7 +676,7 @@ def export_report(run_id: int, request: Request, user: User = Depends(_current_u
         report_data = {
             "report": test_run.to_dict(),
             "generated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
-            "generated_by": "FullScopeTest",
+            "generated_by": "大熊AI测试平台",
         }
         return _success(data=report_data)
 

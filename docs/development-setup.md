@@ -11,7 +11,7 @@
 ```bash
 # 克隆项目
 git clone <repo-url>
-cd FullScopeTest
+cd 大熊AI测试平台
 
 # 启动所有服务（Redis + Flask 后端 + Vite 前端）
 docker-compose -f docker-compose.dev.yml up --build

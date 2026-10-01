@@ -1,7 +1,7 @@
-# FullScopeTest vs MeterSphere — 全面对比与迁移指南
+# 大熊AI测试平台 vs MeterSphere — 全面对比与迁移指南
 
-> 本文档全面对比 FullScopeTest 与 MeterSphere V3 / V2 的功能、性能和架构差异，
-> 并提供从 MeterSphere 迁移到 FullScopeTest 的详细指南。
+> 本文档全面对比 大熊AI测试平台 与 MeterSphere V3 / V2 的功能、性能和架构差异，
+> 并提供从 MeterSphere 迁移到 大熊AI测试平台 的详细指南。
 
 ---
 
@@ -41,13 +41,13 @@ MeterSphere 是FIT2CLOUD旗下的开源持续测试平台，提供测试管理�
 - **MeterSphere V2**（LTS 版本）：功能最全的版本，包含 Web UI 自动化测试（基于 Selenium）
 - **MeterSphere V3**（当前版本）：2024 年重构版本，基于 Java/Spring Boot，移除了 Web UI 自动化测试模块，精简了功能集
 
-### FullScopeTest 简介
+### 大熊AI测试平台 简介
 
-FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 API 接口测试、Web UI 自动化、APP 移动端测试和性能压测四大领域，以 AI 能力工程化为核心设计理念。
+大熊AI测试平台 是一个 **AI-Native 全链路自动化测试平台**，覆盖 API 接口测试、Web UI 自动化、APP 移动端测试和性能压测四大领域，以 AI 能力工程化为核心设计理念。
 
 ### 核心差异一句话总结
 
-> MeterSphere V3 主动放弃了 UI 自动化测试，FullScopeTest 不仅填补了这一空白，还在 AI 工程化、CI/CD 深度集成、视觉回归测试等维度建立了技术壁垒。
+> MeterSphere V3 主动放弃了 UI 自动化测试，大熊AI测试平台 不仅填补了这一空白，还在 AI 工程化、CI/CD 深度集成、视觉回归测试等维度建立了技术壁垒。
 
 ---
 
@@ -55,7 +55,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 ### 2.1 测试能力对比
 
-| 功能 | MeterSphere V2 | MeterSphere V3 | FullScopeTest |
+| 功能 | MeterSphere V2 | MeterSphere V3 | 大熊AI测试平台 |
 |------|:-:|:-:|:-:|
 | **API 接口测试** | ✅ 完整支持 | ✅ 完整支持 | ✅ 完整支持 |
 | HTTP/REST 请求编辑器 | ✅ | ✅ | ✅ |
@@ -90,7 +90,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 ### 2.2 AI 能力对比
 
-| 功能 | MeterSphere V2 | MeterSphere V3 | FullScopeTest |
+| 功能 | MeterSphere V2 | MeterSphere V3 | 大熊AI测试平台 |
 |------|:-:|:-:|:-:|
 | **AI 能力** | ❌ 无 | ⚠️ 基础集成 | ✅ AI-Native 工程化 |
 | AI 自然语言编排 | ❌ | ❌ | ✅ 输入目标 → 自动执行 |
@@ -107,7 +107,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 ### 2.3 CI/CD 集成对比
 
-| 功能 | MeterSphere V2 | MeterSphere V3 | FullScopeTest |
+| 功能 | MeterSphere V2 | MeterSphere V3 | 大熊AI测试平台 |
 |------|:-:|:-:|:-:|
 | **GitHub 集成** | ⚠️ 基础 Webhook | ⚠️ 基础 Webhook | ✅ 深度集成 |
 | GitHub App OAuth | ❌ | ❌ | ✅ 一键授权绑定 |
@@ -122,7 +122,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 ### 2.4 多租户与安全对比
 
-| 功能 | MeterSphere V2 | MeterSphere V3 | FullScopeTest |
+| 功能 | MeterSphere V2 | MeterSphere V3 | 大熊AI测试平台 |
 |------|:-:|:-:|:-:|
 | **多租户** | ✅ 组织/工作空间 | ✅ 组织 | ✅ 组织 + 成员关系 |
 | 数据隔离 | ✅ | ✅ | ✅ 中间件自动注入 |
@@ -140,7 +140,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 ### 2.5 基础设施与运维对比
 
-| 功能 | MeterSphere V2 | MeterSphere V3 | FullScopeTest |
+| 功能 | MeterSphere V2 | MeterSphere V3 | 大熊AI测试平台 |
 |------|:-:|:-:|:-:|
 | **部署方式** | Docker Compose | Docker Compose | Docker Compose + K8s |
 | **后端框架** | Java Spring Boot | Java Spring Boot | Flask + FastAPI (迁移中) |
@@ -171,7 +171,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 #### 健康检查端点
 
-| 指标 | MeterSphere V3 (Java) | FullScopeTest (Flask) | FullScopeTest (FastAPI) |
+| 指标 | MeterSphere V3 (Java) | 大熊AI测试平台 (Flask) | 大熊AI测试平台 (FastAPI) |
 |------|:---:|:---:|:---:|
 | 平均响应时间 | 5-15 ms | 15-25 ms | 5-10 ms |
 | P95 响应时间 | 10-25 ms | 30-50 ms | 10-20 ms |
@@ -180,7 +180,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 #### 认证接口
 
-| 指标 | MeterSphere V3 (Java) | FullScopeTest (Flask) | FullScopeTest (FastAPI) |
+| 指标 | MeterSphere V3 (Java) | 大熊AI测试平台 (Flask) | 大熊AI测试平台 (FastAPI) |
 |------|:---:|:---:|:---:|
 | 登录平均响应时间 | 50-100 ms | 80-120 ms | 40-70 ms |
 | 登录 P95 响应时间 | 100-180 ms | 150-200 ms | 80-120 ms |
@@ -188,21 +188,21 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 #### 数据查询接口
 
-| 指标 | MeterSphere V3 (Java) | FullScopeTest (Flask) | FullScopeTest (FastAPI) |
+| 指标 | MeterSphere V3 (Java) | 大熊AI测试平台 (Flask) | 大熊AI测试平台 (FastAPI) |
 |------|:---:|:---:|:---:|
 | 列表查询平均响应时间 | 20-40 ms | 25-45 ms | 12-25 ms |
 | 列表查询 P95 响应时间 | 40-70 ms | 50-85 ms | 22-40 ms |
 
 #### 数据写入接口
 
-| 指标 | MeterSphere V3 (Java) | FullScopeTest (Flask) | FullScopeTest (FastAPI) |
+| 指标 | MeterSphere V3 (Java) | 大熊AI测试平台 (Flask) | 大熊AI测试平台 (FastAPI) |
 |------|:---:|:---:|:---:|
 | 创建资源平均响应时间 | 30-60 ms | 45-75 ms | 25-42 ms |
 | 创建资源 P95 响应时间 | 60-100 ms | 80-130 ms | 45-70 ms |
 
 ### 3.2 并发处理能力对比
 
-| 场景 | MeterSphere V3 | FullScopeTest (Flask) | FullScopeTest (FastAPI) |
+| 场景 | MeterSphere V3 | 大熊AI测试平台 (Flask) | 大熊AI测试平台 (FastAPI) |
 |------|:---:|:---:|:---:|
 | 50 并发用户平均 RT | 80-150 ms | 120-180 ms | 60-90 ms |
 | 50 并发用户 P95 RT | 150-300 ms | 250-350 ms | 120-170 ms |
@@ -211,7 +211,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 ### 3.3 资源占用对比
 
-| 指标 | MeterSphere V3 (Java) | FullScopeTest (Python) |
+| 指标 | MeterSphere V3 (Java) | 大熊AI测试平台 (Python) |
 |------|:---:|:---:|
 | 最小内存占用 | 1-2 GB (JVM) | 256-512 MB |
 | Docker 镜像大小 | 500MB-1GB | 200-400 MB |
@@ -220,7 +220,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 > **说明**：
 > - MeterSphere V3 由于 Java/JVM 的特性，基础内存占用较高
-> - FullScopeTest Python 栈在资源效率上有明显优势，适合资源受限的部署环境
+> - 大熊AI测试平台 Python 栈在资源效率上有明显优势，适合资源受限的部署环境
 > - FastAPI 版本在高并发场景下性能接近甚至超过 MeterSphere V3 的 Java 后端
 
 ---
@@ -246,7 +246,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 └─────────────────────────────────────────────────────────┘
 ```
 
-#### FullScopeTest 架构
+#### 大熊AI测试平台 架构
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -284,7 +284,7 @@ FullScopeTest 是一个 **AI-Native 全链路自动化测试平台**，覆盖 AP
 
 ### 4.2 技术栈对比
 
-| 层级 | MeterSphere V3 | FullScopeTest |
+| 层级 | MeterSphere V3 | 大熊AI测试平台 |
 |------|---------------|---------------|
 | **后端语言** | Java 17 | Python 3.10+ |
 | **后端框架** | Spring Boot 3.x | Flask 3.0 + FastAPI (并行) |
@@ -322,7 +322,7 @@ Workspace (工作空间)
 │   └── Bug (缺陷跟踪)
 ```
 
-#### FullScopeTest 核心模型
+#### 大熊AI测试平台 核心模型
 
 ```
 Organization (组织) — 多租户
@@ -356,7 +356,7 @@ Organization (组织) — 多租户
 
 #### 关键模型差异
 
-| 差异点 | MeterSphere V3 | FullScopeTest |
+| 差异点 | MeterSphere V3 | 大熊AI测试平台 |
 |--------|---------------|---------------|
 | 多租户模型 | Workspace → Project | Organization → Project |
 | 接口定义 | ApiDefinition（独立模型） | ApiTestCase（含方法+URL） |
@@ -375,9 +375,9 @@ Organization (组织) — 多租户
 #### 环境准备
 
 ```bash
-# 1. 部署 FullScopeTest（参考 docs/deployment.md）
-git clone https://github.com/05Huang/FullScopeTest.git
-cd FullScopeTest
+# 1. 部署 大熊AI测试平台（参考 docs/deployment.md）
+git clone <你的仓库地址>
+cd 大熊AI测试平台
 docker-compose -f docker-compose.prod.yml up -d
 
 # 2. 确认服务健康
@@ -391,7 +391,7 @@ curl http://localhost:8000/health/ready
 # MeterSphere MySQL 数据备份
 mysqldump -u root -p metersphere > metersphere_backup_$(date +%Y%m%d).sql
 
-# FullScopeTest PostgreSQL 备份（迁移前先备份）
+# 大熊AI测试平台 PostgreSQL 备份（迁移前先备份）
 pg_dump -U fst_user fullscopetest > fst_backup_$(date +%Y%m%d).sql
 ```
 
@@ -401,7 +401,7 @@ MeterSphere V3 使用 MySQL 数据库，核心数据表结构如下：
 
 #### 关键表说明
 
-| MeterSphere 表名 | 说明 | 对应 FullScopeTest 模型 |
+| MeterSphere 表名 | 说明 | 对应 大熊AI测试平台 模型 |
 |------------------|------|----------------------|
 | `workspace` | 工作空间 | `organizations` |
 | `user` | 用户 | `users` |
@@ -457,14 +457,14 @@ LINES TERMINATED BY '\n';
 
 ### 5.3 数据导入方案
 
-FullScopeTest 提供 REST API 接口进行数据导入。迁移脚本示例（Python）：
+大熊AI测试平台 提供 REST API 接口进行数据导入。迁移脚本示例（Python）：
 
 ```python
 """
-MeterSphere → FullScopeTest 数据迁移脚本
+MeterSphere → 大熊AI测试平台 数据迁移脚本
 
 使用方法：
-1. 确保 MeterSphere 和 FullScopeTest 都已部署
+1. 确保 MeterSphere 和 大熊AI测试平台 都已部署
 2. 修改下方配置参数
 3. 运行：python scripts/migrate_from_metersphere.py
 """
@@ -479,7 +479,7 @@ from typing import Optional
 MS_API_BASE = "http://your-metersphere:8080/api/v1"  # MeterSphere API 地址
 MS_API_TOKEN = "your-ms-api-token"  # MeterSphere API Token
 
-FST_API_BASE = "http://your-fst:8000/api/v1"  # FullScopeTest API 地址
+FST_API_BASE = "http://your-fst:8000/api/v1"  # 大熊AI测试平台 API 地址
 FST_ADMIN_USER = "admin"
 FST_ADMIN_PASS = "your-admin-password"
 
@@ -493,7 +493,7 @@ def ms_request(method: str, path: str, **kwargs) -> dict:
     return resp.json()
 
 def fst_login() -> str:
-    """FullScopeTest 登录获取 Token"""
+    """大熊AI测试平台 登录获取 Token"""
     resp = requests.post(f"{FST_API_BASE}/auth/login", json={
         "username": FST_ADMIN_USER,
         "password": FST_ADMIN_PASS,
@@ -502,7 +502,7 @@ def fst_login() -> str:
     return resp.json()["access_token"]
 
 def fst_request(token: str, method: str, path: str, **kwargs) -> dict:
-    """FullScopeTest API 请求"""
+    """大熊AI测试平台 API 请求"""
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     resp = requests.request(method, f"{FST_API_BASE}{path}", headers=headers, **kwargs)
     resp.raise_for_status()
@@ -511,7 +511,7 @@ def fst_request(token: str, method: str, path: str, **kwargs) -> dict:
 # ===================== 迁移逻辑 =====================
 
 def migrate_workspaces_as_organizations(token: str):
-    """将 MeterSphere 工作空间迁移为 FullScopeTest 组织"""
+    """将 MeterSphere 工作空间迁移为 大熊AI测试平台 组织"""
     data = ms_request("GET", "/workspace/list")
     workspaces = data.get("listObject", data.get("itemNavigations", []))
 
@@ -609,7 +609,7 @@ def migrate_environments(token: str, project_map: dict):
         if not project_id:
             continue
 
-        # 将 MeterSphere 环境配置转换为 FullScopeTest 格式
+        # 将 MeterSphere 环境配置转换为 大熊AI测试平台 格式
         config = env.get("config", "{}")
         if isinstance(config, str):
             try:
@@ -640,11 +640,11 @@ def migrate_environments(token: str, project_map: dict):
 
 def main():
     print("=" * 60)
-    print("MeterSphere → FullScopeTest 数据迁移")
+    print("MeterSphere → 大熊AI测试平台 数据迁移")
     print("=" * 60)
 
     # 登录
-    print("\n1️⃣ 登录 FullScopeTest...")
+    print("\n1️⃣ 登录 大熊AI测试平台...")
     token = fst_login()
     print("  ✅ 登录成功")
 
@@ -668,10 +668,10 @@ def main():
     print("✅ 迁移完成！")
     print("=" * 60)
     print("\n⚠️ 注意事项：")
-    print("  1. MeterSphere 的测试计划需要在 FullScopeTest 中手动重建")
+    print("  1. MeterSphere 的测试计划需要在 大熊AI测试平台 中手动重建")
     print("  2. 自定义字段暂不支持自动迁移")
-    print("  3. 建议迁移后在 FullScopeTest 中手动验证数据完整性")
-    print("  4. FullScopeTest 独有的功能（AI、视觉回归等）需另行配置")
+    print("  3. 建议迁移后在 大熊AI测试平台 中手动验证数据完整性")
+    print("  4. 大熊AI测试平台 独有的功能（AI、视觉回归等）需另行配置")
 
 if __name__ == "__main__":
     main()
@@ -679,9 +679,9 @@ if __name__ == "__main__":
 
 ### 5.4 API 路径映射表
 
-以下是 MeterSphere API 和 FullScopeTest API 的路径映射参考：
+以下是 MeterSphere API 和 大熊AI测试平台 API 的路径映射参考：
 
-| MeterSphere API | MeterSphere 说明 | FullScopeTest API | FullScopeTest 说明 |
+| MeterSphere API | MeterSphere 说明 | 大熊AI测试平台 API | 大熊AI测试平台 说明 |
 |-----------------|------------------|-------------------|-------------------|
 | `POST /api/login` | 登录 | `POST /api/v1/auth/login` | 登录 |
 | `GET /api/user/get` | 获取当前用户 | `GET /api/v1/auth/me` | 获取用户信息 |
@@ -704,7 +704,7 @@ if __name__ == "__main__":
 
 #### Q1: MeterSphere 的 BeanShell 前置/后置脚本如何迁移？
 
-MeterSphere V2/V3 使用 BeanShell（Java 语法）编写前置/后置脚本，FullScopeTest 使用 Python 语法。
+MeterSphere V2/V3 使用 BeanShell（Java 语法）编写前置/后置脚本，大熊AI测试平台 使用 Python 语法。
 
 **迁移方法**：
 
@@ -715,7 +715,7 @@ vars.put("Authorization", "Bearer " + token);
 ```
 
 ```python
-# FullScopeTest Python 等效脚本
+# 大熊AI测试平台 Python 等效脚本
 import requests
 resp = requests.post(f"{base_url}/auth/login", json={"username": user, "password": pwd})
 token = resp.json()["access_token"]
@@ -724,27 +724,27 @@ variables["Authorization"] = f"Bearer {token}"
 
 #### Q2: MeterSphere 的自定义字段如何处理？
 
-MeterSphere 支持自定义字段（如优先级、标签等），FullScopeTest 目前使用内置字段体系。
+MeterSphere 支持自定义字段（如优先级、标签等），大熊AI测试平台 目前使用内置字段体系。
 
 **迁移建议**：
 - 将 MeterSphere 自定义字段的关键信息写入用例名称或描述中
-- 使用 FullScopeTest 的环境变量存储元数据
+- 使用 大熊AI测试平台 的环境变量存储元数据
 - 后续版本将支持自定义字段扩展
 
 #### Q3: MeterSphere 的缺陷管理功能如何迁移？
 
-MeterSphere V3 集成了禅道等缺陷管理工具。FullScopeTest 聚焦于测试执行和报告，暂不内置缺陷跟踪。
+MeterSphere V3 集成了禅道等缺陷管理工具。大熊AI测试平台 聚焦于测试执行和报告，暂不内置缺陷跟踪。
 
 **迁移建议**：
 - 通过 Webhook 触发器将测试失败自动推送到 Jira/GitHub Issues
-- 使用 FullScopeTest 的 API Token 集成外部缺陷管理工具
+- 使用 大熊AI测试平台 的 API Token 集成外部缺陷管理工具
 
 #### Q4: MeterSphere 的 JMeter 脚本如何迁移？
 
-MeterSphere 使用 JMeter (XML) 格式的性能测试脚本，FullScopeTest 使用 Locust (Python) 格式。
+MeterSphere 使用 JMeter (XML) 格式的性能测试脚本，大熊AI测试平台 使用 Locust (Python) 格式。
 
 **迁移方法**：
-使用 FullScopeTest 的 **NL2Script AI 功能**将 JMeter 测试计划描述转换为 Locust 脚本：
+使用 大熊AI测试平台 的 **NL2Script AI 功能**将 JMeter 测试计划描述转换为 Locust 脚本：
 
 ```
 输入：「对 https://api.example.com/users 接口进行压测，
@@ -775,20 +775,20 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/environments
 
 | 场景 | 推荐度 | 理由 |
 |------|:------:|------|
-| 需要 Web UI 自动化测试 | ⭐⭐⭐⭐⭐ | MeterSphere V3 已移除此功能，FullScopeTest 提供 Playwright + 视觉回归 |
-| 需要 AI 辅助测试 | ⭐⭐⭐⭐⭐ | FullScopeTest 独有的 AI-Native 能力，MeterSphere 无对应功能 |
+| 需要 Web UI 自动化测试 | ⭐⭐⭐⭐⭐ | MeterSphere V3 已移除此功能，大熊AI测试平台 提供 Playwright + 视觉回归 |
+| 需要 AI 辅助测试 | ⭐⭐⭐⭐⭐ | 大熊AI测试平台 独有的 AI-Native 能力，MeterSphere 无对应功能 |
 | 需要深度 CI/CD 集成 | ⭐⭐⭐⭐⭐ | GitHub Action + Quality Gate + Check Run 回写，远超 MeterSphere |
 | 需要性能测试增强 | ⭐⭐⭐⭐ | 时间序列数据、分位数统计、历史对比、告警引擎 |
 | 资源受限的部署环境 | ⭐⭐⭐⭐ | Python 栈资源占用更低（2 CPU / 4 GB RAM vs 4 CPU / 8 GB RAM） |
-| 需要 APP 移动端测试 | ⭐⭐⭐⭐ | FullScopeTest 支持 Appium，MeterSphere 不支持 |
-| 需要轻量化开源协议 | ⭐⭐⭐ | MIT 协议（FullScopeTest）vs GPLv3（MeterSphere），对商业集成更友好 |
+| 需要 APP 移动端测试 | ⭐⭐⭐⭐ | 大熊AI测试平台 支持 Appium，MeterSphere 不支持 |
+| 需要轻量化开源协议 | ⭐⭐⭐ | MIT 协议（大熊AI测试平台）vs GPLv3（MeterSphere），对商业集成更友好 |
 
 ### 暂不建议迁移的场景
 
 | 场景 | 推荐度 | 理由 |
 |------|:------:|------|
 | 深度依赖 MeterSphere 生态 | ⭐⭐ | 如大量使用禅道集成、X-Pack 扩展等 |
-| 需要成熟的缺陷跟踪 | ⭐⭐ | MeterSphere 有缺陷管理模块，FullScopeTest 暂无 |
+| 需要成熟的缺陷跟踪 | ⭐⭐ | MeterSphere 有缺陷管理模块，大熊AI测试平台 暂无 |
 | Java 技术栈团队 | ⭐⭐ | 如团队以 Java 为主，MeterSphere 更易维护 |
 | 大规模自定义字段需求 | ⭐⭐ | MeterSphere 自定义字段更灵活 |
 
@@ -796,7 +796,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/environments
 
 ```
 阶段 1（1-2 周）：并行部署
-├── 部署 FullScopeTest 环境
+├── 部署 大熊AI测试平台 环境
 ├── 配置项目和环境变量
 └── 导入核心 API 用例
 
@@ -827,13 +827,12 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/environments
 
 | MeterSphere 版本 | 状态 | 迁移建议 |
 |-----------------|------|---------|
-| MeterSphere V3 (LTS) | 活跃维护 | 建议迁移至 FullScopeTest 以获取 AI 和 UI 自动化能力 |
+| MeterSphere V3 (LTS) | 活跃维护 | 建议迁移至 大熊AI测试平台 以获取 AI 和 UI 自动化能力 |
 | MeterSphere V2 (LTS) | 维护模式 | 建议迁移，V2 的 Selenium 已过时 |
 | MeterSphere V1 | 已停止维护 | 强烈建议迁移 |
 
 ### B. 参考链接
 
-- FullScopeTest GitHub: https://github.com/05Huang/FullScopeTest
 - MeterSphere 官网: https://metersphere.io
 - MeterSphere GitHub: https://github.com/metersphere/metersphere
 - Playwright 文档: https://playwright.dev

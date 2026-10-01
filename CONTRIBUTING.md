@@ -1,12 +1,12 @@
 # 贡献指南
 
-感谢您对 FullScopeTest 项目的关注！我们欢迎各种形式的贡献。
+感谢您对 大熊AI测试平台 项目的关注！我们欢迎各种形式的贡献。
 
 ## 如何贡献
 
 ### 报告 Bug
 
-1. 在 [GitHub Issues](https://github.com/05Huang/FullScopeTest/issues) 中搜索是否已有相同问题
+1. 在 项目 Issues 中搜索是否已有相同问题
 2. 如果没有，创建一个新的 Issue，包含：
    - 清晰的问题描述
    - 复现步骤（环境信息、操作步骤、预期行为、实际行为）
@@ -14,7 +14,7 @@
 
 ### 建议新功能
 
-1. 在 [GitHub Issues](https://github.com/05Huang/FullScopeTest/issues) 中创建 Feature Request
+1. 在 项目 Issues 中创建 Feature Request
 2. 说明使用场景和预期效果
 3. 等待维护者确认后开始开发
 
@@ -42,8 +42,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/05Huang/FullScopeTest.git
-cd FullScopeTest
+git clone <你的仓库地址>
+cd 大熊AI测试平台
 
 # === 后端 ===
 cd backend
@@ -143,4 +143,4 @@ npm run test             # 运行测试
 
 ## 问题？
 
-如有疑问，请在 [GitHub Issues](https://github.com/05Huang/FullScopeTest/issues) 中提问。
+如有疑问，请在 项目 Issues 中提问。

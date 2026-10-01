@@ -105,7 +105,7 @@ class TestPostmanExport:
             },
         }
         collection = _generate_postman_collection(schema)
-        assert collection["info"]["name"] == "FullScopeTest API v2"
+        assert collection["info"]["name"] == "大熊AI测试平台 API v2"
         assert collection["auth"]["type"] == "bearer"
         assert len(collection["item"]) >= 1
 
@@ -143,7 +143,7 @@ class TestMeterSphereExport:
             "components": {"schemas": {}},
         }
         result = _generate_metersphere_format(schema)
-        assert result["project_name"] == "FullScopeTest"
+        assert result["project_name"] == "大熊AI测试平台"
         assert len(result["modules"]) >= 1
         assert "import_time" in result
 

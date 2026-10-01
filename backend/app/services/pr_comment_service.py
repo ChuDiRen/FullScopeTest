@@ -70,7 +70,7 @@ class PRCommentService:
 
         status_icon = "✅" if failed == 0 else "❌"
         lines = [
-            f"## {status_icon} FullScopeTest Results",
+            f"## {status_icon} 大熊AI测试平台 Results",
             "",
             "| Metric | Value |",
             "|--------|-------|",

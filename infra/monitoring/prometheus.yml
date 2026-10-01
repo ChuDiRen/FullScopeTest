@@ -1,5 +1,5 @@
 # Prometheus 配置文件
-# FullScopeTest 监控配置
+# 大熊AI测试平台 监控配置
 
 global:
   scrape_interval: 15s
@@ -17,7 +17,7 @@ alerting:
             - "alertmanager:9093"
 
 scrape_configs:
-  # FullScopeTest 后端应用 (Docker 环境)
+  # 大熊AI测试平台 后端应用 (Docker 环境)
   - job_name: "fullscopetest-backend"
     metrics_path: "/metrics"
     static_configs:
@@ -26,7 +26,7 @@ scrape_configs:
           service: "fullscopetest-backend"
           environment: "development"
 
-  # FullScopeTest 后端应用 (本地环境)
+  # 大熊AI测试平台 后端应用 (本地环境)
   # - job_name: "fullscopetest-backend-local"
   #   metrics_path: "/metrics"
   #   static_configs:

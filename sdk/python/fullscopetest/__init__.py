@@ -1,12 +1,12 @@
 """
-FullScopeTest Python SDK
+大熊AI测试平台 Python SDK
 
-提供 FullScopeTestClient 类，用于 CI/CD 集成和自动化。
+提供 大熊AI测试平台Client 类，用于 CI/CD 集成和自动化。
 
 用法：
-    from fullscopetest import FullScopeTestClient
+    from fullscopetest import 大熊AI测试平台Client
 
-    client = FullScopeTestClient(base_url="http://localhost:8000", api_token="your-token")
+    client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="your-token")
 
     # 创建测试运行
     run = client.create_test_run(project_id=1, test_type="api")
@@ -18,7 +18,7 @@ FullScopeTest Python SDK
     case = client.create_test_case(project_id=1, name="Login Test", method="POST", url="https://api.example.com/login")
 """
 
-from .client import FullScopeTestClient
+from .client import 大熊AI测试平台Client
 
 __version__ = "1.0.0"
-__all__ = ["FullScopeTestClient"]
+__all__ = ["大熊AI测试平台Client"]

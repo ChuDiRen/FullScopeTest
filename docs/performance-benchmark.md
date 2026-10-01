@@ -1,8 +1,8 @@
-# FullScopeTest 性能基准测试报告
+# 大熊AI测试平台 性能基准测试报告
 
 ## 概述
 
-本报告记录了 FullScopeTest 平台 Flask (v1) 和 FastAPI (v2) 接口的性能基准测试结果。
+本报告记录了 大熊AI测试平台 平台 Flask (v1) 和 FastAPI (v2) 接口的性能基准测试结果。
 
 测试目标：验证 FastAPI 版本在相同并发条件下，P95 响应时间比 Flask 版本低 30%。
 

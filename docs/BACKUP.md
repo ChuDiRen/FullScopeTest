@@ -2,7 +2,7 @@
 
 ## 概述
 
-FullScopeTest 提供自动化的数据备份方案，支持 PostgreSQL 数据库、Redis 缓存和文件存储的备份与恢复。
+大熊AI测试平台 提供自动化的数据备份方案，支持 PostgreSQL 数据库、Redis 缓存和文件存储的备份与恢复。
 
 ## 备份策略
 

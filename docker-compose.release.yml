@@ -1,4 +1,4 @@
-# FullScopeTest v1.0.0-rc1 Release Docker Compose
+# 大熊AI测试平台 v1.0.0-rc1 Release Docker Compose
 # 固定版本号的生产部署配置
 # 启动命令: docker-compose -f docker-compose.release.yml up -d
 

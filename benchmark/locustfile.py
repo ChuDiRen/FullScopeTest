@@ -1,5 +1,5 @@
 """
-FullScopeTest 性能基准测试
+大熊AI测试平台 性能基准测试
 
 使用 Locust 对 Flask (v1) 和 FastAPI (v2) 接口进行性能对比测试
 """

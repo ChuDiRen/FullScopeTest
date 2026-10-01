@@ -633,7 +633,7 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "FullScopeTest Overview",
+  "title": "大熊AI测试平台 Overview",
   "uid": "fullscopetest-overview",
   "version": 1
 }

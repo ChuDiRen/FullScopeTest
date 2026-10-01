@@ -84,7 +84,7 @@ def _generate_postman_collection(openapi_schema):
             grouped[tag] = []
         grouped[tag].extend(item["item"])
     grouped_items = [{"name": tag, "item": tag_items} for tag, tag_items in sorted(grouped.items())]
-    return {"info": {"name": "FullScopeTest API v2", "description": openapi_schema.get("info", {}).get("description", "") + "\n\n## Authentication\nAll endpoints require Bearer token authentication except for login and register.", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json", "_exporter_id": "fullscopetest"}, "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{access_token}}", "type": "string"}]}, "variable": [{"key": "base_url", "value": "http://localhost:8000", "type": "string"}, {"key": "access_token", "value": "", "type": "string"}], "item": grouped_items}
+    return {"info": {"name": "大熊AI测试平台 API v2", "description": openapi_schema.get("info", {}).get("description", "") + "\n\n## Authentication\nAll endpoints require Bearer token authentication except for login and register.", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json", "_exporter_id": "fullscopetest"}, "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{access_token}}", "type": "string"}]}, "variable": [{"key": "base_url", "value": "http://localhost:8000", "type": "string"}, {"key": "access_token", "value": "", "type": "string"}], "item": grouped_items}
 
 def _generate_metersphere_format(openapi_schema):
     paths = openapi_schema.get("paths", {})
@@ -138,7 +138,7 @@ def _generate_metersphere_format(openapi_schema):
         if tag not in merged:
             merged[tag] = {"name": tag, "apis": []}
         merged[tag]["apis"].extend(mod["apis"])
-    return {"project_name": "FullScopeTest", "version": "2.0.0", "description": openapi_schema.get("info", {}).get("description", ""), "modules": list(merged.values()), "import_time": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"}
+    return {"project_name": "大熊AI测试平台", "version": "2.0.0", "description": openapi_schema.get("info", {}).get("description", ""), "modules": list(merged.values()), "import_time": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"}
 
 @router.get("/openapi/postman", summary="导出 Postman Collection", description="将当前 OpenAPI schema 转换为 Postman Collection v2.1 格式。", response_class=JSONResponse)
 async def export_postman_collection(request: Request):

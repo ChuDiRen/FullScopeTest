@@ -1,5 +1,5 @@
 """
-FullScopeTest FastAPI 主应用（唯一生产后端，零 Flask）
+大熊AI测试平台 FastAPI 主应用（唯一生产后端，零 Flask）
 
 - /api/v1/* : 原 Flask 蓝图的等价实现（app/api/v2/v1/，路径 100% 兼容）
 - /api/v2/* : FastAPI 原生增强接口（app/api/v2/）
@@ -77,8 +77,8 @@ def create_fastapi_app(config_name: str = None) -> FastAPI:
     is_production = cfg.get("CONFIG_NAME") == "production"
 
     app = FastAPI(
-        title="FullScopeTest API",
-        description="FullScopeTest 自动化测试平台后端 API（v1 兼容 + v2 增强）",
+        title="大熊AI测试平台 API",
+        description="大熊AI测试平台 自动化测试平台后端 API（v1 兼容 + v2 增强）",
         version="2.1.0",
         docs_url="/api/v2/docs",
         redoc_url="/api/v2/redoc",

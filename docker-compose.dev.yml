@@ -1,4 +1,4 @@
-# FullScopeTest 本地开发环境
+# 大熊AI测试平台 本地开发环境
 # 一键启动：docker-compose -f docker-compose.dev.yml up
 # 清理环境：docker-compose -f docker-compose.dev.yml down -v
 

@@ -722,7 +722,7 @@ class TestBranding:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["code"] == 200
-        assert body["data"]["platform_name"] == "FullScopeTest"
+        assert body["data"]["platform_name"] == "大熊AI测试平台"
         assert body["data"]["primary_color"] == "#5FA59B"
 
     def test_update_requires_admin(self, v2_client, app, make_user, auth_headers):
@@ -737,7 +737,7 @@ class TestBranding:
 
         # 全局配置不被修改
         resp = v2_client.get("/api/v1/branding/config")
-        assert resp.json()["data"]["platform_name"] == "FullScopeTest"
+        assert resp.json()["data"]["platform_name"] == "大熊AI测试平台"
 
     def test_admin_updates_config(self, v2_client, app, make_user, auth_headers):
         admin = make_user(_uname(), role="admin")

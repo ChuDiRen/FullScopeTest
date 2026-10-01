@@ -1,14 +1,14 @@
 """
-FullScopeTest API 客户端
+大熊AI测试平台 API 客户端
 
 支持 API Token 和 JWT 两种认证方式，自动重试和超时处理。
 
 用法：
     # API Token 认证
-    client = FullScopeTestClient(base_url="http://localhost:8000", api_token="your-token")
+    client = 大熊AI测试平台Client(base_url="http://localhost:8000", api_token="your-token")
 
     # JWT 认证
-    client = FullScopeTestClient(base_url="http://localhost:8000", jwt_token="your-jwt")
+    client = 大熊AI测试平台Client(base_url="http://localhost:8000", jwt_token="your-jwt")
 
     # 创建测试运行
     run = client.create_test_run(project_id=1, test_type="api")
@@ -18,9 +18,9 @@ import requests
 from typing import Any, Dict, List, Optional
 
 
-class FullScopeTestClient:
+class 大熊AI测试平台Client:
     """
-    FullScopeTest API 客户端
+    大熊AI测试平台 API 客户端
 
     Args:
         base_url: API 基础 URL（如 http://localhost:8000）

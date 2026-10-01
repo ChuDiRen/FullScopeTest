@@ -26,7 +26,7 @@ class TestV2OpenAPIDocs:
         data = resp.json()
         assert "info" in data
         assert "item" in data
-        assert data["info"]["name"] == "FullScopeTest API v2"
+        assert data["info"]["name"] == "大熊AI测试平台 API v2"
         assert data["info"]["schema"] == "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 
     def test_postman_export_has_auth(self, v2_client):
@@ -53,7 +53,7 @@ class TestV2OpenAPIDocs:
         data = resp.json()
         assert "project_name" in data
         assert "modules" in data
-        assert data["project_name"] == "FullScopeTest"
+        assert data["project_name"] == "大熊AI测试平台"
         assert data["version"] == "2.0.0"
 
     def test_metersphere_export_has_modules(self, v2_client):

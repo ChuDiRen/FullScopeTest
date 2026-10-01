@@ -2,7 +2,7 @@
   "name": "fullscopetest-e2e",
   "version": "1.0.0",
   "private": true,
-  "description": "FullScopeTest E2E 测试（Playwright）",
+  "description": "大熊AI测试平台 E2E 测试（Playwright）",
   "scripts": {
     "test": "playwright test",
     "test:ui": "playwright test --ui",

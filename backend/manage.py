@@ -27,7 +27,7 @@ def _ensure_runtime():
 
 @click.group()
 def cli():
-    """FullScopeTest 管理命令"""
+    """大熊AI测试平台 管理命令"""
     pass
 
 

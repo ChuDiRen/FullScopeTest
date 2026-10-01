@@ -59,7 +59,7 @@ def upgrade():
     op.create_table('branding_configs',
         sa.Column('id', sa.Integer(), primary_key=True),
         sa.Column('organization_id', sa.Integer(), sa.ForeignKey('organizations.id'), nullable=False),
-        sa.Column('platform_name', sa.String(100), server_default='FullScopeTest'),
+        sa.Column('platform_name', sa.String(100), server_default='大熊AI测试平台'),
         sa.Column('logo_url', sa.String(500)),
         sa.Column('favicon_url', sa.String(500)),
         sa.Column('primary_color', sa.String(20), server_default='#2D6A64'),

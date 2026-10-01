@@ -1,6 +1,6 @@
-# FullScopeTest 部署文档
+# 大熊AI测试平台 部署文档
 
-> 本文档涵盖 FullScopeTest 的完整部署流程，包括本地开发环境、测试环境和生产环境。
+> 本文档涵盖 大熊AI测试平台 的完整部署流程，包括本地开发环境、测试环境和生产环境。
 
 ---
 
@@ -56,8 +56,8 @@
 ### 2.1 快速启动
 
 ```bash
-git clone https://github.com/05Huang/FullScopeTest.git
-cd FullScopeTest
+git clone <你的仓库地址>
+cd 大熊AI测试平台
 cp .env.example .env
 docker compose up -d
 docker compose ps
@@ -135,7 +135,7 @@ apt install -y docker-compose-plugin
 ```bash
 mkdir -p /opt/apps/fullscopetest/{repo,data,logs}
 cd /opt/apps/fullscopetest/repo
-git clone https://github.com/05Huang/FullScopeTest.git .
+git clone <你的仓库地址> .
 ```
 
 #### 步骤 4：配置环境变量
@@ -509,7 +509,7 @@ docker volume rm fullscopetest_redis_data fullscopetest_backend_uploads
 
 ## 11. 安全特性
 
-FullScopeTest 内置多层安全防护，部署后自动生效。
+大熊AI测试平台 内置多层安全防护，部署后自动生效。
 
 ### 11.1 脚本沙箱
 

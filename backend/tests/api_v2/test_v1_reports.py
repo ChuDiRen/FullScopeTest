@@ -366,7 +366,7 @@ class TestReportsExport:
         )
         assert resp.status_code == 200, resp.text
         data = resp.json()["data"]
-        assert data["generated_by"] == "FullScopeTest"
+        assert data["generated_by"] == "大熊AI测试平台"
         assert data["report"]["id"] == run_id
         assert "generated_at" in data
 
