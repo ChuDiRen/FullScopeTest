@@ -2,10 +2,10 @@
 
 ## 技术栈
 
-- **框架**: Flask 3.0
+- **框架**: FastAPI + uvicorn（纯 ASGI，零 Flask）
 - **数据库**: PostgreSQL 15
-- **ORM**: SQLAlchemy 2.0
-- **认证**: JWT (Flask-JWT-Extended)
+- **ORM**: SQLAlchemy 2.0（声明式，`db.Model`/`Model.query` 兼容门面）
+- **认证**: PyJWT（`app/core/jwt.py`，token 双通道：httpOnly Cookie + Bearer）
 - **Web 自动化**: Playwright
 - **性能测试**: Locust
 - **任务队列**: Celery + Redis
@@ -14,18 +14,23 @@
 
 ```
 backend/
-├── app/                    # 应用核心
-│   ├── api/                # API 接口
-│   ├── models/             # 数据模型
+├── app/
+│   ├── fastapi_app.py      # FastAPI 主应用入口（create_fastapi_app）
+│   ├── api/
+│   │   ├── v2/v1/          # 主路由层（路径 100% 兼容 /api/v1/*，自动发现注册）
+│   │   └── v2/             # FastAPI 原生 v2 增强接口（/api/v2/*）
+│   ├── core/               # runtime（配置/上下文）、jwt、passwords（scrypt）
+│   ├── models/             # SQLAlchemy 模型（models/__init__.py 统一注册）
 │   ├── services/           # 业务逻辑
-│   ├── tasks/              # 异步任务
-│   ├── utils/              # 工具函数
-│   ├── __init__.py         # 应用工厂
-│   ├── config.py           # 配置管理
-│   └── extensions.py       # Flask 扩展
-├── migrations/             # 数据库迁移
-├── manage.py               # CLI 管理命令
-├── wsgi.py                 # WSGI 入口
+│   ├── tasks/              # Celery 任务
+│   ├── utils/              # 工具函数（sandbox.py 为高危区）
+│   ├── config.py           # 配置管理（按 APP_ENV 选择配置分支）
+│   ├── database.py         # 纯 SQLAlchemy 数据层（ContextVar 会话作用域）
+│   └── extensions.py       # 扩展实例（db 等）
+├── migrations/             # Alembic 迁移（alembic.ini + env.py，零 Flask）
+├── init_db.py              # 建表 + 管理员初始化
+├── manage.py               # CLI 管理命令（click）
+├── run_fastapi.py          # 开发启动入口
 └── requirements.txt        # Python 依赖
 ```
 
@@ -58,24 +63,22 @@ copy .env.example .env
 # 确保 PostgreSQL 已启动，并创建数据库
 # 创建数据库: CREATE DATABASE fullscopetest_dev;
 
-# 初始化数据库表
-python manage.py init_db
-
-# 创建管理员账号
+# 初始化数据库表 + 管理员（密码必须显式提供）
+INIT_ADMIN_USERNAME=admin INIT_ADMIN_EMAIL=admin@example.com INIT_ADMIN_PASSWORD=<你的密码> python init_db.py
+# 或使用交互式 CLI
 python manage.py create_admin
 ```
 
 ### 5. 启动开发服务器
 
 ```bash
-flask run --port=5211
-# 或
-python app.py
+python run_fastapi.py
+# 默认端口 5211，与 web/vite.config.ts 代理对齐
 ```
 
 ## API 文档
 
-启动服务后访问: http://localhost:5211/api/v1/
+启动服务后访问: http://localhost:5211/api/v1/（Swagger: /api/v2/docs）
 
 ### 认证接口
 
@@ -108,12 +111,17 @@ python app.py
 ## 数据库迁移
 
 ```bash
+# 全新库先初始化表（SQLite/开发环境可用 create_all）
+python init_db.py
+
 # 生成迁移文件
-flask db migrate -m "描述"
+alembic -c migrations/alembic.ini revision --autogenerate -m "描述"
 
 # 执行迁移
-flask db upgrade
+alembic -c migrations/alembic.ini upgrade head
 
-# 回滚
-flask db downgrade
+# 回滚一个版本
+alembic -c migrations/alembic.ini downgrade -1
 ```
+
+数据库连接从 `DATABASE_URL` 环境变量（或 `backend/.env`）读取，与运行时配置一致。

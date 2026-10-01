@@ -168,7 +168,7 @@ CELERY_BROKER_URL=redis://localhost:6379/1
 CELERY_RESULT_BACKEND=redis://localhost:6379/2
 
 # 服务配置
-FLASK_APP=app.py
+APP_ENV=development
 SERVER_HOST=127.0.0.1
 SERVER_PORT=5211
 ```
@@ -261,7 +261,7 @@ Celery Worker 用于处理异步任务（Web 测试、性能测试等）。
 **Windows：**
 ```powershell
 cd backend
-.\run_celery.bat
+celery -A app.extensions:celery worker --loglevel=info
 ```
 
 **Linux/macOS：**
@@ -291,19 +291,18 @@ celery -A app.extensions:celery worker --loglevel=info
 **Windows：**
 ```powershell
 cd backend
-.\run_server.bat
+python run_fastapi.py
 ```
 
 **Linux/macOS：**
 ```bash
 cd backend
-python app.py
+python run_fastapi.py
 ```
 
 预期输出：
 ```
- * Running on http://127.0.0.1:5211
- * Press CTRL+C to quit
+INFO:     Uvicorn running on http://127.0.0.1:5211 (Press CTRL+C to quit)
 ```
 
 访问：`http://127.0.0.1:5211`
@@ -351,8 +350,8 @@ cd nginx
 | 2 | `python init_db.py` | 1 | 初始化数据库（仅需一次） |
 | 3 | 配置 `.env` | - | 配置环境变量（仅需一次） |
 | 4 | `redis-server` 或 `D:\redis\redis-server.exe` | 1 | 启动 Redis |
-| 5 | `cd backend && .\run_celery.bat` | 2 | 启动 Celery Worker |
-| 6 | `cd backend && .\run_server.bat` | 3 | 启动后端 |
+| 5 | `cd backend && celery -A app.extensions:celery worker --loglevel=info` | 2 | 启动 Celery Worker |
+| 6 | `cd backend && python run_fastapi.py` | 3 | 启动后端 |
 | 7 | `cd web && npm run build` | 4 | 构建前端 |
 | 8 | `cd nginx && .\start-nginx.bat` | 5 | 启动 Nginx |
 | 9 | 访问 `http://localhost:8080` | 浏览器 | 使用应用 |
@@ -362,8 +361,8 @@ cd nginx
 | 步骤 | 命令 | 终端 | 说明 |
 |------|------|------|------|
 | 1 | `redis-server` 或 `D:\redis\redis-server.exe` | 1 | 启动 Redis |
-| 2 | `cd backend && .\run_celery.bat` | 2 | 启动 Celery Worker |
-| 3 | `cd backend && .\run_server.bat` | 3 | 启动后端 |
+| 2 | `cd backend && celery -A app.extensions:celery worker --loglevel=info` | 2 | 启动 Celery Worker |
+| 3 | `cd backend && python run_fastapi.py` | 3 | 启动后端 |
 | 4 | `cd nginx && .\start-nginx.bat` | 4 | 启动 Nginx（如果需要） |
 | 5 | 访问 `http://localhost:8080` | 浏览器 | 使用应用 |
 
@@ -593,7 +592,7 @@ tasklist | findstr celery  # Windows
 
 # 重启 Celery Worker
 cd backend
-.\run_celery.bat  # Windows
+celery -A app.extensions:celery worker --loglevel=info  # Windows
 celery -A app.extensions:celery worker --loglevel=info  # Linux/Mac
 ```
 
@@ -660,11 +659,11 @@ npm run dev
 
 ### 后端调试
 
-使用 Flask 调试模式：
+使用热重载调试模式：
 
 ```bash
 cd backend
-FLASK_DEBUG=1 python app.py
+python run_fastapi.py --reload
 ```
 
 ### 数据库迁移

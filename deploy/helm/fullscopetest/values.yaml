@@ -4,7 +4,7 @@
 # 副本数
 replicaCount: 1
 
-# 后端 Flask 镜像
+# 后端镜像
 backend:
   image:
     repository: fullscopetest/backend
@@ -68,18 +68,24 @@ ingress:
 
 # 环境变量
 env:
-  FLASK_ENV: production
-  DATABASE_URL: postgresql://postgres:postgres@postgresql:5432/fullscopetest
+  APP_ENV: production
+  # 注意：Helm values.yaml 不支持跨字段插值，禁止把数据库明文密码硬编码在本文件。
+  # DATABASE_URL 必须在部署时用下方 postgresql.auth.postgresPassword 显式拼接并覆盖，例如：
+  #   helm install ... --set postgresql.auth.postgresPassword=<密码> \
+  #     --set-string env.DATABASE_URL=postgresql://postgres:<密码>@postgresql:5432/fullscopetest
+  # 使用外部数据库时直接覆盖为外部连接串。
+  DATABASE_URL: ""
   REDIS_URL: redis://redis:6379/0
   JWT_SECRET_KEY: ""  # 必须在部署时覆盖
   SECRET_KEY: ""      # 必须在部署时覆盖
-  CORS_ORIGINS: "*"
+  # 生产环境必须显式配置允许的跨域来源（逗号分隔，如 https://app.example.com），禁止使用 "*"
+  CORS_ORIGINS: ""
 
 # PostgreSQL（内置，生产环境建议使用外部数据库）
 postgresql:
   enabled: true
   auth:
-    postgresPassword: postgres
+    postgresPassword: postgres  # 部署时必须用 --set postgresql.auth.postgresPassword=<强密码> 覆盖
     database: fullscopetest
 
 # Redis（内置，生产环境建议使用外部 Redis）
@@ -87,4 +93,7 @@ redis:
   enabled: true
   architecture: standalone
   auth:
-    enabled: false
+    enabled: true
+    # 部署时必须用 --set redis.auth.password=<强密码> 覆盖，
+    # 并同步设置 REDIS_URL=redis://:<密码>@redis:6379/0
+    password: ""  # 示例: change-me-redis-password

@@ -12,7 +12,7 @@
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/typescript-5.x-3178C6?style=flat&logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://reactjs.org/"><img src="https://img.shields.io/badge/react-18-61DAFB?style=flat&logo=react&logoColor=black" alt="React"></a>
   <a href="https://vitejs.dev/"><img src="https://img.shields.io/badge/vite-5-646CFF?style=flat&logo=vite&logoColor=white" alt="Vite"></a>
-  <a href="https://flask.palletsprojects.com/"><img src="https://img.shields.io/badge/flask-3.0-000000?style=flat&logo=flask&logoColor=white" alt="Flask"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/fastapi-0.115-009688?style=flat&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://www.sqlalchemy.org/"><img src="https://img.shields.io/badge/sqlalchemy-ORM-D71F00?style=flat&logo=sqlalchemy&logoColor=white" alt="SQLAlchemy"></a>
   <a href="https://ant.design/"><img src="https://img.shields.io/badge/ant--design-5-0170FE?style=flat&logo=antdesign&logoColor=white" alt="Ant Design"></a>
   <a href="https://playwright.dev/"><img src="https://img.shields.io/badge/playwright-e2e-2EAD33?style=flat&logo=playwright" alt="Playwright"></a>
@@ -145,7 +145,7 @@ FullScopeTest 专为需要**全方位测试覆盖**的团队打造。我们不�
 | **CI/CD 集成** | ⚠️ 基础 Webhook | ✅ GitHub Action + Quality Gate + 变更感知 | PR 自动触发、质量门禁、Check Run 回写 |
 | **多租户** | ✅ 支持 | ✅ 支持 + 审计日志 | 组织级数据隔离、操作审计 |
 | **部署方式** | Docker Compose | Docker Compose + K8s | 同时支持两种部署方式 |
-| **后端性能** | Java (Spring Boot) | Flask 3.0 + FastAPI v2（渐进迁移中） | Python 生态 + 异步高性能 |
+| **后端性能** | Java (Spring Boot) | FastAPI + SQLAlchemy 2.0（纯 ASGI，零 Flask） | Python 生态 + 异步高性能 |
 | **视觉回归** | ❌ 不支持 | ✅ 自动截图 + 像素级对比 | 独家功能，自动检测 UI 视觉变化 |
 | **AI 用例生成** | ❌ 不支持 | ✅ Swagger → 语义分析 → 自动生成 | 智能理解接口业务含义 |
 | **语义去重** | ❌ 不支持 | ✅ 向量化 + 余弦相似度 | 自动发现重复测试用例 |
@@ -204,7 +204,7 @@ graph LR
         WS["WebSocket<br/>(Live View)"]
     end
 
-    subgraph Flask_Backend
+    subgraph FastAPI_Backend
         API["API 蓝图层<br/>25 个模块"]
         Auth["JWT 认证<br/>+ RBAC 权限"]
         ORM["SQLAlchemy ORM<br/>31 个数据模型"]
@@ -247,7 +247,7 @@ graph LR
 sequenceDiagram
     participant U as 用户浏览器
     participant N as Nginx / OpenResty
-    participant F as Flask API
+    participant F as FastAPI API
     participant DB as PostgreSQL
     participant R as Redis
     participant C as Celery Worker
@@ -286,9 +286,9 @@ sequenceDiagram
 | **状态管理** | Zustand | 轻量级 Store，支持 persist 持久化 + devtools |
 | **HTTP 客户端** | Axios | 拦截器统一注入 JWT，自动 Token 刷新 |
 | **前端测试** | Vitest + Testing Library | jsdom 环境，组件级单元测试 |
-| **后端框架** | Flask 3.0 | 应用工厂模式 + Blueprint 模块化 |
+| **后端框架** | FastAPI | 路由自动发现（APIRouter 包扫描）+ Pydantic 校验 |
 | **ORM** | SQLAlchemy + Alembic | 声明式模型 + 数据库版本迁移 |
-| **认证鉴权** | Flask-JWT-Extended | 双 Token 机制 (access + refresh) |
+| **认证鉴权** | PyJWT（自研 core/jwt） | 双 Token 机制 (access + refresh) |
 | **任务队列** | Celery + Redis | 异步执行 Web/性能测试任务 |
 | **定时调度** | APScheduler | 文件锁单例，支持多进程安全 |
 | **Web 自动化** | Playwright | Chromium 内核，在线编写 + 视觉回归 + VNC 预览（录制需 GUI 环境） |
@@ -305,14 +305,14 @@ sequenceDiagram
 
 ### 应用工厂模式
 
-后端采用 Flask 标准的 **Application Factory** 模式，通过 `create_app(config_name)` 创建应用实例，便于测试与多环境配置：
+后端采用 **FastAPI 应用工厂**模式（`app/fastapi_app.py` 的 `create_fastapi_app(config_name)`），运行时核心（配置/数据库/日志/插件）由 `app/core/runtime.py` 统一初始化：
 
 ```mermaid
 graph TD
-    Entry["app.py / wsgi.py"] --> Factory["create_app()"]
-    Factory --> Config["加载配置<br/>(Development / Testing / Production)"]
-    Factory --> Ext["初始化扩展<br/>(db, jwt, celery, migrate)"]
-    Factory --> BP["注册蓝图<br/>api_bp → /api/v1"]
+    Entry["run_fastapi.py / uvicorn"] --> Factory["create_fastapi_app()"]
+    Factory --> Config["加载配置<br/>(development / testing / production)"]
+    Factory --> Ext["初始化运行时<br/>(db, celery, 日志, 插件)"]
+    Factory --> BP["注册路由<br/>v1 平迁 → /api/v1 ＋ v2 原生 → /api/v2"]
     Factory --> CORS["配置 CORS"]
     Factory --> ErrorH["注册全局错误处理"]
     Factory --> Scheduler["启动 APScheduler"]
@@ -320,7 +320,7 @@ graph TD
 
 ### API 模块划分
 
-所有 API 路由挂载在统一的 `api_bp` 蓝图下（前缀 `/api/v1`），按功能域划分为 30+ 个模块：
+所有 v1 API 路由按 `/api/v1/*` 路径 100% 兼容平迁（`app/api/v2/v1/` 自动发现注册），另提供 FastAPI 原生 `/api/v2/*` 增强接口，按功能域划分为 30+ 个模块：
 
 | 模块 | 路由前缀 | 核心功能 |
 |------|---------|---------|
@@ -484,7 +484,7 @@ Web 测试和性能测试通过 Celery 异步执行，避免阻塞 API 请求：
 
 ```mermaid
 graph LR
-    API["Flask API"] -->|send_task| Broker["Redis Broker"]
+    API["FastAPI API"] -->|send_task| Broker["Redis Broker"]
     Broker -->|consume| Worker["Celery Worker"]
     Worker -->|Playwright| WebTest["执行 Web 测试"]
     Worker -->|Locust| PerfTest["执行性能压测"]
@@ -635,7 +635,7 @@ graph TD
     end
 
     subgraph 数据层
-        Hash["密码哈希<br/>(bcrypt / werkzeug)"]
+        Hash["密码哈希<br/>(scrypt / hashlib)"]
         EnvVars["环境变量<br/>敏感信息不入代码库"]
         Webhook["Webhook 签名<br/>HMAC-SHA256"]
     end
@@ -647,9 +647,9 @@ graph TD
 
 | 安全机制 | 实现方式 | 作用 |
 |---------|---------|------|
-| **身份认证** | JWT (Flask-JWT-Extended) | 无状态认证，支持 Token 自动刷新 |
+| **身份认证** | JWT (PyJWT) | 无状态认证，支持 Token 自动刷新 |
 | **权限控制** | RBAC 三角色 + 装饰器 | admin/member/viewer 细粒度权限 |
-| **密码存储** | werkzeug 安全哈希 | 不可逆加密，防止数据泄露 |
+| **密码存储** | scrypt 口令哈希（hashlib.scrypt，兼容存量 werkzeug 格式校验） | 不可逆加密，防止数据泄露 |
 | **Webhook 安全** | HMAC-SHA256 签名验证 | 防止伪造触发请求 |
 | **传输安全** | HTTPS + CORS 白名单 | 加密传输 + 跨域限制 |
 | **敏感信息** | `.env` 文件 + `.gitignore` | API Key、密码等不进入代码仓库 |
@@ -673,7 +673,7 @@ graph TD
 | [API 参考文档](docs/api-reference.md) | 所有 v1 + v2 接口请求/响应示例、认证说明、错误码一览 |
 | [GitHub Actions 集成指南](docs/github-actions-integration.md) | 从零到一集成步骤、PR 自动触发、定时回归、手动触发 |
 | [GitLab CI 模板](docs/gitlab-ci-template.yml) | GitLab CI/CD YAML 模板示例 |
-| [性能基准测试](docs/performance-benchmark.md) | Flask v1 vs FastAPI v2 压测对比、P95 响应时间分析 |
+| [性能基准测试](docs/performance-benchmark.md) | FastAPI 后端压测对比、P95 响应时间分析 |
 | [功能路线图](docs/ROADMAP.md) | 按季度规划的功能开发计划 |
 | [功能完整性审计](docs/feature-audit.md) | 14 项功能实现状态审计报告 |
 | [v1.0.0-rc1 发布说明](releases/v1.0.0-rc1.md) | 首个正式发布候选版本完整 Release Notes |
@@ -690,7 +690,7 @@ graph TD
 
 ## 🚀 快速开始（本地开发部署推荐）
 
-项目采用前后端分离架构：后端 Flask + SQLAlchemy，前端 React + TypeScript。
+项目采用前后端分离架构：后端 FastAPI + SQLAlchemy 2.0（纯 ASGI），前端 React + TypeScript。
 
 提供两种启动方式：**方式 A** 手动启动（推荐开发调试），**方式 B** Docker Compose 一键启动。
 
@@ -700,7 +700,7 @@ graph TD
 |------|---------|------|
 | Python | 3.10+ | 后端运行环境 |
 | Node.js | 18+ | 前端构建/开发服务器 |
-| Redis | 5.0+ | **必需** — Celery 消息队列（`app.py` 会自动开启 Celery） |
+| Redis | 5.0+ | **必需** — Celery 消息队列（`run_fastapi.py` 会自动开启 Celery） |
 
 > **数据库说明**：本地开发默认使用 **SQLite**（零配置），无需安装 PostgreSQL。生产环境推荐 PostgreSQL。
 
@@ -757,10 +757,10 @@ python init_db.py
 
 # 创建管理员账号
 python create_admin.py
-# 默认账号：admin / admin123
+# 管理员账号：首次启动前设置环境变量 INIT_ADMIN_USERNAME / INIT_ADMIN_EMAIL / INIT_ADMIN_PASSWORD 自动创建（无默认口令）
 
 # 启动后端 API 服务
-python app.py
+python run_fastapi.py
 ```
 
 > 后端默认运行地址：`http://127.0.0.1:5211/api/v1`（手动开发模式）
@@ -770,7 +770,7 @@ python app.py
 > - **Docker Compose 开发**：后端运行在 `5000` 端口
 > - **Docker Compose 生产**：后端运行在 `8000` 端口
 >
-> **注意**：`app.py` 会自动设置 `CELERY_ENABLE=true`，因此必须先确保 Redis 已启动，否则启动时会报连接错误。如果不需要异步任务功能，可在 `.env` 中设置 `CELERY_ENABLE=false`。
+> **注意**：`run_fastapi.py` 会自动设置 `CELERY_ENABLE=true`，因此必须先确保 Redis 已启动，否则启动时会报连接错误。如果不需要异步任务功能，可在 `.env` 中设置 `CELERY_ENABLE=false`。
 
 #### 3) 启动 Celery Worker（新终端窗口）
 
@@ -778,7 +778,7 @@ python app.py
 cd backend
 .\venv\Scripts\activate  # Windows
 # source venv/bin/activate  # Linux/macOS
-celery -A app.extensions:celery worker --loglevel=info --pool=solo  # Windows 需加 --pool=solo
+celery -A celery_worker.celery worker --loglevel=info --pool=solo  # Windows 需加 --pool=solo
 ```
 
 > Celery Worker 负责执行 Web 自动化测试和性能压测等异步任务。如果只使用 API 测试功能，可以不启动。
@@ -793,7 +793,7 @@ npm run dev
 
 > 前端开发服务器默认运行在：`http://localhost:3000`（已配置代理，将 `/api/*` 转发到 `http://localhost:5211`）
 
-启动完成后访问 `http://localhost:3000`，使用 `admin / admin123` 登录即可。
+启动完成后访问 `http://localhost:3000`，使用你通过 `INIT_ADMIN_*` 环境变量创建的管理员账号登录。
 
 ### 方式 B：Docker Compose 一键启动
 
@@ -812,7 +812,7 @@ docker-compose logs -f backend
 >
 > | 部署方式 | 后端端口 | 说明 |
 > |---------|---------|------|
-> | 手动开发 | `5211` | `python app.py`，Vite 代理已对接 |
+> | 手动开发 | `5211` | `python run_fastapi.py`，Vite 代理已对接 |
 > | Docker 开发 | `5000` | `docker-compose up -d` |
 > | Docker 生产 | `8000` | `docker-compose -f docker-compose.prod.yml up -d` |
 
@@ -845,13 +845,13 @@ docker-compose -f docker-compose.prod.yml up -d
 # 1. 构建前端
 cd web && npm install && npm run build
 
-# 2. 部署后端（使用 Gunicorn 替代 Flask 开发服务器）
+# 2. 部署后端（使用 Uvicorn 多 worker）
 cd ../backend
 pip install -r requirements.txt
-gunicorn -w 4 -b 0.0.0.0:8000 "app:create_app('production')"
+uvicorn app.fastapi_app:app --host 0.0.0.0 --port 8000 --workers 4
 
 # 3. 启动 Celery Worker
-celery -A app.extensions:celery worker --loglevel=info
+celery -A celery_worker.celery worker --loglevel=info
 
 # 4. 配置 Nginx 反向代理（参考 nginx/ 目录配置）
 ```
@@ -923,7 +923,7 @@ cp -r dist/* /var/www/test.huangxuan.site/index/
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| backend | 8000 | Flask API + Gunicorn (4 workers) |
+| backend | 8000 | FastAPI API + Uvicorn (4 workers) |
 | celery | - | 异步任务 Worker |
 | redis | 6379 | 消息队列 + 缓存 |
 | prometheus | 9090 | 指标采集 |
@@ -941,39 +941,37 @@ cp -r dist/* /var/www/test.huangxuan.site/index/
 
 ```text
 FullScopeTest/
-├── backend/                    # Flask 后端核心服务
+├── backend/                    # FastAPI 后端核心服务
 │   ├── app/
-│   │   ├── api/                # API 路由层 (30+ 个功能模块)
-│   │   │   ├── auth.py         # 认证：注册/登录/SSO/邀请码
-│   │   │   ├── admin.py        # 管理员：用户管理/角色/密码重置
-│   │   │   ├── geo.py          # 地理位置检测（语言切换）
-│   │   │   ├── organizations.py # 组织管理/邀请码
-│   │   │   ├── audit_logs.py   # 审计日志
-│   │   │   └── ...
+│   │   ├── api/
+│   │   │   ├── v2/v1/          # 主路由层 (30+ 个功能模块，路径 100% 兼容 /api/v1/*)
+│   │   │   │   ├── auth.py     # 认证：注册/登录/SSO/邀请码
+│   │   │   │   ├── admin.py    # 管理员：用户管理/角色/密码重置
+│   │   │   │   ├── geo.py      # 地理位置检测（语言切换）
+│   │   │   │   ├── organizations.py # 组织管理/邀请码
+│   │   │   │   ├── audit_logs.py    # 审计日志
+│   │   │   │   └── ...
+│   │   │   └── v2/             # FastAPI 原生增强接口 (/api/v2/*)
 │   │   ├── models/             # SQLAlchemy 数据模型 (35+ 个模型)
 │   │   │   ├── organization.py # 组织模型（含邀请码）
 │   │   │   ├── user.py         # 用户模型（含角色/组织关联）
 │   │   │   ├── audit_log.py    # 审计日志模型
 │   │   │   └── ...
-│   │   ├── middleware/          # 中间件层
-│   │   │   ├── tenant.py       # 租户隔离中间件
-│   │   │   ├── permission.py   # RBAC 权限注入
-│   │   │   ├── rate_limit.py   # 限流中间件
-│   │   │   ├── security_headers.py # 安全响应头
-│   │   │   └── ...
+│   │   ├── api/v2/middleware.py # ASGI 中间件 (限流/安全头/body 限制/DB 会话作用域)
 │   │   ├── utils/
 │   │   │   └── org_filter.py   # 组织级数据过滤工具
 │   │   ├── plugins/            # 插件系统
 │   │   ├── tasks/              # Celery 异步任务
 │   │   ├── services/           # 业务服务层 (AI/权限/配额等)
-│   │   ├── __init__.py         # 应用工厂 create_app()
+│   │   ├── fastapi_app.py      # FastAPI 应用工厂 create_fastapi_app()
 │   │   ├── config.py           # 多环境配置 (Dev / Test / Prod)
-│   │   └── extensions.py       # 扩展初始化 (db, jwt, celery, migrate)
+│   │   └── extensions.py       # 扩展实例 (db, celery)
 │   ├── migrations/             # Alembic 数据库迁移脚本
 │   ├── scripts/                # 数据脚本 (seed_data.py)
 │   ├── tests/                  # Pytest 自动化测试 (470+ 用例)
-│   ├── app.py                  # 后端启动入口
+│   ├── run_fastapi.py          # 开发启动入口 (端口 5211)
 │   ├── init_db.py              # 数据库初始化
+│   ├── manage.py               # CLI 管理命令 (click)
 │   └── requirements.txt        # Python 依赖
 ├── web/                        # React + TypeScript 前端
 │   ├── src/
@@ -1076,7 +1074,7 @@ FullScopeTest/
 <details>
 <summary><strong>启动后端时报 Redis 连接失败？</strong></summary>
 
-`app.py` 会自动设置 `CELERY_ENABLE=true`，启动时会尝试连接 Redis。如果不需要异步任务功能，在 `backend/.env` 中添加：
+`run_fastapi.py` 会自动设置 `CELERY_ENABLE=true`，启动时会尝试连接 Redis。如果不需要异步任务功能，在 `backend/.env` 中添加：
 
 ```bash
 CELERY_ENABLE=false
@@ -1133,7 +1131,7 @@ python -m playwright install chromium
 1. 确认 Redis 已启动且可连接
 2. Windows 用户必须加 `--pool=solo` 参数：
    ```bash
-   celery -A app.extensions:celery worker --loglevel=info --pool=solo
+   celery -A celery_worker.celery worker --loglevel=info --pool=solo
    ```
 3. 确认 Worker 终端无报错信息，检查是否成功连接到 Redis Broker
 </details>
@@ -1144,7 +1142,7 @@ python -m playwright install chromium
 Celery 4+ 在 Windows 上不支持 `prefork` 进程池，必须使用 `solo` 模式：
 
 ```bash
-celery -A app.extensions:celery worker --loglevel=info --pool=solo
+celery -A celery_worker.celery worker --loglevel=info --pool=solo
 ```
 
 或者考虑在 WSL2 / Docker 中运行 Celery Worker。
@@ -1233,7 +1231,7 @@ INIT_ADMIN_PASSWORD=your_secure_password
 ```bash
 cd backend
 python create_admin.py
-# 默认账号：admin / admin123
+# 管理员账号：首次启动前设置环境变量 INIT_ADMIN_USERNAME / INIT_ADMIN_EMAIL / INIT_ADMIN_PASSWORD 自动创建（无默认口令）
 ```
 </details>
 
@@ -1382,7 +1380,7 @@ jobs:
 ## 🛠 技术栈
 
 - **前端**: [React 18](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vitejs.dev/) + [Ant Design 5](https://ant.design/)
-- **后端**: [Flask 3.0](https://flask.palletsprojects.com/) + [SQLAlchemy ORM](https://www.sqlalchemy.org/)
+- **后端**: [FastAPI](https://fastapi.tiangolo.com/) + [SQLAlchemy 2.0 ORM](https://www.sqlalchemy.org/) + Celery（零 Flask 依赖）
 - **数据库**: [PostgreSQL 15](https://www.postgresql.org/) + [Redis 7](https://redis.io/)
 - **测试引擎**: [Playwright](https://playwright.dev/) (Web) + [Locust](https://locust.io/) (性能) + [Appium](https://appium.io/) (APP)
 - **异步任务**: [Celery](https://docs.celeryq.dev/) + [APScheduler](https://apscheduler.readthedocs.io/)

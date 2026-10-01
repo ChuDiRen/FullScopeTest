@@ -44,7 +44,7 @@ jobs:
       - name: Run tests with coverage
         working-directory: backend
         env:
-          FLASK_ENV: testing
+          APP_ENV: testing
           SECRET_KEY: test-secret-key-ci
           JWT_SECRET_KEY: test-jwt-secret-ci
           CELERY_ENABLE: "false"

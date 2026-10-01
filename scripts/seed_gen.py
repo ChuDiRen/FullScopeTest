@@ -1,7 +1,12 @@
-import json,random,hashlib
+import json,random,hashlib,os
 from datetime import datetime,timedelta
 random.seed(42)
-pw="scrypt:32768:8:1$WndhvdorMtHoID7P$fed763d0110cc7fa9d4edd4358ecf19a65ede4f828c813e5562d9fe501f336c97a0a58503f0d82dace43f082b2a6b1f69e360a019b92cefdadae7749f97ddb00"
+# 种子口令：必须通过 SEED_PASSWORD 环境变量显式提供（仅限演示/开发环境使用，禁止用于生产）
+import getpass as _gp
+_seed_pw = os.environ.get("SEED_PASSWORD") or _gp.getpass("SEED_PASSWORD: ")
+if not _seed_pw:
+    raise SystemExit("refusing to seed with empty password: set SEED_PASSWORD")
+pw = hashlib.scrypt(_seed_pw.encode(), salt=os.urandom(16), n=32768, r=8, p=1).hex()
 def tk(n):return hashlib.sha256(f"fs_{n}_{random.randint(1000,9999)}".encode()).hexdigest()
 def past(m=12):
  n=datetime(2026,6,2,10,0,0);d=timedelta(days=random.randint(1,m*30),hours=random.randint(0,23),minutes=random.randint(0,59));return(n-d).strftime("%Y-%m-%d %H:%M:%S")

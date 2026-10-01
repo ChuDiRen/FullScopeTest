@@ -24,49 +24,44 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 def check_config(env: str) -> list:
     """检查配置安全性，返回问题列表"""
-    from app import create_app
-    app = create_app(env)
+    os.environ.setdefault('APP_ENV', env)
+    from app.core.runtime import get_config
+    cfg = get_config()
     issues = []
 
-    with app.app_context():
-        cfg = app.config
 
-        # SECRET_KEY
-        if not cfg.get('SECRET_KEY'):
-            issues.append(('CRITICAL', 'SECRET_KEY 未设置'))
+    # SECRET_KEY
+    if not cfg.get('SECRET_KEY'):
+        issues.append(('CRITICAL', 'SECRET_KEY 未设置'))
 
-        # JWT_SECRET_KEY
-        if not cfg.get('JWT_SECRET_KEY'):
-            issues.append(('CRITICAL', 'JWT_SECRET_KEY 未设置'))
+    # JWT_SECRET_KEY
+    if not cfg.get('JWT_SECRET_KEY'):
+        issues.append(('CRITICAL', 'JWT_SECRET_KEY 未设置'))
 
-        # DEBUG
-        if cfg.get('DEBUG'):
-            issues.append(('WARNING', 'DEBUG 为 True（生产环境应为 False）'))
+    # DEBUG
+    if cfg.get('DEBUG'):
+        issues.append(('WARNING', 'DEBUG 为 True（生产环境应为 False）'))
 
-        # SQLALCHEMY_ECHO
-        if cfg.get('SQLALCHEMY_ECHO'):
-            issues.append(('WARNING', 'SQLALCHEMY_ECHO 为 True（生产环境应为 False）'))
+    # SQLALCHEMY_ECHO
+    if cfg.get('SQLALCHEMY_ECHO'):
+        issues.append(('WARNING', 'SQLALCHEMY_ECHO 为 True（生产环境应为 False）'))
 
-        # CORS_ORIGINS
-        cors = cfg.get('CORS_ORIGINS', [])
-        if '*' in cors:
-            issues.append(('CRITICAL', 'CORS_ORIGINS 包含 *（生产环境禁止）'))
+    # CORS_ORIGINS
+    cors = cfg.get('CORS_ORIGINS', [])
+    if '*' in cors:
+        issues.append(('CRITICAL', 'CORS_ORIGINS 包含 *（生产环境禁止）'))
 
-        # COOKIE_SECURE
-        if env == 'production' and not cfg.get('COOKIE_SECURE'):
-            issues.append(('WARNING', 'COOKIE_SECURE 未启用'))
+    # COOKIE_SECURE
+    if env == 'production' and not cfg.get('COOKIE_SECURE'):
+        issues.append(('WARNING', 'COOKIE_SECURE 未启用'))
 
-        # JWT_COOKIE_HTTP_ONLY
-        if not cfg.get('JWT_COOKIE_HTTP_ONLY'):
-            issues.append(('WARNING', 'JWT_COOKIE_HTTP_ONLY 未启用'))
+    # JWT_COOKIE_HTTP_ONLY
+    if not cfg.get('JWT_COOKIE_HTTP_ONLY'):
+        issues.append(('WARNING', 'JWT_COOKIE_HTTP_ONLY 未启用'))
 
-        # SESSION_COOKIE_HTTPONLY (Flask built-in)
-        if not cfg.get('SESSION_COOKIE_HTTPONLY', True):
-            issues.append(('WARNING', 'SESSION_COOKIE_HTTPONLY 未启用'))
-
-        # DATABASE_URL
-        if env == 'production' and not cfg.get('SQLALCHEMY_DATABASE_URI'):
-            issues.append(('CRITICAL', 'DATABASE_URL 未设置'))
+    # DATABASE_URL
+    if env == 'production' and not cfg.get('SQLALCHEMY_DATABASE_URI'):
+        issues.append(('CRITICAL', 'DATABASE_URL 未设置'))
 
     return issues
 

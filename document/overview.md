@@ -24,11 +24,11 @@ redis-server
 
 # 2) Celery Worker
 cd backend
-.\run_celery.bat
+celery -A app.extensions:celery worker --loglevel=info
 
 # 3) Backend
 cd backend
-.\run_server.bat
+python run_fastapi.py
 
 # 4) Frontend
 cd web
@@ -51,7 +51,7 @@ celery -A app.extensions:celery worker --loglevel=info
 
 # 3) Backend
 cd backend
-python app.py
+python run_fastapi.py
 
 # 4) Frontend
 cd web

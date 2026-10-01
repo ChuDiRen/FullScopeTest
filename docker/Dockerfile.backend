@@ -48,4 +48,4 @@ USER fullscopetest
 EXPOSE 5000 6080
 
 # 使用 Gunicorn 启动
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2", "wsgi:app"]
+CMD ["uvicorn", "app.fastapi_app:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "4"]
