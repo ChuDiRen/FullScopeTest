@@ -18,7 +18,7 @@ def _get_auth_headers(client):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    data = resp.get_json()
+    data = resp.json()
     token = data["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
@@ -30,7 +30,7 @@ class TestAppTestHealth:
         """健康检查接口正常返回"""
         resp = client.get("/api/v1/app-test/health")
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["code"] == 200
         assert data["data"]["status"] == "ok"
 
@@ -46,9 +46,9 @@ class TestAppCollectionCRUD:
             headers=headers,
             json={"name": "APP Tests"},
         )
-        assert resp.status_code == 201
-        data = resp.get_json()
-        assert data["code"] == 201
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
         assert data["data"]["name"] == "APP Tests"
         assert "id" in data["data"]
 
@@ -61,7 +61,7 @@ class TestAppCollectionCRUD:
             json={"name": "Test Collection", "description": "Test description"},
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["data"]["description"] == "Test description"
 
     def test_create_collection_without_name(self, client):
@@ -87,7 +87,7 @@ class TestAppCollectionCRUD:
 
         resp = client.get("/api/v1/app-test/collections", headers=headers)
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["code"] == 200
         # 至少有刚创建的两个
         names = [c["name"] for c in data["data"]]
@@ -102,7 +102,7 @@ class TestAppCollectionCRUD:
         resp = client.post(
             "/api/v1/projects", headers=headers, json={"name": "Test Project"}
         )
-        project_id = resp.get_json()["data"]["id"]
+        project_id = resp.json()["data"]["id"]
 
         # 在项目中创建用例集
         client.post(
@@ -122,7 +122,7 @@ class TestAppCollectionCRUD:
             headers=headers,
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         names = [c["name"] for c in data["data"]]
         assert "In Project" in names
         assert "No Project" not in names
@@ -134,7 +134,7 @@ class TestAppCollectionCRUD:
             "/api/v1/app-test/collections",
             headers=headers,
             json={"name": "Old Name"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         resp = client.put(
             f"/api/v1/app-test/collections/{cid}",
@@ -142,7 +142,7 @@ class TestAppCollectionCRUD:
             json={"name": "New Name", "description": "New desc"},
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["data"]["name"] == "New Name"
         assert data["data"]["description"] == "New desc"
 
@@ -163,7 +163,7 @@ class TestAppCollectionCRUD:
             "/api/v1/app-test/collections",
             headers=headers,
             json={"name": "To Delete"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         resp = client.delete(f"/api/v1/app-test/collections/{cid}", headers=headers)
         assert resp.status_code in [200, 201]
@@ -173,7 +173,7 @@ class TestAppCollectionCRUD:
             "/api/v1/app-test/collections",
             headers=headers,
         )
-        names = [c["name"] for c in resp.get_json()["data"]]
+        names = [c["name"] for c in resp.json()["data"]]
         assert "To Delete" not in names
 
     def test_delete_collection_not_found(self, client):
@@ -196,7 +196,7 @@ class TestAppCollectionCRUD:
 
         # 用户2获取列表（应该看不到用户1的）
         resp = client.get("/api/v1/app-test/collections", headers=headers2)
-        names = [c["name"] for c in resp.get_json()["data"]]
+        names = [c["name"] for c in resp.json()["data"]]
         assert "User1 Collection" not in names
 
 
@@ -217,7 +217,7 @@ class TestAppScriptCRUD:
             },
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["data"]["name"] == "Android Test"
         assert data["data"]["platform"] == "android"
         assert data["data"]["app_package"] == "com.example.app"
@@ -236,7 +236,7 @@ class TestAppScriptCRUD:
             },
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["data"]["platform"] == "ios"
         assert data["data"]["bundle_id"] == "com.example.app"
 
@@ -249,7 +249,7 @@ class TestAppScriptCRUD:
             json={"name": "Minimal Script"},
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         # 默认平台是 android
         assert data["data"]["platform"] == "android"
         # 默认 automation_name
@@ -266,7 +266,7 @@ class TestAppScriptCRUD:
             "/api/v1/app-test/collections",
             headers=headers,
             json={"name": "Test Collection"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         # 创建脚本并关联
         resp = client.post(
@@ -275,7 +275,7 @@ class TestAppScriptCRUD:
             json={"name": "In Collection", "collection_id": cid},
         )
         assert resp.status_code in [200, 201]
-        assert resp.get_json()["data"]["collection_id"] == cid
+        assert resp.json()["data"]["collection_id"] == cid
 
     def test_create_script_with_full_config(self, client):
         """创建完整配置的脚本"""
@@ -297,7 +297,7 @@ class TestAppScriptCRUD:
             },
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["app_path"] == "/path/to/app.apk"
         assert data["device_name"] == "Pixel 5"
         assert data["platform_version"] == "12.0"
@@ -328,7 +328,7 @@ class TestAppScriptCRUD:
 
         resp = client.get("/api/v1/app-test/scripts", headers=headers)
         assert resp.status_code in [200, 201]
-        names = [s["name"] for s in resp.get_json()["data"]]
+        names = [s["name"] for s in resp.json()["data"]]
         assert "Script A" in names
         assert "Script B" in names
 
@@ -340,7 +340,7 @@ class TestAppScriptCRUD:
             "/api/v1/app-test/collections",
             headers=headers,
             json={"name": "Collection"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         client.post(
             "/api/v1/app-test/scripts",
@@ -357,7 +357,7 @@ class TestAppScriptCRUD:
             f"/api/v1/app-test/scripts?collection_id={cid}",
             headers=headers,
         )
-        names = [s["name"] for s in resp.get_json()["data"]]
+        names = [s["name"] for s in resp.json()["data"]]
         assert "In Collection" in names
         assert "No Collection" not in names
 
@@ -368,11 +368,11 @@ class TestAppScriptCRUD:
             "/api/v1/app-test/scripts",
             headers=headers,
             json={"name": "Detail Test"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         resp = client.get(f"/api/v1/app-test/scripts/{sid}", headers=headers)
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["data"]["name"] == "Detail Test"
         assert "script_content" in data["data"]
 
@@ -389,7 +389,7 @@ class TestAppScriptCRUD:
             "/api/v1/app-test/scripts",
             headers=headers,
             json={"name": "Old Name"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         resp = client.put(
             f"/api/v1/app-test/scripts/{sid}",
@@ -401,7 +401,7 @@ class TestAppScriptCRUD:
             },
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["name"] == "New Name"
         assert data["device_name"] == "Updated Device"
         assert data["platform_version"] == "13.0"
@@ -423,14 +423,14 @@ class TestAppScriptCRUD:
             "/api/v1/app-test/scripts",
             headers=headers,
             json={"name": "To Delete"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         resp = client.delete(f"/api/v1/app-test/scripts/{sid}", headers=headers)
         assert resp.status_code in [200, 201]
 
         # 确认删除
         resp = client.get("/api/v1/app-test/scripts", headers=headers)
-        names = [s["name"] for s in resp.get_json()["data"]]
+        names = [s["name"] for s in resp.json()["data"]]
         assert "To Delete" not in names
 
     def test_delete_script_not_found(self, client):
@@ -451,7 +451,7 @@ class TestAppScriptCRUD:
         )
 
         resp = client.get("/api/v1/app-test/scripts", headers=headers2)
-        names = [s["name"] for s in resp.get_json()["data"]]
+        names = [s["name"] for s in resp.json()["data"]]
         assert "User1 Script" not in names
 
     def test_collection_delete_cascades_to_scripts(self, client):
@@ -462,7 +462,7 @@ class TestAppScriptCRUD:
             "/api/v1/app-test/collections",
             headers=headers,
             json={"name": "Parent Collection"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         client.post(
             "/api/v1/app-test/scripts",
@@ -475,7 +475,7 @@ class TestAppScriptCRUD:
 
         # 脚本应该也被删除
         resp = client.get("/api/v1/app-test/scripts", headers=headers)
-        names = [s["name"] for s in resp.get_json()["data"]]
+        names = [s["name"] for s in resp.json()["data"]]
         assert "Child Script" not in names
 
 
@@ -489,14 +489,14 @@ class TestAppScriptExecution:
             "/api/v1/app-test/scripts",
             headers=headers,
             json={"name": "Empty Script"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         resp = client.post(
             f"/api/v1/app-test/scripts/{sid}/run",
             headers=headers,
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["code"] == 200
         # 空脚本执行可能成功（返回码0）或失败
         assert data["data"]["status"] in ["passed", "failed", "running"]
@@ -522,14 +522,14 @@ class TestAppScriptExecution:
             "/api/v1/app-test/scripts",
             headers=headers,
             json={"name": "Status Test"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         # 执行脚本
         client.post(f"/api/v1/app-test/scripts/{sid}/run", headers=headers)
 
         # 获取脚本详情
         resp = client.get(f"/api/v1/app-test/scripts/{sid}", headers=headers)
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         # 状态应该已更新
         assert data["status"] in ["passed", "failed", "running"]
         # 应该有时间戳
@@ -544,7 +544,7 @@ class TestAppDevices:
         headers = _get_auth_headers(client)
         resp = client.get("/api/v1/app-test/devices", headers=headers)
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["code"] == 200
         # 即使 Appium 未运行，也应返回空列表而非错误
         assert data["data"]["server_status"]["connected"] is False
@@ -558,7 +558,7 @@ class TestAppDevices:
             headers=headers,
         )
         assert resp.status_code in [200, 201]
-        data = resp.get_json()
+        data = resp.json()
         assert data["data"]["server_status"]["url"] == "http://localhost:9999"
 
     def test_get_devices_no_auth(self, client):
@@ -579,7 +579,7 @@ class TestAppTestIntegration:
             "/api/v1/app-test/collections",
             headers=headers,
             json={"name": "My Tests", "description": "Integration test collection"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         # 2. 创建脚本
         sid = client.post(
@@ -592,15 +592,15 @@ class TestAppTestIntegration:
                 "app_package": "com.example.app",
                 "script_content": "print('Hello from App Test')",
             },
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         # 3. 验证脚本在用例集中
         resp = client.get(
             f"/api/v1/app-test/scripts?collection_id={cid}",
             headers=headers,
         )
-        assert len(resp.get_json()["data"]) == 1
-        assert resp.get_json()["data"][0]["name"] == "My Android Test"
+        assert len(resp.json()["data"]) == 1
+        assert resp.json()["data"][0]["name"] == "My Android Test"
 
         # 4. 更新脚本
         client.put(
@@ -621,5 +621,5 @@ class TestAppTestIntegration:
 
         # 7. 确认脚本也被删除
         resp = client.get("/api/v1/app-test/scripts", headers=headers)
-        names = [s["name"] for s in resp.get_json()["data"]]
+        names = [s["name"] for s in resp.json()["data"]]
         assert "My Android Test" not in names

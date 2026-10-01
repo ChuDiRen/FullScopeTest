@@ -11,6 +11,8 @@ from ..models.api_test_case import ApiTestCase
 from ..utils.exceptions import NotFoundError, ValidationError
 from ..utils.org_filter import filter_by_org_projects, get_org_id_for_create
 from ..core.logging import get_logger
+from sqlalchemy import select
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 
@@ -77,17 +79,18 @@ class PlanService(BaseService):
         Returns:
             分页结果
         """
-        query = TestPlan.query.filter_by(project_id=project_id)
+        query = select(TestPlan).filter_by(project_id=project_id)
         # 组织隔离：确保项目属于当前组织
         query = filter_by_org_projects(query, TestPlan, 'project_id')
         if status:
             query = query.filter_by(status=status)
 
-        total = query.count()
-        plans = query.order_by(TestPlan.updated_at.desc()) \
-            .offset((page - 1) * per_page) \
-            .limit(per_page) \
-            .all()
+        total = db.session.scalar(select(func.count()).select_from(query.subquery()))
+        plans = db.session.scalars(
+            query.order_by(TestPlan.updated_at.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        ).all()
 
         return {
             'items': [p.to_dict() for p in plans],
@@ -99,7 +102,7 @@ class PlanService(BaseService):
 
     def get_plan(self, plan_id: int) -> dict:
         """获取计划详情（包含最近轮次）"""
-        plan = TestPlan.query.get(plan_id)
+        plan = db.session.get(TestPlan, plan_id)
         if not plan:
             raise NotFoundError("测试计划", plan_id)
         return plan.to_dict(include_runs=True)
@@ -110,7 +113,7 @@ class PlanService(BaseService):
 
         可更新字段：name, description, include_cases, tags, status
         """
-        plan = TestPlan.query.get(plan_id)
+        plan = db.session.get(TestPlan, plan_id)
         if not plan:
             raise NotFoundError("测试计划", plan_id)
 
@@ -130,7 +133,7 @@ class PlanService(BaseService):
 
     def delete_plan(self, plan_id: int):
         """删除测试计划（级联删除轮次和结果）"""
-        plan = TestPlan.query.get(plan_id)
+        plan = db.session.get(TestPlan, plan_id)
         if not plan:
             raise NotFoundError("测试计划", plan_id)
 
@@ -151,7 +154,7 @@ class PlanService(BaseService):
 
         自动根据计划的 include_cases 初始化每个用例的待执行记录。
         """
-        plan = TestPlan.query.get(plan_id)
+        plan = db.session.get(TestPlan, plan_id)
         if not plan:
             raise NotFoundError("测试计划", plan_id)
 
@@ -198,16 +201,17 @@ class PlanService(BaseService):
 
     def get_runs(self, plan_id: int, page: int = 1, per_page: int = 20) -> dict:
         """获取计划的执行轮次列表"""
-        plan = TestPlan.query.get(plan_id)
+        plan = db.session.get(TestPlan, plan_id)
         if not plan:
             raise NotFoundError("测试计划", plan_id)
 
-        query = TestPlanRun.query.filter_by(plan_id=plan_id)
-        total = query.count()
-        runs = query.order_by(TestPlanRun.created_at.desc()) \
-            .offset((page - 1) * per_page) \
-            .limit(per_page) \
-            .all()
+        query = select(TestPlanRun).filter_by(plan_id=plan_id)
+        total = db.session.scalar(select(func.count()).select_from(query.subquery()))
+        runs = db.session.scalars(
+            query.order_by(TestPlanRun.created_at.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        ).all()
 
         return {
             'items': [r.to_dict() for r in runs],
@@ -219,7 +223,7 @@ class PlanService(BaseService):
 
     def get_run(self, run_id: int) -> dict:
         """获取执行轮次详情（包含用例结果）"""
-        run = TestPlanRun.query.get(run_id)
+        run = db.session.get(TestPlanRun, run_id)
         if not run:
             raise NotFoundError("执行轮次", run_id)
         return run.to_dict(include_cases=True)
@@ -234,9 +238,9 @@ class PlanService(BaseService):
 
         在测试执行完成后调用，更新用例状态并刷新轮次统计。
         """
-        result = TestPlanCaseResult.query.filter_by(
+        result = db.session.scalar(select(TestPlanCaseResult).filter_by(
             run_id=run_id, case_type=case_type, case_id=case_id,
-        ).first()
+        ))
         if not result:
             raise NotFoundError("用例结果", f"{case_type}:{case_id}")
 
@@ -256,7 +260,7 @@ class PlanService(BaseService):
 
     def complete_run(self, run_id: int) -> dict:
         """标记执行轮次完成"""
-        run = TestPlanRun.query.get(run_id)
+        run = db.session.get(TestPlanRun, run_id)
         if not run:
             raise NotFoundError("执行轮次", run_id)
 
@@ -270,7 +274,7 @@ class PlanService(BaseService):
             self.add(run)
 
             # 更新计划的最后执行信息
-            plan = TestPlan.query.get(run.plan_id)
+            plan = db.session.get(TestPlan, run.plan_id)
             if plan:
                 plan.last_run_at = run.finished_at
                 plan.last_pass_rate = run.pass_rate
@@ -286,11 +290,12 @@ class PlanService(BaseService):
         Returns:
             [{run_id, pass_rate, created_at, total_cases, passed, failed}]
         """
-        runs = TestPlanRun.query.filter_by(plan_id=plan_id) \
-            .filter(TestPlanRun.status == 'completed') \
-            .order_by(TestPlanRun.created_at.asc()) \
-            .limit(limit) \
-            .all()
+        runs = db.session.scalars(
+        select(TestPlanRun).filter_by(plan_id=plan_id)
+        .filter(TestPlanRun.status == 'completed')
+        .order_by(TestPlanRun.created_at.asc())
+        .limit(limit)
+    ).all()
 
         return [{
             'run_id': r.id,
@@ -305,9 +310,9 @@ class PlanService(BaseService):
 
     def _refresh_run_stats(self, run_id: int):
         """刷新执行轮次的统计信息（兼容 SQLite 和 PostgreSQL）"""
-        results = TestPlanCaseResult.query.filter_by(run_id=run_id).all()
+        results = db.session.scalars(select(TestPlanCaseResult).filter_by(run_id=run_id)).all()
 
-        run = TestPlanRun.query.get(run_id)
+        run = db.session.get(TestPlanRun, run_id)
         if run:
             run.total_cases = len(results)
             run.passed = sum(1 for r in results if r.status == 'passed')
@@ -320,7 +325,7 @@ class PlanService(BaseService):
         """根据用例类型和 ID 解析用例名称"""
         try:
             if case_type == 'api':
-                case = ApiTestCase.query.get(case_id)
+                case = db.session.get(ApiTestCase, case_id)
                 return case.name if case else f'API Case #{case_id}'
         except Exception:
             pass

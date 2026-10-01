@@ -1,4 +1,5 @@
 """GitLab Webhook 测试"""
+from app.core.runtime import get_config
 
 import json
 import hashlib
@@ -15,8 +16,7 @@ def _sign_payload(payload_bytes, secret):
 def clear_gitlab_secret(app):
     """每个测试后清除 GitLab webhook secret"""
     yield
-    with app.app_context():
-        app.config['GITLAB_WEBHOOK_SECRET'] = ''
+    get_config()['GITLAB_WEBHOOK_SECRET'] = ''
 
 
 class TestGitLabWebhookPush:
@@ -35,30 +35,28 @@ class TestGitLabWebhookPush:
 
         response = client.post(
             '/api/v1/webhooks/gitlab',
-            data=json.dumps(payload),
-            content_type='application/json',
+            json=payload,
             headers={'X-Gitlab-Event': 'Push Hook'},
         )
 
         assert response.status_code == 200
-        data = response.get_json()
+        data = response.json()
         assert data['code'] == 200
 
     def test_push_event_with_invalid_signature(self, client):
         """无效签名的 push 事件"""
         secret = 'test-secret'
         
-        with client.application.app_context():
-            client.application.config['GITLAB_WEBHOOK_SECRET'] = secret
+        get_config()['GITLAB_WEBHOOK_SECRET'] = secret
 
         response = client.post(
             '/api/v1/webhooks/gitlab',
             data=json.dumps({'project': {}}),
-            content_type='application/json',
-            headers={
+            headers={'Content-Type': 'application/json',
+            
                 'X-Gitlab-Event': 'Push Hook',
                 'X-Gitlab-Token': 'sha256=invalid',
-            },
+        },
         )
 
         assert response.status_code == 401
@@ -82,8 +80,7 @@ class TestGitLabWebhookMR:
 
         response = client.post(
             '/api/v1/webhooks/gitlab',
-            data=json.dumps(payload),
-            content_type='application/json',
+            json=payload,
             headers={'X-Gitlab-Event': 'Merge Request Hook'},
         )
 
@@ -102,13 +99,12 @@ class TestGitLabWebhookMR:
 
         response = client.post(
             '/api/v1/webhooks/gitlab',
-            data=json.dumps(payload),
-            content_type='application/json',
+            json=payload,
             headers={'X-Gitlab-Event': 'Merge Request Hook'},
         )
 
         assert response.status_code == 200
-        data = response.get_json()
+        data = response.json()
         assert 'Ignored' in data['message']
 
 
@@ -119,9 +115,9 @@ class TestGitLabWebhookPing:
         """未知事件类型被忽略"""
         response = client.post(
             '/api/v1/webhooks/gitlab',
-            data=json.dumps({'zen': 'Keep it simple'}),
-            content_type='application/json',
-            headers={'X-Gitlab-Event': 'SomeOtherEvent'},
+            json=json.dumps({'zen': 'Keep it simple'}),
+            headers={'Content-Type': 'application/json',
+            'X-Gitlab-Event': 'SomeOtherEvent'},
         )
 
         assert response.status_code == 200

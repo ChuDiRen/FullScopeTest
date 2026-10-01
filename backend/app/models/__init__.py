@@ -37,7 +37,6 @@ from .test_case_version import TestCaseVersion
 from .comment import Comment
 from .embedding_cache import EmbeddingCache
 from .mock_server import MockServer, MockRule, MockRequestLog
-from .visitor_stat import VisitorStat
 
 __all__ = [
     'User',
@@ -84,5 +83,10 @@ __all__ = [
     'MockServer',
     'MockRule',
     'MockRequestLog',
-    'VisitorStat',
 ]
+
+# 以下模型此前未在包级注册（create_all 会漏建表），2026-09 补全
+from .branding_config import BrandingConfig  # noqa: F401
+from .dashboard_widget import DashboardWidget  # noqa: F401
+from .perf_baseline import PerfBaseline  # noqa: F401
+from .response_history import ResponseHistory  # noqa: F401

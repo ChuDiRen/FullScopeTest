@@ -65,7 +65,7 @@ class BaseConfig:
     COOKIE_SAMESITE = os.environ.get('COOKIE_SAMESITE', 'Lax')  # Lax / Strict / None
     COOKIE_DOMAIN = os.environ.get('COOKIE_DOMAIN', '')  # 留空则不设置 domain
 
-    # Flask-JWT-Extended Cookie 配置
+    # JWT Cookie 配置
     JWT_ACCESS_COOKIE_NAME = 'access_token_cookie'
     JWT_REFRESH_COOKIE_NAME = 'refresh_token_cookie'
     JWT_COOKIE_SECURE = COOKIE_SECURE
@@ -167,7 +167,7 @@ class DevelopmentConfig(BaseConfig):
         'DATABASE_URL',
         'postgresql://localhost:5432/fullscopetest_dev'
     )
-    # SQLite 相对路径需要基于项目根目录解析，避免被 Flask instance_path 二次拼接
+    # SQLite 相对路径需要基于项目根目录解析，避免相对路径被二次拼接
     if _raw_db_url.startswith('sqlite:///') and not _raw_db_url.startswith('sqlite:////'):
         _rel_path = _raw_db_url[len('sqlite:///'):]
         _abs_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), _rel_path)

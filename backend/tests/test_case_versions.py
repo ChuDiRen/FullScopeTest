@@ -4,6 +4,7 @@
 覆盖：版本快照自动保存、版本列表查询、版本详情、
      diff 对比、最大版本数清理、边界条件
 """
+from app.extensions import db
 import uuid
 
 
@@ -14,14 +15,14 @@ def _auth_headers(client, username=None):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 def _create_project(client, headers, name=None):
     name = name or f"Proj_{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/v1/projects", headers=headers, json={"name": name})
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _create_case(client, headers, project_id, name=None, url=None):
@@ -33,7 +34,7 @@ def _create_case(client, headers, project_id, name=None, url=None):
         "method": "GET",
         "url": url,
     })
-    data = resp.get_json()
+    data = resp.json()
     if "data" not in data:
         raise RuntimeError(f"Create case failed: {data}")
     return data["data"]
@@ -61,7 +62,7 @@ class TestVersionAutoSave:
         # 查询版本历史
         resp = client.get(f"/api/v1/api-test/cases/{case['id']}/versions", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] >= 1
         # 版本快照保存的是更新前的内容
         assert data["items"][0]["content"]["name"] == "Original"
@@ -80,7 +81,7 @@ class TestVersionAutoSave:
         })
 
         resp = client.get(f"/api/v1/api-test/cases/{case['id']}/versions", headers=headers)
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         # 没有变更时不应创建版本
         assert data["total"] == 0
 
@@ -97,7 +98,7 @@ class TestVersionAutoSave:
             })
 
         resp = client.get(f"/api/v1/api-test/cases/{case['id']}/versions", headers=headers)
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 3
 
     def test_version_records_changed_fields(self, client, no_rate_limit):
@@ -112,7 +113,7 @@ class TestVersionAutoSave:
         })
 
         resp = client.get(f"/api/v1/api-test/cases/{case['id']}/versions", headers=headers)
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] >= 1
         changed = data["items"][0]["changed_fields"]
         assert "name" in changed
@@ -135,11 +136,11 @@ class TestVersionQuery:
         client.put(f"/api/v1/api-test/cases/{case['id']}", headers=headers, json={"name": "After"})
 
         resp = client.get(f"/api/v1/api-test/cases/{case['id']}/versions", headers=headers)
-        version_id = resp.get_json()["data"]["items"][0]["id"]
+        version_id = resp.json()["data"]["items"][0]["id"]
 
         resp = client.get(f"/api/v1/api-test/versions/{version_id}", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["content"]["name"] == "Before"
 
     def test_get_version_not_found(self, client, no_rate_limit):
@@ -168,7 +169,7 @@ class TestVersionDiff:
         client.put(f"/api/v1/api-test/cases/{case['id']}", headers=headers, json={"method": "POST"})
 
         resp = client.get(f"/api/v1/api-test/cases/{case['id']}/versions", headers=headers)
-        versions = resp.get_json()["data"]["items"]
+        versions = resp.json()["data"]["items"]
         assert len(versions) == 2
 
         v1_id = versions[1]["id"]  # 旧版本
@@ -176,7 +177,7 @@ class TestVersionDiff:
 
         resp = client.get(f"/api/v1/api-test/versions/diff?v1={v1_id}&v2={v2_id}", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert "diff" in data
         assert "name" in data["diff"]["changed_fields"] or "method" in data["diff"]["changed_fields"]
 
@@ -246,25 +247,24 @@ class TestVersionService:
         from app.models.api_test_case import ApiTestCase
         from app.services.api_case_service import ApiCaseService
         svc = ApiCaseService()
-        with app.app_context():
-            user = User(username=f"cv_{uuid.uuid4().hex[:6]}", email="cv@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="CVProj", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
-            case = ApiTestCase(
-                user_id=user.id, project_id=proj.id,
-                name="Original", method="GET", url="https://example.com",
-            )
-            db.session.add(case)
-            db.session.flush()
+        user = User(username=f"cv_{uuid.uuid4().hex[:6]}", email="cv@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="CVProj", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
+        case = ApiTestCase(
+            user_id=user.id, project_id=proj.id,
+            name="Original", method="GET", url="https://example.com",
+        )
+        db.session.add(case)
+        db.session.flush()
 
-            svc.update_case(case.id, user.id, {'name': 'Updated'})
-            versions = svc.get_versions(case.id)
-            assert versions['total'] == 1
-            assert versions['items'][0]['content']['name'] == 'Original'
-            db.session.rollback()
+        svc.update_case(case.id, user.id, {'name': 'Updated'})
+        versions = svc.get_versions(case.id)
+        assert versions['total'] == 1
+        assert versions['items'][0]['content']['name'] == 'Original'
+        db.session.rollback()
 
     def test_update_no_change_no_version(self, app):
         from app.extensions import db
@@ -273,24 +273,23 @@ class TestVersionService:
         from app.models.api_test_case import ApiTestCase
         from app.services.api_case_service import ApiCaseService
         svc = ApiCaseService()
-        with app.app_context():
-            user = User(username=f"cv_{uuid.uuid4().hex[:6]}", email="cv2@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="CVProj2", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
-            case = ApiTestCase(
-                user_id=user.id, project_id=proj.id,
-                name="Same", method="GET", url="https://example.com",
-            )
-            db.session.add(case)
-            db.session.flush()
+        user = User(username=f"cv_{uuid.uuid4().hex[:6]}", email="cv2@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="CVProj2", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
+        case = ApiTestCase(
+            user_id=user.id, project_id=proj.id,
+            name="Same", method="GET", url="https://example.com",
+        )
+        db.session.add(case)
+        db.session.flush()
 
-            svc.update_case(case.id, user.id, {'name': 'Same'})
-            versions = svc.get_versions(case.id)
-            assert versions['total'] == 0
-            db.session.rollback()
+        svc.update_case(case.id, user.id, {'name': 'Same'})
+        versions = svc.get_versions(case.id)
+        assert versions['total'] == 0
+        db.session.rollback()
 
     def test_diff_two_versions_service(self, app):
         from app.extensions import db
@@ -299,27 +298,26 @@ class TestVersionService:
         from app.models.api_test_case import ApiTestCase
         from app.services.api_case_service import ApiCaseService
         svc = ApiCaseService()
-        with app.app_context():
-            user = User(username=f"cv_{uuid.uuid4().hex[:6]}", email="cv3@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="CVProj3", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
-            case = ApiTestCase(
-                user_id=user.id, project_id=proj.id,
-                name="V1", method="GET", url="https://example.com",
-            )
-            db.session.add(case)
-            db.session.flush()
+        user = User(username=f"cv_{uuid.uuid4().hex[:6]}", email="cv3@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="CVProj3", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
+        case = ApiTestCase(
+            user_id=user.id, project_id=proj.id,
+            name="V1", method="GET", url="https://example.com",
+        )
+        db.session.add(case)
+        db.session.flush()
 
-            svc.update_case(case.id, user.id, {'name': 'V2'})
-            svc.update_case(case.id, user.id, {'method': 'POST'})
-            versions = svc.get_versions(case.id)
-            v1_id = versions['items'][1]['id']
-            v2_id = versions['items'][0]['id']
+        svc.update_case(case.id, user.id, {'name': 'V2'})
+        svc.update_case(case.id, user.id, {'method': 'POST'})
+        versions = svc.get_versions(case.id)
+        v1_id = versions['items'][1]['id']
+        v2_id = versions['items'][0]['id']
 
-            diff = svc.diff_two_versions(v1_id, v2_id)
-            assert 'diff' in diff
-            assert 'name' in diff['diff']['changed_fields'] or 'method' in diff['diff']['changed_fields']
-            db.session.rollback()
+        diff = svc.diff_two_versions(v1_id, v2_id)
+        assert 'diff' in diff
+        assert 'name' in diff['diff']['changed_fields'] or 'method' in diff['diff']['changed_fields']
+        db.session.rollback()

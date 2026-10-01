@@ -19,6 +19,7 @@ from ..extensions import db
 from ..utils.url_safety import is_safe_url
 from ..utils.env_variables import replace_variables, replace_variables_in_dict
 from ..utils.assertion_evaluator import get_assertion_evaluator
+from sqlalchemy import update
 
 
 class ScenarioStep:
@@ -270,6 +271,9 @@ class ScenarioExecutor(BaseService):
         """从响应体中提取值（与 assertion_evaluator 相同的 JSONPath 逻辑）"""
         if not path or body is None:
             return body
+        # 支持标准 JSONPath 前缀：$.a.b 与裸路径 a.b 等价
+        if path.startswith('$'):
+            path = path[1:].lstrip('.')
         current = body
         tokens = re.findall(r'([^\.\[\]]+)|\[(\d+)\]', path)
         for name_token, index_token in tokens:

@@ -13,8 +13,8 @@ def sample_project(client, auth_headers):
         "name": "API Test Project",
         "description": "用于测试的项目",
     }, headers=auth_headers)
-    assert resp.status_code in (200, 201)
-    data = resp.get_json()
+    assert resp.status_code in (200,)
+    data = resp.json()
     return data.get("data", {})
 
 
@@ -26,8 +26,8 @@ def sample_collection(client, auth_headers, sample_project):
         "project_id": sample_project["id"],
         "description": "测试集合",
     }, headers=auth_headers)
-    assert resp.status_code in (200, 201)
-    data = resp.get_json()
+    assert resp.status_code in (200,)
+    data = resp.json()
     return data.get("data", {})
 
 
@@ -41,6 +41,6 @@ def sample_case(client, auth_headers, sample_project, sample_collection):
         "collection_id": sample_collection["id"],
         "project_id": sample_project["id"],
     }, headers=auth_headers)
-    assert resp.status_code in (200, 201)
-    data = resp.get_json()
+    assert resp.status_code in (200,)
+    data = resp.json()
     return data.get("data", {})

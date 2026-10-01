@@ -4,6 +4,7 @@ API 测试用例 Service
 处理测试用例的 CRUD 操作。
 每次修改用例时自动保存前一版本的快照，支持版本历史查看和 diff 对比。
 """
+from sqlalchemy import func
 
 import os
 from sqlalchemy import func as sa_func
@@ -13,6 +14,7 @@ from ..models.api_test_case import ApiTestCase
 from ..models.test_case_version import TestCaseVersion, diff_versions, MAX_VERSIONS
 from ..utils.exceptions import NotFoundError, ValidationError
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -33,7 +35,7 @@ class ApiCaseService(BaseService):
             tags: 标签筛选，逗号分隔（可选）
             priority: 优先级筛选（可选）
         """
-        query = ApiTestCase.query.filter_by(user_id=user_id)
+        query = select(ApiTestCase).filter_by(user_id=user_id)
         if collection_id:
             query = query.filter_by(collection_id=collection_id)
         if project_id:
@@ -48,12 +50,12 @@ class ApiCaseService(BaseService):
                 query = query.filter(ApiTestCase.tags.contains(tag))
         if priority:
             query = query.filter(ApiTestCase.priority == priority)
-        cases = query.order_by(ApiTestCase.created_at.desc()).all()
+        cases = db.session.scalars(query.order_by(ApiTestCase.created_at.desc())).all()
         return [c.to_dict() for c in cases]
 
     def get_case(self, case_id: int, user_id: int):
         """获取用例详情"""
-        case = ApiTestCase.query.filter_by(id=case_id, user_id=user_id).first()
+        case = db.session.scalar(select(ApiTestCase).filter_by(id=case_id, user_id=user_id))
         if not case:
             raise NotFoundError("用例", case_id)
         return case.to_dict()
@@ -102,7 +104,7 @@ class ApiCaseService(BaseService):
 
         自动保存前一版本的快照到版本历史。
         """
-        case = ApiTestCase.query.filter_by(id=case_id, user_id=user_id).first()
+        case = db.session.scalar(select(ApiTestCase).filter_by(id=case_id, user_id=user_id))
         if not case:
             raise NotFoundError("用例", case_id)
 
@@ -140,7 +142,7 @@ class ApiCaseService(BaseService):
 
     def delete_case(self, case_id: int, user_id: int):
         """删除测试用例"""
-        case = ApiTestCase.query.filter_by(id=case_id, user_id=user_id).first()
+        case = db.session.scalar(select(ApiTestCase).filter_by(id=case_id, user_id=user_id))
         if not case:
             raise NotFoundError("用例", case_id)
 
@@ -161,14 +163,15 @@ class ApiCaseService(BaseService):
         Returns:
             分页结果
         """
-        query = TestCaseVersion.query.filter_by(
+        query = select(TestCaseVersion).filter_by(
             case_type='api', case_id=case_id,
         )
-        total = query.count()
-        versions = query.order_by(TestCaseVersion.version.desc()) \
-            .offset((page - 1) * per_page) \
-            .limit(per_page) \
-            .all()
+        total = db.session.scalar(select(func.count()).select_from(query.subquery()))
+        versions = db.session.scalars(
+            query.order_by(TestCaseVersion.version.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        ).all()
 
         return {
             'items': [v.to_dict() for v in versions],
@@ -180,7 +183,7 @@ class ApiCaseService(BaseService):
 
     def get_version(self, version_id: int) -> dict:
         """获取指定版本详情"""
-        version = TestCaseVersion.query.get(version_id)
+        version = db.session.get(TestCaseVersion, version_id)
         if not version:
             raise NotFoundError("版本", version_id)
         return version.to_dict()
@@ -196,8 +199,8 @@ class ApiCaseService(BaseService):
         Returns:
             {version_1, version_2, diff}
         """
-        v1 = TestCaseVersion.query.get(version_id_1)
-        v2 = TestCaseVersion.query.get(version_id_2)
+        v1 = db.session.get(TestCaseVersion, version_id_1)
+        v2 = db.session.get(TestCaseVersion, version_id_2)
         if not v1:
             raise NotFoundError("版本", version_id_1)
         if not v2:
@@ -221,9 +224,7 @@ class ApiCaseService(BaseService):
         自动递增版本号，并清理超出最大版本数的旧记录。
         """
         # 获取当前最大版本号
-        max_version = db.session.query(
-            sa_func.max(TestCaseVersion.version)
-        ).filter_by(case_type=case_type, case_id=case_id).scalar() or 0
+        max_version = db.session.scalar(select(sa_func.max(TestCaseVersion.version)).filter_by(case_type=case_type, case_id=case_id)) or 0
 
         version = TestCaseVersion(
             case_type=case_type,
@@ -237,11 +238,11 @@ class ApiCaseService(BaseService):
         self.add(version)
 
         # 清理超出最大版本数的旧记录
-        total_versions = TestCaseVersion.query.filter_by(
+        total_versions = db.session.scalar(select(func.count()).select_from(select(TestCaseVersion).filter_by(
             case_type=case_type, case_id=case_id,
-        ).count()
+        ).subquery()))
         if total_versions >= MAX_VERSIONS:
-            old_versions = TestCaseVersion.query.filter_by(
+            old_versions = select(TestCaseVersion).filter_by(
                 case_type=case_type, case_id=case_id,
             ).order_by(TestCaseVersion.version.asc()) \
                 .limit(total_versions - MAX_VERSIONS + 1) \

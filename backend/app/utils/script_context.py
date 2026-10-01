@@ -6,6 +6,7 @@
 
 import json
 from typing import Dict, Any, Optional
+from sqlalchemy import update
 
 
 def build_pre_script_context(

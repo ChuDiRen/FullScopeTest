@@ -13,7 +13,10 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from app.utils.sandbox import execute_script, check_script_safety
-from .common import _get_flask_app
+from .common import runtime_context, get_backend_root
+from sqlalchemy import select
+from ..extensions import db
+from sqlalchemy import update
 
 logger = get_logger(__name__)
 
@@ -228,13 +231,13 @@ def _process_visual_diffs(
 def run_web_test_task(self, script_id, user_id):
     """Run a web script asynchronously and persist unified reporting records."""
     task_start_time = time.time()
-    with _get_flask_app().app_context():
+    with runtime_context():
         script = None
         test_run = None
         work_dir = None
 
         try:
-            script = WebTestScript.query.filter_by(id=script_id, user_id=user_id).first()
+            script = db.session.scalar(select(WebTestScript).filter_by(id=script_id, user_id=user_id))
             if not script:
                 record_task_failure('run_web_test', time.time() - task_start_time)
                 return {
@@ -269,7 +272,7 @@ def run_web_test_task(self, script_id, user_id):
             self.update_state(state='PROGRESS', meta={'status': 'Running web test script...'})
 
             # 准备工作目录
-            work_dir = os.path.join(os.path.dirname(_get_flask_app().root_path), 'data', 'web_tests', str(script_id))
+            work_dir = os.path.join(os.path.dirname(get_backend_root()), 'data', 'web_tests', str(script_id))
             os.makedirs(work_dir, exist_ok=True)
 
             # 通过沙箱执行脚本（AST 检查 + 子进程隔离 + 审计日志）

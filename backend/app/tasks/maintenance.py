@@ -7,7 +7,9 @@ from app.core.logging import get_logger
 from app.core.metrics import record_task_success, record_task_failure
 from datetime import datetime, timezone
 
-from .common import _get_flask_app
+from .common import runtime_context
+from sqlalchemy import select
+from ..extensions import db
 
 logger = get_logger(__name__)
 
@@ -28,23 +30,23 @@ def cleanup_old_results_task():
     """
     task_start_time = time.time()
     # 使用 Flask 应用上下文
-    with _get_flask_app().app_context():
+    with runtime_context():
         try:
             from datetime import timedelta
             cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
 
             # 清理 Web 测试结果
-            old_scripts = WebTestScript.query.filter(
+            old_scripts = db.session.scalars(select(WebTestScript).filter(
                 WebTestScript.last_run_at < cutoff_date
-            ).all()
+            )).all()
 
             for script in old_scripts:
                 script.last_result = None
 
             # 清理性能测试结果
-            old_scenarios = PerfTestScenario.query.filter(
+            old_scenarios = db.session.scalars(select(PerfTestScenario).filter(
                 PerfTestScenario.last_run_at < cutoff_date
-            ).all()
+            )).all()
 
             for scenario in old_scenarios:
                 scenario.last_result = None

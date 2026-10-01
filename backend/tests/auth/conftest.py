@@ -15,7 +15,7 @@ def registered_user(client):
         "password": "Test@123456",
     }
     resp = client.post("/api/v1/auth/register", json=user_data)
-    assert resp.status_code in (200, 201), resp.get_data(as_text=True)
+    assert resp.status_code in (200, 201), resp.text
     return user_data
 
 
@@ -27,7 +27,7 @@ def auth_token(client, registered_user):
         "password": registered_user["password"],
     })
     assert resp.status_code == 200
-    data = resp.get_json()
+    data = resp.json()
     return data.get("data", {}).get("access_token", "")
 
 

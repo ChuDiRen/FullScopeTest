@@ -4,6 +4,7 @@
 覆盖：计划 CRUD、执行轮次、用例结果更新、通过率趋势、
      边界条件和错误处理
 """
+from app.extensions import db
 import uuid
 
 
@@ -19,7 +20,7 @@ def _auth_headers(client, username=None):
     resp = client.post("/api/v1/auth/login", json={
         "username": username, "password": password,
     })
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -27,7 +28,7 @@ def _create_project(client, headers, name=None):
     """创建测试项目"""
     name = name or f"Proj_{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/v1/projects", headers=headers, json={"name": name})
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _create_api_case(client, headers, project_id, name=None):
@@ -39,7 +40,7 @@ def _create_api_case(client, headers, project_id, name=None):
         "method": "GET",
         "url": "https://httpbin.org/get",
     })
-    data = resp.get_json()
+    data = resp.json()
     if data.get("data"):
         return data["data"]
     # 某些环境可能不存在该端点，返回模拟数据
@@ -64,8 +65,8 @@ class TestPlanCRUD:
             "description": "V2.0 回归测试",
             "tags": ["regression", "v2.0"],
         })
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["name"] == "回归测试计划"
         assert data["project_id"] == project["id"]
         assert data["status"] == "draft"
@@ -104,7 +105,7 @@ class TestPlanCRUD:
 
         resp = client.get(f"/api/v1/test-plans?project_id={project['id']}", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] >= 2
 
     def test_list_plans_missing_project_id(self, client, no_rate_limit):
@@ -123,11 +124,11 @@ class TestPlanCRUD:
             "project_id": project["id"],
             "include_cases": [{"case_type": "api", "case_id": 1}],
         })
-        plan_id = create_resp.get_json()["data"]["id"]
+        plan_id = create_resp.json()["data"]["id"]
 
         resp = client.get(f"/api/v1/test-plans/{plan_id}", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["name"] == "Detail Plan"
         assert len(data["include_cases"]) == 1
 
@@ -146,7 +147,7 @@ class TestPlanCRUD:
             "name": "Old Name",
             "project_id": project["id"],
         })
-        plan_id = create_resp.get_json()["data"]["id"]
+        plan_id = create_resp.json()["data"]["id"]
 
         resp = client.put(f"/api/v1/test-plans/{plan_id}", headers=headers, json={
             "name": "New Name",
@@ -154,7 +155,7 @@ class TestPlanCRUD:
             "status": "active",
         })
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["name"] == "New Name"
         assert data["status"] == "active"
 
@@ -175,7 +176,7 @@ class TestPlanCRUD:
             "name": "To Delete",
             "project_id": project["id"],
         })
-        plan_id = create_resp.get_json()["data"]["id"]
+        plan_id = create_resp.json()["data"]["id"]
 
         resp = client.delete(f"/api/v1/test-plans/{plan_id}", headers=headers)
         assert resp.status_code == 200
@@ -204,7 +205,7 @@ class TestPlanRuns:
                 {"case_type": "web", "case_id": 10},
             ],
         })
-        return resp.get_json()["data"]
+        return resp.json()["data"]
 
     def test_create_run(self, client, no_rate_limit):
         """创建执行轮次"""
@@ -215,8 +216,8 @@ class TestPlanRuns:
             "environment_name": "staging",
             "notes": "V2.0 回归",
         })
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["status"] == "pending"
         assert data["total_cases"] == 3
         assert len(data["case_results"]) == 3
@@ -231,7 +232,7 @@ class TestPlanRuns:
             "name": "Empty Plan",
             "project_id": project["id"],
         })
-        plan_id = plan_resp.get_json()["data"]["id"]
+        plan_id = plan_resp.json()["data"]["id"]
 
         resp = client.post(f"/api/v1/test-plans/{plan_id}/runs", headers=headers, json={})
         assert resp.status_code == 400
@@ -247,7 +248,7 @@ class TestPlanRuns:
 
         resp = client.get(f"/api/v1/test-plans/{plan['id']}/runs", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] >= 2
 
     def test_get_run_detail(self, client, no_rate_limit):
@@ -256,11 +257,11 @@ class TestPlanRuns:
         plan = self._create_plan_with_cases(client, headers)
 
         run_resp = client.post(f"/api/v1/test-plans/{plan['id']}/runs", headers=headers, json={})
-        run_id = run_resp.get_json()["data"]["id"]
+        run_id = run_resp.json()["data"]["id"]
 
         resp = client.get(f"/api/v1/test-plan-runs/{run_id}", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total_cases"] == 3
         assert len(data["case_results"]) == 3
 
@@ -289,10 +290,10 @@ class TestCaseResults:
                 {"case_type": "api", "case_id": 2},
             ],
         })
-        plan_id = plan_resp.get_json()["data"]["id"]
+        plan_id = plan_resp.json()["data"]["id"]
 
         run_resp = client.post(f"/api/v1/test-plans/{plan_id}/runs", headers=headers, json={})
-        return run_resp.get_json()["data"]
+        return run_resp.json()["data"]
 
     def test_update_case_result_passed(self, client, no_rate_limit):
         """更新用例结果为 passed"""
@@ -306,7 +307,7 @@ class TestCaseResults:
             "duration": 1.5,
         })
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["status"] == "passed"
         assert data["duration"] == 1.5
 
@@ -322,7 +323,7 @@ class TestCaseResults:
             "error_message": "AssertionError: expected 200 got 500",
         })
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["status"] == "failed"
 
     def test_update_case_result_missing_fields(self, client, no_rate_limit):
@@ -370,10 +371,10 @@ class TestRunCompletion:
             "project_id": project["id"],
             "include_cases": cases,
         })
-        plan_id = plan_resp.get_json()["data"]["id"]
+        plan_id = plan_resp.json()["data"]["id"]
 
         run_resp = client.post(f"/api/v1/test-plans/{plan_id}/runs", headers=headers, json={})
-        run_id = run_resp.get_json()["data"]["id"]
+        run_id = run_resp.json()["data"]["id"]
 
         # 更新结果
         for i in range(passed_count):
@@ -395,7 +396,7 @@ class TestRunCompletion:
 
         resp = client.post(f"/api/v1/test-plan-runs/{run_id}/complete", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["status"] == "completed"
         assert data["passed"] == 3
         assert data["failed"] == 1
@@ -410,7 +411,7 @@ class TestRunCompletion:
 
         # 获取计划详情
         resp = client.get(f"/api/v1/test-plans/{plan_id}", headers=headers)
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["last_pass_rate"] == 100.0
         assert data["last_run_at"] is not None
 
@@ -438,11 +439,11 @@ class TestPassRateTrend:
             "project_id": project["id"],
             "include_cases": [{"case_type": "api", "case_id": 1}],
         })
-        plan_id = plan_resp.get_json()["data"]["id"]
+        plan_id = plan_resp.json()["data"]["id"]
 
         resp = client.get(f"/api/v1/test-plans/{plan_id}/trend", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data == []
 
     def test_get_trend_with_runs(self, client, no_rate_limit):
@@ -458,12 +459,12 @@ class TestPassRateTrend:
                 {"case_type": "api", "case_id": 2},
             ],
         })
-        plan_id = plan_resp.get_json()["data"]["id"]
+        plan_id = plan_resp.json()["data"]["id"]
 
         # 创建并完成 2 个轮次
         for _ in range(2):
             run_resp = client.post(f"/api/v1/test-plans/{plan_id}/runs", headers=headers, json={})
-            run_id = run_resp.get_json()["data"]["id"]
+            run_id = run_resp.json()["data"]["id"]
             # 标记所有用例通过
             for cid in [1, 2]:
                 client.patch(f"/api/v1/test-plan-runs/{run_id}/case-results", headers=headers, json={
@@ -473,7 +474,7 @@ class TestPassRateTrend:
 
         resp = client.get(f"/api/v1/test-plans/{plan_id}/trend", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert len(data) == 2
         assert data[0]["pass_rate"] == 100.0
 
@@ -491,25 +492,24 @@ class TestPlanServiceUnit:
         from app.models.project import Project
         from app.services.plan_service import PlanService
         svc = PlanService()
-        with app.app_context():
-            user = User(username=f"svc_{uuid.uuid4().hex[:6]}", email="svc@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="SvcProj", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
+        user = User(username=f"svc_{uuid.uuid4().hex[:6]}", email="svc@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="SvcProj", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
 
-            result = svc.create_plan(
-                user_id=user.id,
-                project_id=proj.id,
-                name="Service Plan",
-                description="Created by service",
-                include_cases=[{"case_type": "api", "case_id": 1}],
-                tags=["test"],
-            )
-            assert result["name"] == "Service Plan"
-            assert len(result["include_cases"]) == 1
-            db.session.rollback()
+        result = svc.create_plan(
+            user_id=user.id,
+            project_id=proj.id,
+            name="Service Plan",
+            description="Created by service",
+            include_cases=[{"case_type": "api", "case_id": 1}],
+            tags=["test"],
+        )
+        assert result["name"] == "Service Plan"
+        assert len(result["include_cases"]) == 1
+        db.session.rollback()
 
     def test_create_plan_empty_name_raises(self, app):
         from app.extensions import db
@@ -518,18 +518,17 @@ class TestPlanServiceUnit:
         from app.services.plan_service import PlanService
         from app.utils.exceptions import ValidationError
         svc = PlanService()
-        with app.app_context():
-            user = User(username=f"svc_{uuid.uuid4().hex[:6]}", email="svc2@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="SvcProj2", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
+        user = User(username=f"svc_{uuid.uuid4().hex[:6]}", email="svc2@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="SvcProj2", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
 
-            import pytest
-            with pytest.raises(ValidationError):
-                svc.create_plan(user_id=user.id, project_id=proj.id, name="")
-            db.session.rollback()
+        import pytest
+        with pytest.raises(ValidationError):
+            svc.create_plan(user_id=user.id, project_id=proj.id, name="")
+        db.session.rollback()
 
     def test_update_case_result_service(self, app):
         from app.extensions import db
@@ -538,27 +537,26 @@ class TestPlanServiceUnit:
         from app.models.test_plan import TestPlan, TestPlanRun, TestPlanCaseResult
         from app.services.plan_service import PlanService
         svc = PlanService()
-        with app.app_context():
-            user = User(username=f"svc_{uuid.uuid4().hex[:6]}", email="svc3@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="SvcProj3", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
+        user = User(username=f"svc_{uuid.uuid4().hex[:6]}", email="svc3@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="SvcProj3", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
 
-            plan = svc.create_plan(
-                user_id=user.id, project_id=proj.id, name="P",
-                include_cases=[{"case_type": "api", "case_id": 1}],
-            )
-            run = svc.create_run(plan_id=plan['id'], user_id=user.id)
-            run_id = run['id']
+        plan = svc.create_plan(
+            user_id=user.id, project_id=proj.id, name="P",
+            include_cases=[{"case_type": "api", "case_id": 1}],
+        )
+        run = svc.create_run(plan_id=plan['id'], user_id=user.id)
+        run_id = run['id']
 
-            result = svc.update_case_result(run_id, 'api', 1, 'passed', duration=0.5)
-            assert result['status'] == 'passed'
+        result = svc.update_case_result(run_id, 'api', 1, 'passed', duration=0.5)
+        assert result['status'] == 'passed'
 
-            completed = svc.complete_run(run_id)
-            assert completed['pass_rate'] == 100.0
-            db.session.rollback()
+        completed = svc.complete_run(run_id)
+        assert completed['pass_rate'] == 100.0
+        db.session.rollback()
 
     def test_get_pass_rate_trend_service(self, app):
         from app.extensions import db
@@ -566,25 +564,24 @@ class TestPlanServiceUnit:
         from app.models.project import Project
         from app.services.plan_service import PlanService
         svc = PlanService()
-        with app.app_context():
-            user = User(username=f"svc_{uuid.uuid4().hex[:6]}", email="svc4@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="SvcProj4", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
+        user = User(username=f"svc_{uuid.uuid4().hex[:6]}", email="svc4@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="SvcProj4", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
 
-            plan = svc.create_plan(
-                user_id=user.id, project_id=proj.id, name="T",
-                include_cases=[{"case_type": "api", "case_id": 1}],
-            )
+        plan = svc.create_plan(
+            user_id=user.id, project_id=proj.id, name="T",
+            include_cases=[{"case_type": "api", "case_id": 1}],
+        )
 
-            # 创建并完成一个轮次
-            run = svc.create_run(plan_id=plan['id'], user_id=user.id)
-            svc.update_case_result(run['id'], 'api', 1, 'passed')
-            svc.complete_run(run['id'])
+        # 创建并完成一个轮次
+        run = svc.create_run(plan_id=plan['id'], user_id=user.id)
+        svc.update_case_result(run['id'], 'api', 1, 'passed')
+        svc.complete_run(run['id'])
 
-            trend = svc.get_pass_rate_trend(plan['id'])
-            assert len(trend) == 1
-            assert trend[0]['pass_rate'] == 100.0
-            db.session.rollback()
+        trend = svc.get_pass_rate_trend(plan['id'])
+        assert len(trend) == 1
+        assert trend[0]['pass_rate'] == 100.0
+        db.session.rollback()

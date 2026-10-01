@@ -13,6 +13,7 @@ from typing import Optional
 from ..extensions import db
 from ..models.quota import Quota
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -53,10 +54,10 @@ def init_quota_for_organization(organization_id: int, plan: str = 'free'):
     plan_config = DEFAULT_PLANS.get(plan, DEFAULT_PLANS['free'])
 
     for resource_type, limit in plan_config.items():
-        existing = Quota.query.filter_by(
+        existing = db.session.scalar(select(Quota).filter_by(
             organization_id=organization_id,
             resource_type=resource_type,
-        ).first()
+        ))
         if not existing:
             quota = Quota(
                 organization_id=organization_id,
@@ -73,15 +74,15 @@ def init_quota_for_organization(organization_id: int, plan: str = 'free'):
 
 def get_quota(organization_id: int, resource_type: str) -> Optional[Quota]:
     """获取指定组织的资源配额"""
-    return Quota.query.filter_by(
+    return db.session.scalar(select(Quota).filter_by(
         organization_id=organization_id,
         resource_type=resource_type,
-    ).first()
+    ))
 
 
 def get_all_quotas(organization_id: int) -> list:
     """获取组织的所有配额"""
-    quotas = Quota.query.filter_by(organization_id=organization_id).all()
+    quotas = db.session.scalars(select(Quota).filter_by(organization_id=organization_id)).all()
     return [q.to_dict() for q in quotas]
 
 

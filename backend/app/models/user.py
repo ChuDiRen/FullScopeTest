@@ -5,7 +5,10 @@
 """
 
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, JSON, String
+from sqlalchemy.orm import relationship
+from ..database import Base
+from sqlalchemy import update
 
 
 # 角色常量
@@ -20,34 +23,34 @@ ROLE_PERMISSIONS = {
 }
 
 
-class User(db.Model):
+class User(Base):
     """用户表"""
 
     __tablename__ = 'users'
     __table_args__ = (
-        db.Index('idx_users_role', 'role'),
+        Index('idx_users_role', 'role'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False, comment='用户名')
-    email = db.Column(db.String(120), unique=True, nullable=False, comment='邮箱')
-    password_hash = db.Column(db.String(255), nullable=False, comment='密码哈希')
-    avatar = db.Column(db.String(255), comment='头像 URL')
-    role = db.Column(db.String(20), default=ROLE_MEMBER, comment='角色: admin/member/viewer')
-    is_active = db.Column(db.Boolean, default=True, comment='是否激活')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    last_login = db.Column(db.DateTime, comment='最后登录时间')
-    reset_token = db.Column(db.String(255), nullable=True, comment='密码重置 Token')
-    reset_token_expires = db.Column(db.DateTime, nullable=True, comment='重置 Token 过期时间')
-    password_changed_at = db.Column(db.DateTime, nullable=True, comment='最后一次修改密码时间')
+    id = Column(Integer, primary_key=True)
+    username = Column(String(50), unique=True, nullable=False, comment='用户名')
+    email = Column(String(120), unique=True, nullable=False, comment='邮箱')
+    password_hash = Column(String(255), nullable=False, comment='密码哈希')
+    avatar = Column(String(255), comment='头像 URL')
+    role = Column(String(20), default=ROLE_MEMBER, comment='角色: admin/member/viewer')
+    is_active = Column(Boolean, default=True, comment='是否激活')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    last_login = Column(DateTime, comment='最后登录时间')
+    reset_token = Column(String(255), nullable=True, comment='密码重置 Token')
+    reset_token_expires = Column(DateTime, nullable=True, comment='重置 Token 过期时间')
+    password_changed_at = Column(DateTime, nullable=True, comment='最后一次修改密码时间')
 
     # SSO 单点登录字段
-    sso_provider = db.Column(db.String(50), nullable=True, comment='SSO 提供商: oidc/ldap/local')
-    sso_id = db.Column(db.String(255), nullable=True, comment='SSO 提供商中的用户标识')
-    sso_metadata = db.Column(db.JSON, nullable=True, comment='SSO 提供商返回的额外元数据')
+    sso_provider = Column(String(50), nullable=True, comment='SSO 提供商: oidc/ldap/local')
+    sso_id = Column(String(255), nullable=True, comment='SSO 提供商中的用户标识')
+    sso_metadata = Column(JSON, nullable=True, comment='SSO 提供商返回的额外元数据')
 
     # 关联
-    projects = db.relationship('Project', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
+    projects = relationship('Project', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
 
     def to_dict(self, include_sensitive=False):
         """

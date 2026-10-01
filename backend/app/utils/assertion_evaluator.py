@@ -111,7 +111,9 @@ class AssertionEvaluator:
         operator = assertion.get("operator", "exists")
         expected = assertion.get("expected_value")
         headers = response_data.get("headers", {}) or {}
-        actual = headers.get(header_name.lower()) or headers.get(header_name)
+        # HTTP 头名大小写不敏感：统一小写索引后取值（exists/not_exists 分支同理）
+        lower_map = {k.lower(): v for k, v in headers.items()}
+        actual = lower_map.get(header_name.lower())
         if operator == "exists":
             exists = header_name.lower() in {k.lower() for k in headers}
             return AssertionResult(name=description, passed=exists,
@@ -214,6 +216,9 @@ class AssertionEvaluator:
         """
         if not path or not data:
             return data
+        # 支持标准 JSONPath 前缀：$.a.b / $['a'] 与裸路径 a.b 等价
+        if path.startswith('$'):
+            path = path[1:].lstrip('.')
         current = data
         tokens = re.findall(r'([^\.\[\]]+)|\[(\d+)\]', path)
         for name_token, index_token in tokens:

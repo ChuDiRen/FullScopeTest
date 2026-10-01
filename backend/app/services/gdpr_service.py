@@ -14,6 +14,7 @@ from ..models.api_test_case import ApiTestCase
 from ..models.test_run import TestRun
 from ..models.comment import Comment
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -31,7 +32,7 @@ class GDPRService:
         Returns:
             Dict: 包含用户所有数据的字典
         """
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             raise ValueError(f"用户 {user_id} 不存在")
 
@@ -55,7 +56,7 @@ class GDPRService:
         }
 
         # 测试用例
-        cases = ApiTestCase.query.filter_by(user_id=user_id).all()
+        cases = db.session.scalars(select(ApiTestCase).filter_by(user_id=user_id)).all()
         for c in cases:
             data["test_cases"].append({
                 "id": c.id, "name": c.name, "method": c.method, "url": c.url,
@@ -63,7 +64,7 @@ class GDPRService:
             })
 
         # 测试执行记录
-        runs = TestRun.query.filter_by(triggered_user_id=user_id).all()
+        runs = db.session.scalars(select(TestRun).filter_by(triggered_user_id=user_id)).all()
         for r in runs:
             data["test_runs"].append({
                 "id": r.id, "test_type": r.test_type, "status": r.status,
@@ -71,7 +72,7 @@ class GDPRService:
             })
 
         # 评论
-        comments = Comment.query.filter_by(user_id=user_id).all()
+        comments = db.session.scalars(select(Comment).filter_by(user_id=user_id)).all()
         for cm in comments:
             data["comments"].append({
                 "id": cm.id, "content": cm.content,
@@ -85,11 +86,11 @@ class GDPRService:
     def export_organization_data(self, org_id: int) -> Dict[str, Any]:
         """导出组织所有数据（管理员审计）"""
         from ..models.organization import Organization, OrganizationMember
-        org = Organization.query.get(org_id)
+        org = db.session.get(Organization, org_id)
         if not org:
             raise ValueError(f"组织 {org_id} 不存在")
 
-        members = OrganizationMember.query.filter_by(organization_id=org_id).all()
+        members = db.session.scalars(select(OrganizationMember).filter_by(organization_id=org_id)).all()
         member_ids = [m.user_id for m in members]
 
         data = {"organization": org.to_dict() if hasattr(org, "to_dict") else {"id": org.id}, "members": len(members), "user_data": {}}
@@ -110,7 +111,7 @@ class GDPRService:
         Returns:
             Dict: 删除请求信息
         """
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             raise ValueError(f"用户 {user_id} 不存在")
 
@@ -129,7 +130,7 @@ class GDPRService:
 
     def cancel_account_deletion(self, user_id: int) -> Dict[str, Any]:
         """取消账户删除请求"""
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             raise ValueError(f"用户 {user_id} 不存在")
         if hasattr(user, "settings") and isinstance(user.settings, dict):

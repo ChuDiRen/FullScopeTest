@@ -14,6 +14,8 @@ from typing import Optional, Dict, Any
 import redis
 
 from ..core.logging import get_logger
+from sqlalchemy import select
+from ..extensions import db
 
 logger = get_logger(__name__)
 
@@ -23,13 +25,19 @@ DEFAULT_RATE_LIMITS = {
     'api_token': 1000,  # API token 1000 req/min
 }
 
-# Redis 连接
+# Redis 连接（延迟初始化）+ 不可用熔断窗口：
+# 本机 Redis 可能要认证或黑洞挂死，失败后在窗口期内直接走降级，
+# 避免每个请求都付 2s 超时并刷屏警告日志
 _redis = None
+_redis_unavailable_until = 0.0
+_REDIS_RETRY_INTERVAL = 30.0
 
 
 def _get_redis():
-    """获取 Redis 连接（惰性初始化）"""
-    global _redis
+    """获取 Redis 连接（惰性初始化，带不可用熔断）"""
+    global _redis, _redis_unavailable_until
+    if time.time() < _redis_unavailable_until:
+        return None
     if _redis is None:
         redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
         _redis = redis.from_url(redis_url, decode_responses=True, socket_timeout=2, socket_connect_timeout=2)
@@ -38,8 +46,8 @@ def _get_redis():
         _redis.ping()
     except Exception:
         _redis = None
-        redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-        _redis = redis.from_url(redis_url, decode_responses=True, socket_timeout=2, socket_connect_timeout=2)
+        _redis_unavailable_until = time.time() + _REDIS_RETRY_INTERVAL
+        return None
     return _redis
 
 
@@ -66,6 +74,9 @@ def sliding_window_rate_limit(
             redis_client = _get_redis()
         except Exception as exc:
             logger.warning('Redis unavailable for rate limiting, allowing request', error=str(exc))
+            return True
+        if redis_client is None:
+            # 熔断窗口内：直接降级放行（不刷日志）
             return True
 
     now = time.time()
@@ -133,7 +144,7 @@ def get_user_rate_limit(user_id: int, is_api_token: bool = False, org_id: int = 
         # 尝试通过用户获取组织 ID
         try:
             from ..models.organization import OrganizationMember
-            membership = OrganizationMember.query.filter_by(user_id=user_id).first()
+            membership = db.session.scalar(select(OrganizationMember).filter_by(user_id=user_id))
             if membership:
                 org_id = membership.organization_id
         except Exception:
@@ -171,10 +182,10 @@ def get_org_rate_limit(org_id: int) -> Optional[int]:
     # 从数据库查询
     try:
         from ..models.quota import Quota
-        quota = Quota.query.filter_by(
+        quota = db.session.scalar(select(Quota).filter_by(
             organization_id=org_id,
             resource_type='api_rate_limit'
-        ).first()
+        ))
 
         result = quota.limit if quota and quota.limit > 0 else None
 

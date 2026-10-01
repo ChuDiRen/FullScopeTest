@@ -1,7 +1,7 @@
 """访客统计数据收集
 
 Revision ID: visitor_stats_v1
-Revises:
+Revises: 004_add_missing_tables
 Create Date: 2024-09-19
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'visitor_stats_v1'
-down_revision = None
+down_revision = '004_add_missing_tables'
 branch_labels = None
 depends_on = None
 
@@ -21,6 +21,7 @@ def upgrade():
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('session_id', sa.String(length=64), nullable=False, comment='唯一会话标识'),
         sa.Column('ip_hash', sa.String(length=64), nullable=True, comment='IP 哈希值（隐私保护）'),
+        sa.Column('ip_address', sa.String(length=45), nullable=True, comment='IP 地址（仅管理员可见）'),
         sa.Column('ip_country', sa.String(length=50), nullable=True, comment='IP 国家'),
         sa.Column('ip_city', sa.String(length=100), nullable=True, comment='IP 城市'),
         sa.Column('ip_isp', sa.String(length=100), nullable=True, comment='ISP 运营商'),

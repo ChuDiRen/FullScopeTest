@@ -17,6 +17,7 @@ from typing import Optional
 from ..extensions import db
 from ..models.api_token import ApiToken, VALID_TOKEN_ACTIONS
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -42,7 +43,7 @@ def validate_token(token: str) -> Optional[ApiToken]:
         ApiToken 对象，None 表示验证失败
     """
     token_hash = hash_token(token)
-    api_token = ApiToken.query.filter_by(token_hash=token_hash).first()
+    api_token = db.session.scalar(select(ApiToken).filter_by(token_hash=token_hash))
 
     if not api_token:
         return None

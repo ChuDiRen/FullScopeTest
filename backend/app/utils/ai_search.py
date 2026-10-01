@@ -13,6 +13,7 @@ from ..models.web_test_script import WebTestScript
 from ..models.perf_test_scenario import PerfTestScenario
 from ..models.environment import Environment
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -96,7 +97,7 @@ def execute_global_search(
     if "api_case" in asset_types:
         try:
             filters = build_like_filters(ApiTestCase, ['name', 'description', 'url'], keywords)
-            cases = ApiTestCase.query.filter_by(user_id=user_id).filter(filters).limit(20).all()
+            cases = db.session.scalars(select(ApiTestCase).filter_by(user_id=user_id).filter(filters).limit(20)).all()
             for c in cases:
                 results.append({
                     "id": c.id,
@@ -111,7 +112,7 @@ def execute_global_search(
     if "web_script" in asset_types:
         try:
             filters = build_like_filters(WebTestScript, ['name', 'description', 'script_content'], keywords)
-            scripts = WebTestScript.query.filter_by(user_id=user_id).filter(filters).limit(20).all()
+            scripts = db.session.scalars(select(WebTestScript).filter_by(user_id=user_id).filter(filters).limit(20)).all()
             for s in scripts:
                 results.append({
                     "id": s.id,
@@ -126,7 +127,7 @@ def execute_global_search(
     if "perf_scenario" in asset_types:
         try:
             filters = build_like_filters(PerfTestScenario, ['name', 'description', 'target_url'], keywords)
-            scenarios = PerfTestScenario.query.filter_by(user_id=user_id).filter(filters).limit(20).all()
+            scenarios = db.session.scalars(select(PerfTestScenario).filter_by(user_id=user_id).filter(filters).limit(20)).all()
             for s in scenarios:
                 results.append({
                     "id": s.id,
@@ -144,7 +145,7 @@ def execute_global_search(
             # However, for simplicity, we can join Project.
             from ..models.project import Project
             filters = build_like_filters(Environment, ['name', 'base_url', 'description'], keywords)
-            envs = db.session.query(Environment).join(Project).filter(Project.owner_id == user_id).filter(filters).limit(20).all()
+            envs = db.session.scalars(select(Environment).join(Project).filter(Project.owner_id == user_id).filter(filters).limit(20)).all()
             for e in envs:
                 results.append({
                     "id": e.id,

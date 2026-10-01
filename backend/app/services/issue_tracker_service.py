@@ -27,6 +27,7 @@ from ..extensions import db
 from ..models.issue_link import IssueLink
 from ..models.test_run import TestRun
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -268,13 +269,13 @@ def get_issue_links(test_run_id: int = None, project_id: int = None) -> list:
     Returns:
         IssueLink 字典列表
     """
-    query = IssueLink.query
+    query = select(IssueLink)
     if test_run_id is not None:
         query = query.filter_by(test_run_id=test_run_id)
     if project_id is not None:
         query = query.filter_by(project_id=project_id)
 
-    links = query.order_by(IssueLink.created_at.desc()).all()
+    links = db.session.scalars(query.order_by(IssueLink.created_at.desc())).all()
     return [l.to_dict() for l in links]
 
 
@@ -288,7 +289,7 @@ def refresh_issue_status(link_id: int) -> dict:
     Returns:
         更新后的 IssueLink 字典
     """
-    link = IssueLink.query.get(link_id)
+    link = db.session.get(IssueLink, link_id)
     if not link:
         return None
 
@@ -320,7 +321,7 @@ def auto_create_issue_on_failure(test_run_id: int, tracker: str = None) -> Optio
     if not tracker:
         return None
 
-    run = TestRun.query.get(test_run_id)
+    run = db.session.get(TestRun, test_run_id)
     if not run:
         return None
 

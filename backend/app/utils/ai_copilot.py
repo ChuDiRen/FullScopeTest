@@ -10,6 +10,7 @@ from ..extensions import db
 from ..models.perf_test_scenario import PerfTestScenario
 from ..models.web_test_script import WebTestScript
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -111,7 +112,7 @@ class QuickstartUser(HttpUser):
 
     elif function_name == "query_failed_web_tests":
         limit = arguments.get("limit", 5)
-        failed_tests = WebTestScript.query.filter_by(status='failed').order_by(WebTestScript.updated_at.desc()).limit(limit).all()
+        failed_tests = db.session.scalars(select(WebTestScript).filter_by(status='failed').order_by(WebTestScript.updated_at.desc()).limit(limit)).all()
         
         if not failed_tests:
             return json.dumps({"status": "success", "message": "太棒了！最近没有任何失败的 Web 测试。"}, ensure_ascii=False)

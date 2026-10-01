@@ -5,6 +5,7 @@ JavaScript 脚本执行器
 支持 Postman 风格的 API (pm.test, pm.expect, pm.environment)
 """
 
+import os
 import subprocess
 import json
 import time
@@ -12,6 +13,25 @@ from typing import Dict, Any, Optional, List
 from ..core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _minimal_node_env() -> dict:
+    """
+    Node 子进程最小环境。
+
+    旧实现未传 env=，子进程继承后端全部环境变量（DATABASE_URL、SECRET_KEY、
+    OSS/AI 密钥等），任何能编辑用例的用户都能窃取。此处只保留 Node 运行
+    必需项，业务密钥一律不透传。
+    """
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),   # Windows Node 必需
+        "COMSPEC": os.environ.get("COMSPEC", ""),
+        "TEMP": os.environ.get("TEMP", ""),
+        "TMP": os.environ.get("TMP", ""),
+        "PYTHONIOENCODING": "utf-8",
+    }
+    return {k: v for k, v in env.items() if v}
 
 
 # Postman 风格的 JavaScript 沙箱代码（内嵌在执行器中）
@@ -262,7 +282,8 @@ console.log(JSON.stringify({{
                 text=True,
                 timeout=self.timeout,
                 encoding='utf-8',
-                errors='replace'  # 替换无法解码的字符
+                errors='replace',  # 替换无法解码的字符
+                env=_minimal_node_env(),
             )
 
             duration = (time.time() - start_time) * 1000
@@ -356,7 +377,8 @@ console.log(JSON.stringify({{
                 text=True,
                 timeout=self.timeout,
                 encoding='utf-8',
-                errors='replace'
+                errors='replace',
+                env=_minimal_node_env(),
             )
 
             duration = (time.time() - start_time) * 1000

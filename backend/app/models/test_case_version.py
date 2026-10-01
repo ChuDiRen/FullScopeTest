@@ -8,41 +8,43 @@
 """
 import os
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 # 最大版本数（可配置）
 MAX_VERSIONS = int(os.environ.get('MAX_VERSIONS', '50'))
 
 
-class TestCaseVersion(db.Model):
+class TestCaseVersion(Base):
     """用例版本历史表"""
 
     __tablename__ = 'test_case_versions'
     __table_args__ = (
-        db.Index('idx_tc_versions_case', 'case_type', 'case_id'),
-        db.Index('idx_tc_versions_created', 'created_at'),
+        Index('idx_tc_versions_case', 'case_type', 'case_id'),
+        Index('idx_tc_versions_created', 'created_at'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
     # 用例标识（通用：支持 API/Web 等不同类型）
-    case_type = db.Column(db.String(20), nullable=False, comment='用例类型: api/web')
-    case_id = db.Column(db.Integer, nullable=False, comment='用例 ID')
-    version = db.Column(db.Integer, nullable=False, comment='版本号（从 1 开始递增）')
+    case_type = Column(String(20), nullable=False, comment='用例类型: api/web')
+    case_id = Column(Integer, nullable=False, comment='用例 ID')
+    version = Column(Integer, nullable=False, comment='版本号（从 1 开始递增）')
 
     # 版本快照（用例的完整字段）
-    content = db.Column(db.JSON, nullable=False, comment='用例快照（完整字段 JSON）')
+    content = Column(JSON, nullable=False, comment='用例快照（完整字段 JSON）')
 
     # 变更信息
-    change_summary = db.Column(db.String(500), comment='变更摘要')
-    changed_fields = db.Column(db.JSON, default=list, comment='变更的字段列表')
+    change_summary = Column(String(500), comment='变更摘要')
+    changed_fields = Column(JSON, default=list, comment='变更的字段列表')
 
     # 操作者
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, comment='修改者 ID')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='版本创建时间')
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=True, comment='修改者 ID')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='版本创建时间')
 
     # 关联
-    user = db.relationship('User', backref='case_versions')
+    user = relationship('User', backref='case_versions')
 
     def to_dict(self):
         return {

@@ -21,6 +21,7 @@ from ..models.role import (
     get_effective_permissions,
 )
 from ..core.logging import get_logger
+from sqlalchemy import delete, select
 
 logger = get_logger(__name__)
 
@@ -34,11 +35,11 @@ def get_user_role_in_org(user_id: int, organization_id: int) -> Optional[Organiz
     Returns:
         OrganizationMember 对象，None 表示用户不在该组织中
     """
-    return OrganizationMember.query.filter_by(
+    return db.session.scalar(select(OrganizationMember).filter_by(
         user_id=user_id,
         organization_id=organization_id,
         is_active=True,
-    ).first()
+    ))
 
 
 def check_permission(user_id: int, organization_id: int, resource: str, action: str) -> bool:
@@ -90,7 +91,7 @@ def get_user_role_name(user_id: int, organization_id: int) -> Optional[str]:
 
 def get_system_roles() -> list[dict]:
     """获取所有系统角色列表"""
-    roles = Role.query.filter_by(is_system=True, is_active=True).all()
+    roles = db.session.scalars(select(Role).filter_by(is_system=True, is_active=True)).all()
     if not roles:
         # 数据库中尚无系统角色，返回常量
         return _build_system_role_dicts()
@@ -101,12 +102,12 @@ def get_organization_roles(organization_id: int) -> list[dict]:
     """
     获取组织可用的角色列表（系统角色 + 组织自定义角色）
     """
-    system_roles = Role.query.filter_by(is_system=True, is_active=True).all()
-    custom_roles = Role.query.filter_by(
+    system_roles = db.session.scalars(select(Role).filter_by(is_system=True, is_active=True)).all()
+    custom_roles = db.session.scalars(select(Role).filter_by(
         organization_id=organization_id,
         is_system=False,
         is_active=True,
-    ).all()
+    )).all()
 
     if not system_roles:
         # 系统角色尚未初始化到数据库，使用常量
@@ -146,10 +147,10 @@ def create_custom_role(
         raise ValueError(f"角色名 '{name}' 为系统保留，不可使用")
 
     # 检查组织内是否重名
-    existing = Role.query.filter_by(
+    existing = db.session.scalar(select(Role).filter_by(
         name=name,
         organization_id=organization_id,
-    ).first()
+    ))
     if existing:
         raise ValueError(f"角色名 '{name}' 已存在")
 
@@ -183,7 +184,7 @@ def update_custom_role(
 
     系统角色不可修改。
     """
-    role = Role.query.get(role_id)
+    role = db.session.get(Role, role_id)
     if not role:
         raise ValueError("角色不存在")
     if role.is_system:
@@ -210,7 +211,7 @@ def delete_custom_role(role_id: int, organization_id: int):
 
     系统角色不可删除。
     """
-    role = Role.query.get(role_id)
+    role = db.session.get(Role, role_id)
     if not role:
         raise ValueError("角色不存在")
     if role.is_system:
@@ -237,7 +238,7 @@ def seed_system_roles():
     }
 
     for name, perms in SYSTEM_ROLE_PERMISSIONS.items():
-        existing = Role.query.filter_by(name=name, is_system=True).first()
+        existing = db.session.scalar(select(Role).filter_by(name=name, is_system=True))
         if not existing:
             display_name, desc = role_names.get(name, (name, ''))
             role = Role(

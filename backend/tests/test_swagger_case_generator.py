@@ -3,6 +3,8 @@ Swagger 智能用例生成服务测试
 
 测试 OpenAPI/Swagger 解析、接口提取、AI 用例生成、数据库保存等功能
 """
+from sqlalchemy import select
+from app.extensions import db
 
 import json
 import pytest
@@ -430,30 +432,34 @@ class TestCaseGeneration:
 class TestApiEndpoint:
     """API 端点测试"""
 
-    def _get_auth_header(self, client, app):
-        """获取认证 header"""
+    def _get_auth_and_uid(self, client, app):
+        """注册并登录测试用户，返回 (认证 header, 用户 id)"""
         import uuid
-        with app.app_context():
-            from app.extensions import db
-            from app.models.user import User
-            from werkzeug.security import generate_password_hash
+        from app.extensions import db
+        from app.models.user import User
+        from app.core.passwords import generate_password_hash
 
-            username = f'swagger_test_{uuid.uuid4().hex[:8]}'
-            user = User(
-                username=username,
-                email=f'{username}@test.com',
-                password_hash=generate_password_hash('test123'),
-                role='admin',
-            )
-            db.session.add(user)
-            db.session.commit()
+        username = f'swagger_test_{uuid.uuid4().hex[:8]}'
+        user = User(
+            username=username,
+            email=f'{username}@test.com',
+            password_hash=generate_password_hash('test123'),
+            role='admin',
+        )
+        db.session.add(user)
+        db.session.commit()
 
         resp = client.post('/api/v1/auth/login', json={
             'username': username,
             'password': 'test123',
         })
-        token = resp.get_json().get('data', {}).get('access_token', '')
-        return {'Authorization': f'Bearer {token}'}
+        token = resp.json().get('data', {}).get('access_token', '')
+        return {'Authorization': f'Bearer {token}'}, user.id
+
+    def _get_auth_header(self, client, app):
+        """获取认证 header"""
+        headers, _ = self._get_auth_and_uid(client, app)
+        return headers
 
     def test_generate_cases_empty_content(self, client, app):
         """测试空 swagger_content 返回 400"""
@@ -485,7 +491,7 @@ class TestApiEndpoint:
         """测试成功生成用例（mock AI）"""
         headers = self._get_auth_header(client, app)
 
-        with patch('app.api.swagger_gen.swagger_case_generator.generate_cases') as mock_gen:
+        with patch('app.api.v2.v1.swagger_gen.swagger_case_generator.generate_cases') as mock_gen:
             mock_gen.return_value = {
                 'spec_info': {'title': 'Test API', 'version': '1.0', 'description': ''},
                 'endpoints_count': 2,
@@ -506,7 +512,7 @@ class TestApiEndpoint:
             }, headers=headers)
 
             assert resp.status_code == 200
-            data = resp.get_json()
+            data = resp.json()
             assert data['data']['summary']['total_cases'] == 1
 
     def test_save_cases_empty(self, client, app):
@@ -528,16 +534,17 @@ class TestApiEndpoint:
 
     def test_save_cases_to_db(self, client, app):
         """测试将用例保存到数据库"""
-        headers = self._get_auth_header(client, app)
+        import uuid as _uuid
+        headers, uid = self._get_auth_and_uid(client, app)
 
-        # 先创建一个项目
-        with app.app_context():
-            from app.extensions import db
-            from app.models.project import Project
-            project = Project(name='Test Project', description='test', owner_id=1)
-            db.session.add(project)
-            db.session.commit()
-            project_id = project.id
+        # 先创建一个项目（owner 须为 API 用户，通过端点属主校验）
+        from app.extensions import db
+        from app.models.project import Project
+        project = Project(name=f'Test Project {_uuid.uuid4().hex[:6]}',
+                          description='test', owner_id=uid)
+        db.session.add(project)
+        db.session.commit()
+        project_id = project.id
 
         resp = client.post('/api/v1/ai/generate-cases-from-swagger/save', json={
             'cases': [
@@ -577,19 +584,18 @@ class TestApiEndpoint:
         }, headers=headers)
 
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data['data']['saved_count'] == 2
 
         # 验证数据库中的用例
-        with app.app_context():
-            from app.models.api_test_case import ApiTestCase, ApiTestCollection
-            cases = ApiTestCase.query.filter_by(project_id=project_id).all()
-            assert len(cases) == 2
-            assert cases[0].method == 'GET'
-            assert cases[1].method == 'POST'
-            assert 'ai-generated' in cases[0].tags
-            assert 'ai-gen:normal' in cases[0].tags
-            assert 'ai-gen:error' in cases[1].tags
+        from app.models.api_test_case import ApiTestCase, ApiTestCollection
+        cases = db.session.scalars(select(ApiTestCase).filter_by(project_id=project_id)).all()
+        assert len(cases) == 2
+        assert cases[0].method == 'GET'
+        assert cases[1].method == 'POST'
+        assert 'ai-generated' in cases[0].tags
+        assert 'ai-gen:normal' in cases[0].tags
+        assert 'ai-gen:error' in cases[1].tags
 
 
 class TestPromptFormatting:

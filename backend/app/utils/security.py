@@ -7,8 +7,6 @@
 import hashlib
 import hmac
 import re
-from functools import wraps
-from flask import request, current_app
 
 
 def verify_hmac_signature(payload: bytes, signature: str, secret: str) -> bool:

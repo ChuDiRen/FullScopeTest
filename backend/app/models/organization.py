@@ -7,34 +7,38 @@
 import secrets
 from datetime import datetime
 from sqlalchemy import func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
+from ..database import Base
+from sqlalchemy import select
 from ..extensions import db
 
 
-class Organization(db.Model):
+class Organization(Base):
     """组织表"""
 
     __tablename__ = 'organizations'
     __table_args__ = (
-        db.Index('idx_organizations_owner_id', 'owner_id'),
-        db.Index('idx_organizations_invite_code', 'invite_code'),
+        Index('idx_organizations_owner_id', 'owner_id'),
+        Index('idx_organizations_invite_code', 'invite_code'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, comment='组织名称')
-    slug = db.Column(db.String(100), unique=True, nullable=False, comment='组织 slug（URL 友好）')
-    description = db.Column(db.Text, comment='组织描述')
-    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='创建者 ID')
-    avatar = db.Column(db.String(500), comment='组织头像 URL')
-    invite_code = db.Column(db.String(20), unique=True, nullable=True, comment='邀请码')
-    settings = db.Column(db.JSON, default=dict, comment='组织设置')
-    is_active = db.Column(db.Boolean, default=True, comment='是否激活')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, comment='组织名称')
+    slug = Column(String(100), unique=True, nullable=False, comment='组织 slug（URL 友好）')
+    description = Column(Text, comment='组织描述')
+    owner_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='创建者 ID')
+    avatar = Column(String(500), comment='组织头像 URL')
+    invite_code = Column(String(20), unique=True, nullable=True, comment='邀请码')
+    settings = Column(JSON, default=dict, comment='组织设置')
+    is_active = Column(Boolean, default=True, comment='是否激活')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
     # 关联关系
-    owner = db.relationship('User', backref='owned_organizations')
-    members = db.relationship('OrganizationMember', backref='organization', lazy='dynamic', cascade='all, delete-orphan')
-    projects = db.relationship('Project', backref='organization', lazy='dynamic')
+    owner = relationship('User', backref='owned_organizations')
+    members = relationship('OrganizationMember', backref='organization', lazy='dynamic', cascade='all, delete-orphan')
+    projects = relationship('Project', backref='organization', lazy='dynamic')
 
     def generate_invite_code(self):
         """生成 8 位邀请码"""
@@ -43,15 +47,16 @@ class Organization(db.Model):
 
     def to_dict(self):
         # 使用子查询计算关联数量，避免 N+1 查询
-        member_count = db.session.query(func.count(OrganizationMember.id)).filter(
-            OrganizationMember.organization_id == self.id,
-            OrganizationMember.is_active == True
-        ).scalar() or 0
+        member_count = db.session.scalar(
+            select(func.count(OrganizationMember.id)).filter(
+                OrganizationMember.organization_id == self.id,
+                OrganizationMember.is_active == True)
+        ) or 0
 
         from .project import Project
-        project_count = db.session.query(func.count(Project.id)).filter(
-            Project.organization_id == self.id
-        ).scalar() or 0
+        project_count = db.session.scalar(
+            select(func.count(Project.id)).filter(Project.organization_id == self.id)
+        ) or 0
 
         return {
             'id': self.id,
@@ -73,28 +78,28 @@ class Organization(db.Model):
         return f'<Organization {self.name}>'
 
 
-class OrganizationMember(db.Model):
+class OrganizationMember(Base):
     """组织成员关系表"""
 
     __tablename__ = 'organization_members'
     __table_args__ = (
-        db.UniqueConstraint('organization_id', 'user_id', name='uq_org_member'),
-        db.Index('idx_org_members_org_id', 'organization_id'),
-        db.Index('idx_org_members_user_id', 'user_id'),
+        UniqueConstraint('organization_id', 'user_id', name='uq_org_member'),
+        Index('idx_org_members_org_id', 'organization_id'),
+        Index('idx_org_members_user_id', 'user_id'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=False, comment='组织 ID')
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='用户 ID')
-    role = db.Column(db.String(20), default='member', comment='角色: owner/admin/member/viewer')
-    invited_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, comment='邀请人 ID')
-    is_active = db.Column(db.Boolean, default=True, comment='是否激活')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='加入时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey('organizations.id'), nullable=False, comment='组织 ID')
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='用户 ID')
+    role = Column(String(20), default='member', comment='角色: owner/admin/member/viewer')
+    invited_by = Column(Integer, ForeignKey('users.id'), nullable=True, comment='邀请人 ID')
+    is_active = Column(Boolean, default=True, comment='是否激活')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='加入时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
     # 关联关系
-    user = db.relationship('User', foreign_keys=[user_id], backref='organization_memberships')
-    inviter = db.relationship('User', foreign_keys=[invited_by], backref='invited_members')
+    user = relationship('User', foreign_keys=[user_id], backref='organization_memberships')
+    inviter = relationship('User', foreign_keys=[invited_by], backref='invited_members')
 
     def to_dict(self):
         return {

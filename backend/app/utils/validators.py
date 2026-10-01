@@ -6,17 +6,20 @@
 
 import re
 from functools import wraps
-from flask import request
+from ..core.request_local import get_request_info
 from .response import error_response
 
 
 def validate_json(*required_fields):
     """
     验证 JSON 请求体装饰器
-    
+
+    零 Flask：请求摘要（headers/json）由 ASGI 中间件写入 request_local；
+    无请求信息时按校验失败处理。
+
     Args:
         required_fields: 必需的字段名列表
-    
+
     Usage:
         @validate_json('name', 'email')
         def create_user():
@@ -25,19 +28,22 @@ def validate_json(*required_fields):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
+            info = get_request_info() or {}
+            headers = info.get('headers') or {}
+            content_type = headers.get('Content-Type') or headers.get('content-type') or ''
             # 检查 Content-Type
-            if not request.is_json:
+            if 'application/json' not in content_type:
                 return error_response(400, '请求必须是 JSON 格式')
-            
-            data = request.get_json()
+
+            data = info.get('json')
             if not data:
                 return error_response(400, '请求体不能为空')
-            
+
             # 检查必需字段
             missing_fields = [field for field in required_fields if field not in data]
             if missing_fields:
                 return error_response(400, f'缺少必需字段: {", ".join(missing_fields)}')
-            
+
             return f(*args, **kwargs)
         return wrapper
     return decorator

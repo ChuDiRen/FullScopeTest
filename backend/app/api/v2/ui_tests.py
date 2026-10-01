@@ -19,6 +19,7 @@ from ...models.test_report import TestReport
 from ...models.user import User
 from ...models.visual_diff import VisualDiff
 from .auth import get_current_user
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -97,9 +98,9 @@ async def run_web_test(
     from ...models.web_test_script import WebTestScript
     from ...tasks import run_web_test_task
 
-    script = WebTestScript.query.filter_by(
+    script = db.session.scalar(select(WebTestScript).filter_by(
         id=data.script_id, user_id=user.id
-    ).first()
+    ))
     if not script:
         raise HTTPException(status_code=404, detail="脚本不存在")
 
@@ -133,13 +134,13 @@ async def get_web_test_results(
     user: User = Depends(get_current_user),
 ):
     """获取 Web 测试运行结果详情"""
-    test_run = TestRun.query.get(run_id)
+    test_run = db.session.scalar(select(TestRun).filter_by(id=run_id, triggered_user_id=user.id))
     if not test_run:
         raise HTTPException(status_code=404, detail="测试运行不存在")
 
     report_data = None
     if test_run.report_id:
-        report = TestReport.query.get(test_run.report_id)
+        report = db.session.get(TestReport, test_run.report_id)
         if report:
             report_data = report.to_dict()
 
@@ -177,15 +178,15 @@ async def get_visual_diffs(
     user: User = Depends(get_current_user),
 ):
     """获取指定测试运行的视觉差异记录"""
-    test_run = TestRun.query.get(run_id)
+    test_run = db.session.scalar(select(TestRun).filter_by(id=run_id, triggered_user_id=user.id))
     if not test_run:
         raise HTTPException(status_code=404, detail="测试运行不存在")
 
-    query = VisualDiff.query.filter_by(test_run_id=run_id)
+    query = select(VisualDiff).filter_by(test_run_id=run_id)
     if status:
         query = query.filter_by(status=status)
 
-    diffs = query.order_by(VisualDiff.step_index).all()
+    diffs = db.session.scalars(query.order_by(VisualDiff.step_index)).all()
 
     return [
         VisualDiffResponse(

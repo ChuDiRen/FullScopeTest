@@ -1,12 +1,33 @@
-import logging
-from logging.config import fileConfig
+"""Alembic 迁移环境（零 Flask）。
 
-from flask import current_app
+- 数据库连接：backend/.env 或环境变量 DATABASE_URL（与 init_db.py、core/runtime 一致）
+- 模型元数据：app.database.db（import app.models 完成注册）
+
+用法（在 backend 目录下）：
+    alembic -c migrations/alembic.ini upgrade head
+    DATABASE_URL=postgresql+psycopg2://... alembic revision --autogenerate -m "..."
+"""
+import logging
+import os
+import sys
+from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# 保证可 import app.*（alembic 从 backend 目录运行时已在 sys.path，双保险）
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# 先加载 backend/.env（override=False：外部环境变量优先，与 init_db.py 一致）
+from dotenv import load_dotenv
+
+_env_path = Path(__file__).resolve().parents[1] / ".env"
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path, override=False)
+else:
+    load_dotenv(override=False)
+
 config = context.config
 
 # Interpret the config file for Python logging.
@@ -15,40 +36,22 @@ fileConfig(config.config_file_name)
 logger = logging.getLogger('alembic.env')
 
 
-def get_engine():
-    try:
-        # this works with Flask-SQLAlchemy<3 and Alchemical
-        return current_app.extensions['migrate'].db.get_engine()
-    except (TypeError, AttributeError):
-        # this works with Flask-SQLAlchemy>=3
-        return current_app.extensions['migrate'].db.engine
+def _database_url() -> str:
+    """连接串统一走应用配置（含 SQLite 相对路径到 backend 目录的解析规则）。"""
+    from app.core.runtime import get_config
+
+    return get_config().get("SQLALCHEMY_DATABASE_URI") or "sqlite:///fullscopetest.db"
 
 
-def get_engine_url():
-    try:
-        return get_engine().url.render_as_string(hide_password=False).replace(
-            '%', '%%')
-    except AttributeError:
-        return str(get_engine().url).replace('%', '%%')
-
+url = _database_url()
+config.set_main_option('sqlalchemy.url', url.replace('%', '%%'))
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-config.set_main_option('sqlalchemy.url', get_engine_url())
-target_db = current_app.extensions['migrate'].db
+import app.models  # noqa: F401 — 确保所有模型注册到 metadata
+from app.database import db
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
-
-def get_metadata():
-    if hasattr(target_db, 'metadatas'):
-        return target_db.metadatas[None]
-    return target_db.metadata
+target_metadata = db.metadata
 
 
 def run_migrations_offline():
@@ -63,9 +66,9 @@ def run_migrations_offline():
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True
+        url=url, target_metadata=target_metadata, literal_binds=True,
+        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -90,17 +93,18 @@ def run_migrations_online():
                 directives[:] = []
                 logger.info('No changes in schema detected.')
 
-    conf_args = current_app.extensions['migrate'].configure_args
-    if conf_args.get("process_revision_directives") is None:
-        conf_args["process_revision_directives"] = process_revision_directives
-
-    connectable = get_engine()
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix='sqlalchemy.',
+        poolclass=pool.NullPool,
+    )
 
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
-            target_metadata=get_metadata(),
-            **conf_args
+            target_metadata=target_metadata,
+            process_revision_directives=process_revision_directives,
+            compare_type=True,
         )
 
         with context.begin_transaction():

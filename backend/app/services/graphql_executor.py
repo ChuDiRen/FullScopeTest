@@ -10,6 +10,7 @@ import time
 import requests
 from typing import Dict, Any, List, Optional
 from ..core.logging import get_logger
+from sqlalchemy import update
 
 logger = get_logger(__name__)
 

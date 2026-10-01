@@ -2,6 +2,7 @@
 
 from ..core.logging import get_logger
 from ..extensions import db
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -26,12 +27,12 @@ class PerformanceAlertService:
         from ..models.perf_test_result import PerformanceTestResult
         from ..models.perf_test_alert import PerformanceAlertRule, PerformanceAlertLog
 
-        test_result = PerformanceTestResult.query.get(test_result_id)
+        test_result = db.session.get(PerformanceTestResult, test_result_id)
         if not test_result:
             logger.warning("评估告警规则失败：测试结果不存在", test_result_id=test_result_id)
             return []
 
-        rules = PerformanceAlertRule.query.filter_by(enabled=True).all()
+        rules = db.session.scalars(select(PerformanceAlertRule).filter_by(enabled=True)).all()
         triggered_alerts = []
 
         for rule in rules:
@@ -160,11 +161,11 @@ class PerformanceAlertService:
     def _get_previous_result(self, scenario_id, current_result_id):
         """获取上一次测试运行的结果"""
         from ..models.perf_test_result import PerformanceTestResult
-        return PerformanceTestResult.query.filter(
+        return db.session.scalar(select(PerformanceTestResult).filter(
             PerformanceTestResult.scenario_id == scenario_id,
             PerformanceTestResult.id != current_result_id,
             PerformanceTestResult.status == "completed",
-        ).order_by(PerformanceTestResult.created_at.desc()).first()
+        ).order_by(PerformanceTestResult.created_at.desc()))
 
     def _send_webhook_notification(self, alert_log, webhook_url):
         """发送 Webhook 通知"""

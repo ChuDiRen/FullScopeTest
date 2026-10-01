@@ -10,12 +10,15 @@
 
 删除前记录审计日志，支持手动触发清理。
 """
+from sqlalchemy import delete
 
 import os
 import glob
 from datetime import datetime, timezone, timedelta
 
 from ..core.logging import get_logger
+from sqlalchemy import select
+from ..extensions import db
 
 logger = get_logger(__name__)
 
@@ -51,15 +54,15 @@ def cleanup_raw_test_runs(app_context=None):
 
     try:
         # 先查询所有过期的test_run IDs
-        old_runs = TestRun.query.filter(TestRun.created_at < cutoff).all()
+        old_runs = db.session.scalars(select(TestRun).filter(TestRun.created_at < cutoff)).all()
         old_run_ids = [run.id for run in old_runs]
 
         if old_run_ids:
             # 1. 先删除关联的 quality_gate_evaluations 记录（避免外键约束冲突）
             from ..models.quality_gate import QualityGateEvaluation
-            deleted_evaluations = QualityGateEvaluation.query.filter(
+            deleted_evaluations = db.session.execute(delete(QualityGateEvaluation).filter(
                 QualityGateEvaluation.test_run_id.in_(old_run_ids)
-            ).delete(synchronize_session=False)
+            ))
             logger.info(
                 "数据归档: 删除关联的质量门评估记录",
                 deleted_count=deleted_evaluations,
@@ -104,7 +107,7 @@ def cleanup_old_reports(app_context=None):
     stats = {"deleted_reports": 0}
 
     try:
-        old_reports = TestReport.query.filter(TestReport.created_at < cutoff).all()
+        old_reports = db.session.scalars(select(TestReport).filter(TestReport.created_at < cutoff)).all()
         for report in old_reports:
             logger.info(
                 "数据归档: 删除过期报告",

@@ -22,6 +22,7 @@ from ..models.test_run import TestRun
 from ..models.test_report import TestReport
 from ..utils.exceptions import ValidationError, NotFoundError
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -113,9 +114,9 @@ def import_from_postman_json(user_id: int, project_id: int, json_content: str,
                         body = {p.get('key', ''): p.get('value', '') for p in body_obj.get('formdata', []) if isinstance(p, dict)}
 
             # 检查是否重复（同名同 URL）
-            existing = ApiTestCase.query.filter_by(
+            existing = db.session.scalar(select(ApiTestCase).filter_by(
                 user_id=user_id, project_id=project_id, name=name, url=url,
-            ).first()
+            ))
             if existing:
                 results['skipped'] += 1
                 results['errors'].append({'name': name, 'reason': '已存在同名同 URL 用例'})
@@ -206,9 +207,9 @@ def import_from_csv(user_id: int, project_id: int, csv_content: str,
                 body = body_str
 
         # 去重检查
-        existing = ApiTestCase.query.filter_by(
+        existing = db.session.scalar(select(ApiTestCase).filter_by(
             user_id=user_id, project_id=project_id, name=name, url=url,
-        ).first()
+        ))
         if existing:
             results['skipped'] += 1
             results['errors'].append({'row': row_num, 'reason': '已存在同名同 URL 用例'})
@@ -252,7 +253,7 @@ def export_test_report_excel(test_run_id: int) -> Optional[bytes]:
         logger.warning("openpyxl 未安装，无法导出 Excel")
         return None
 
-    run = TestRun.query.get(test_run_id)
+    run = db.session.get(TestRun, test_run_id)
     if not run:
         raise NotFoundError("测试执行记录", test_run_id)
 
@@ -332,7 +333,7 @@ def export_test_report_csv(test_run_id: int) -> str:
     Returns:
         CSV 文本内容
     """
-    run = TestRun.query.get(test_run_id)
+    run = db.session.get(TestRun, test_run_id)
     if not run:
         raise NotFoundError("测试执行记录", test_run_id)
 

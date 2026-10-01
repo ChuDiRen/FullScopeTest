@@ -12,6 +12,8 @@ from ...extensions import db
 from ...models.prompt_version import PromptVersion
 from ...models.ai_invocation_log import AIInvocationLog
 from ...core.logging import get_logger
+from sqlalchemy import case, func, select
+from ...database import paginate
 
 logger = get_logger(__name__)
 
@@ -24,15 +26,15 @@ class PromptVersionService:
     @staticmethod
     def get_by_id(version_id: int) -> Optional[PromptVersion]:
         """按 ID 获取 Prompt 版本"""
-        return PromptVersion.query.get(version_id)
+        return db.session.get(PromptVersion, version_id)
 
     @staticmethod
     def get_active_versions(feature: str) -> List[PromptVersion]:
         """获取指定 feature 的所有激活版本"""
-        return PromptVersion.query.filter_by(
+        return db.session.scalars(select(PromptVersion).filter_by(
             feature=feature,
             is_active=True,
-        ).order_by(PromptVersion.version.desc()).all()
+        ).order_by(PromptVersion.version.desc())).all()
 
     @staticmethod
     def list_versions(
@@ -47,7 +49,7 @@ class PromptVersionService:
         Returns:
             dict: {'items': [...], 'total': int, 'page': int, 'per_page': int, 'pages': int}
         """
-        query = PromptVersion.query
+        query = select(PromptVersion)
 
         if feature:
             query = query.filter_by(feature=feature)
@@ -59,7 +61,7 @@ class PromptVersionService:
             PromptVersion.version.desc(),
         )
 
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = paginate(query, page=page, per_page=per_page)
 
         return {
             'items': [v.to_dict() for v in pagination.items],
@@ -72,9 +74,9 @@ class PromptVersionService:
     @staticmethod
     def get_latest_version(feature: str) -> Optional[PromptVersion]:
         """获取指定 feature 的最新版本号"""
-        return PromptVersion.query.filter_by(feature=feature).order_by(
+        return db.session.scalar(select(PromptVersion).filter_by(feature=feature).order_by(
             PromptVersion.version.desc()
-        ).first()
+        ))
 
     # ---- 创建 ----
 
@@ -144,7 +146,7 @@ class PromptVersionService:
         change_notes: Optional[str] = None,
     ) -> Optional[PromptVersion]:
         """更新 Prompt 版本"""
-        pv = PromptVersion.query.get(version_id)
+        pv = db.session.get(PromptVersion, version_id)
         if not pv:
             return None
 
@@ -180,7 +182,7 @@ class PromptVersionService:
     @staticmethod
     def deactivate_version(version_id: int) -> bool:
         """停用（软删除）Prompt 版本"""
-        pv = PromptVersion.query.get(version_id)
+        pv = db.session.get(PromptVersion, version_id)
         if not pv:
             return False
 
@@ -229,19 +231,19 @@ class PromptVersionService:
         """
         从 AIInvocationLog 重新计算并更新指定 PromptVersion 的统计字段。
         """
-        pv = PromptVersion.query.get(version_id)
+        pv = db.session.get(PromptVersion, version_id)
         if not pv:
             return None
 
-        stats = db.session.query(
-            db.func.count(AIInvocationLog.id).label('total'),
-            db.func.sum(db.case((AIInvocationLog.success == True, 1), else_=0)).label('success'),
-            db.func.sum(db.case((AIInvocationLog.success == False, 1), else_=0)).label('failure'),
-            db.func.avg(AIInvocationLog.latency_ms).label('avg_latency'),
-            db.func.avg(AIInvocationLog.total_tokens).label('avg_tokens'),
-            db.func.avg(AIInvocationLog.cost_estimate).label('avg_cost'),
-        ).filter(
-            AIInvocationLog.prompt_version_id == version_id
+        stats = db.session.execute(
+            select(
+                func.count(AIInvocationLog.id).label('total'),
+                func.sum(case((AIInvocationLog.success == True, 1), else_=0)).label('success'),
+                func.sum(case((AIInvocationLog.success == False, 1), else_=0)).label('failure'),
+                func.avg(AIInvocationLog.latency_ms).label('avg_latency'),
+                func.avg(AIInvocationLog.total_tokens).label('avg_tokens'),
+                func.avg(AIInvocationLog.cost_estimate).label('avg_cost'),
+            ).filter(AIInvocationLog.prompt_version_id == version_id)
         ).first()
 
         pv.total_invocations = stats.total or 0
@@ -265,11 +267,11 @@ class PromptVersionService:
     @staticmethod
     def refresh_all_stats(feature: Optional[str] = None) -> int:
         """批量刷新所有（或指定 feature 的）PromptVersion 统计。返回刷新数量。"""
-        query = PromptVersion.query
+        query = select(PromptVersion)
         if feature:
             query = query.filter_by(feature=feature)
 
-        versions = query.all()
+        versions = db.session.scalars(query).all()
         count = 0
         for pv in versions:
             PromptVersionService.refresh_stats(pv.id)

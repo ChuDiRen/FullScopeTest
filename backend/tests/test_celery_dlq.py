@@ -54,30 +54,18 @@ class TestCeleryAppInit:
 
     @pytest.fixture(autouse=True)
     def _setup(self):
-        os.environ.setdefault("FLASK_ENV", "testing")
+        os.environ.setdefault("APP_ENV", "testing")
         os.environ["CELERY_ENABLE"] = "false"
 
     def test_make_celery_has_dlq_settings(self):
         """make_celery 返回的实例包含 DLQ 相关配置"""
         from app.celery_app import make_celery
-        celery_app = make_celery("testing")
+        celery_app = make_celery()
 
         assert celery_app.conf.task_acks_late is True
         assert celery_app.conf.task_reject_on_worker_lost is True
         assert celery_app.conf.task_max_retries == 3
         assert celery_app.conf.task_default_retry_delay == 60
-
-    def test_init_celery_has_dlq_settings(self, app):
-        """init_celery 为 Flask 集成的 Celery 实例配置了 DLQ"""
-        from app.celery_app import init_celery
-        from app.extensions import celery
-
-        init_celery(celery, app)
-
-        assert celery.conf.task_acks_late is True
-        assert celery.conf.task_reject_on_worker_lost is True
-        assert celery.conf.task_max_retries == 3
-
 
 # ──────────────────────────────────────────────────────────────
 # ContextTask 基类测试
@@ -88,39 +76,39 @@ class TestContextTaskBase:
 
     @pytest.fixture(autouse=True)
     def _setup(self):
-        os.environ.setdefault("FLASK_ENV", "testing")
+        os.environ.setdefault("APP_ENV", "testing")
         os.environ["CELERY_ENABLE"] = "false"
 
     def test_context_task_has_max_retries(self, app):
         """ContextTask 基类设置 max_retries=3"""
-        from app.celery_app import init_celery
+        from app.celery_app import make_celery
         from app.extensions import celery
 
-        init_celery(celery, app)
+        make_celery()
         assert celery.Task.max_retries == 3
 
     def test_context_task_has_default_retry_delay(self, app):
         """ContextTask 基类设置 default_retry_delay=60"""
-        from app.celery_app import init_celery
+        from app.celery_app import make_celery
         from app.extensions import celery
 
-        init_celery(celery, app)
+        make_celery()
         assert celery.Task.default_retry_delay == 60
 
     def test_context_task_acks_late(self, app):
         """ContextTask 基类设置 acks_late=True"""
-        from app.celery_app import init_celery
+        from app.celery_app import make_celery
         from app.extensions import celery
 
-        init_celery(celery, app)
+        make_celery()
         assert celery.Task.acks_late is True
 
     def test_context_task_reject_on_worker_lost(self, app):
         """ContextTask 基类设置 reject_on_worker_lost=True"""
-        from app.celery_app import init_celery
+        from app.celery_app import make_celery
         from app.extensions import celery
 
-        init_celery(celery, app)
+        make_celery()
         assert celery.Task.reject_on_worker_lost is True
 
 
@@ -133,7 +121,7 @@ class TestTaskRetryConfiguration:
 
     @pytest.fixture(autouse=True)
     def _setup(self):
-        os.environ.setdefault("FLASK_ENV", "testing")
+        os.environ.setdefault("APP_ENV", "testing")
         os.environ["CELERY_ENABLE"] = "false"
 
     def _get_task(self, task_name):
@@ -182,14 +170,14 @@ class TestDLQFailureCallback:
 
     @pytest.fixture(autouse=True)
     def _setup(self):
-        os.environ.setdefault("FLASK_ENV", "testing")
+        os.environ.setdefault("APP_ENV", "testing")
         os.environ["CELERY_ENABLE"] = "false"
 
     def test_context_task_has_on_failure(self, app):
         """ContextTask 基类定义了 on_failure 方法"""
-        from app.celery_app import init_celery
+        from app.celery_app import make_celery
         from app.extensions import celery
 
-        init_celery(celery, app)
+        make_celery()
         assert hasattr(celery.Task, 'on_failure')
         assert callable(celery.Task.on_failure)

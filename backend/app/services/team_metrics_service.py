@@ -15,17 +15,19 @@ from ..models.test_run import TestRun
 from ..models.issue_link import IssueLink
 from ..models.user import User
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
 
-def get_team_metrics(project_id: int = None, days: int = 30) -> dict:
+def get_team_metrics(project_id: int = None, days: int = 30, organization_id: int = None) -> dict:
     """
     获取团队效能度量数据
 
     Args:
         project_id: 项目 ID（None 表示全组织）
         days: 统计范围天数
+        organization_id: 组织 ID（提供时统计仅限该组织成员，防止跨组织泄露）
 
     Returns:
         {
@@ -37,17 +39,33 @@ def get_team_metrics(project_id: int = None, days: int = 30) -> dict:
     """
     since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
+    # 组织成员隔离：指定组织时只统计该组织成员
+    org_member_ids = None
+    if organization_id is not None:
+        from ..models.organization import OrganizationMember
+        org_member_ids = [
+            om.user_id
+            for om in db.session.scalars(
+                select(OrganizationMember.user_id).filter_by(
+                    organization_id=organization_id, is_active=True))
+            .all()
+        ]
+        if not org_member_ids:
+            org_member_ids = [-1]  # 空组织：不返回任何成员数据
+
     # 查询用例创建统计（按用户）
-    case_query = db.session.query(
+    case_query = select(
         ApiTestCase.user_id,
         sa_func.count(ApiTestCase.id).label('case_count'),
     ).filter(ApiTestCase.created_at >= since)
     if project_id:
         case_query = case_query.filter(ApiTestCase.project_id == project_id)
-    case_stats = case_query.group_by(ApiTestCase.user_id).all()
+    if org_member_ids is not None:
+        case_query = case_query.filter(ApiTestCase.user_id.in_(org_member_ids))
+    case_stats = db.session.execute(case_query.group_by(ApiTestCase.user_id)).all()
 
     # 查询执行统计（按触发用户）
-    run_query = db.session.query(
+    run_query = select(
         TestRun.triggered_user_id,
         sa_func.count(TestRun.id).label('run_count'),
         sa_func.sum(TestRun.total_cases).label('total_cases'),
@@ -59,16 +77,22 @@ def get_team_metrics(project_id: int = None, days: int = 30) -> dict:
     )
     if project_id:
         run_query = run_query.filter(TestRun.project_id == project_id)
-    run_stats = run_query.group_by(TestRun.triggered_user_id).all()
+    if org_member_ids is not None:
+        run_query = run_query.filter(TestRun.triggered_user_id.in_(org_member_ids))
+    run_stats = db.session.execute(run_query.group_by(TestRun.triggered_user_id)).all()
 
     # 查询缺陷统计（按创建者）
-    issue_query = db.session.query(
+    issue_query = select(
         IssueLink.user_id,
         sa_func.count(IssueLink.id).label('issue_count'),
     ).filter(IssueLink.created_at >= since)
     if project_id:
         issue_query = issue_query.filter(IssueLink.project_id == project_id)
-    issue_stats = issue_query.filter(IssueLink.user_id.isnot(None)).group_by(IssueLink.user_id).all()
+    if org_member_ids is not None:
+        issue_query = issue_query.filter(IssueLink.user_id.in_(org_member_ids))
+    issue_stats = db.session.execute(
+        issue_query.filter(IssueLink.user_id.isnot(None)).group_by(IssueLink.user_id)
+    ).all()
 
     # 合并用户数据
     user_data = {}
@@ -97,7 +121,7 @@ def get_team_metrics(project_id: int = None, days: int = 30) -> dict:
     weeks = max(1, days / 7)
     members = []
     for uid, data in user_data.items():
-        user = User.query.get(uid)
+        user = db.session.get(User, uid)
         data['username'] = user.username if user else f'User #{uid}'
 
         # 用例编写效率（个/周）
@@ -135,6 +159,21 @@ def get_team_metrics(project_id: int = None, days: int = 30) -> dict:
             'avg_cases_per_member': avg_cases,
         },
         'members': members,
+    }
+
+
+def empty_team_metrics(days: int, project_id: int = None) -> dict:
+    """空团队指标（结构与 get_team_metrics 一致，用于无可访问团队域时 fail-closed 返回）"""
+    return {
+        'period_days': days,
+        'project_id': project_id,
+        'summary': {
+            'total_members': 0,
+            'total_cases': 0,
+            'total_runs': 0,
+            'avg_cases_per_member': 0,
+        },
+        'members': [],
     }
 
 

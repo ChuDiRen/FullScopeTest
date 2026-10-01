@@ -11,33 +11,35 @@ API Token 模型
 """
 
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 # 合法的 Token 操作
 VALID_TOKEN_ACTIONS = {'read', 'write', 'execute', 'delete'}
 
 
-class ApiToken(db.Model):
+class ApiToken(Base):
     """API Token 表"""
 
     __tablename__ = 'api_tokens'
     __table_args__ = (
-        db.Index('idx_api_tokens_user_id', 'user_id'),
+        Index('idx_api_tokens_user_id', 'user_id'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='用户 ID')
-    name = db.Column(db.String(100), nullable=False, comment='Token 名称')
-    token_hash = db.Column(db.String(256), nullable=False, comment='Token 哈希值')
-    permissions = db.Column(db.JSON, default=list, comment='权限范围')
-    project_ids = db.Column(db.JSON, default=list, comment='项目 ID 白名单（空=不限制）')
-    expires_at = db.Column(db.DateTime, comment='过期时间（可为 null 表示不过期）')
-    is_active = db.Column(db.Boolean, default=True, comment='是否激活')
-    last_used_at = db.Column(db.DateTime, comment='最后使用时间')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='用户 ID')
+    name = Column(String(100), nullable=False, comment='Token 名称')
+    token_hash = Column(String(256), nullable=False, comment='Token 哈希值')
+    permissions = Column(JSON, default=list, comment='权限范围')
+    project_ids = Column(JSON, default=list, comment='项目 ID 白名单（空=不限制）')
+    expires_at = Column(DateTime, comment='过期时间（可为 null 表示不过期）')
+    is_active = Column(Boolean, default=True, comment='是否激活')
+    last_used_at = Column(DateTime, comment='最后使用时间')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
 
     # 关联关系
-    user = db.relationship('User', backref='api_tokens')
+    user = relationship('User', backref='api_tokens')
 
     def to_dict(self):
         """转换为字典（不包含 token 明文）"""

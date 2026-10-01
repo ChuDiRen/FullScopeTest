@@ -10,6 +10,7 @@ from ..models.api_test_case import ApiTestCase
 from ..models.test_run import TestRun
 from ..core.logging import get_logger
 from sqlalchemy import func
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -32,7 +33,7 @@ class TestCostEstimator:
         Returns:
             Dict: {total_cases, estimated_seconds, estimated_minutes, per_case}
         """
-        cases = ApiTestCase.query.filter_by(collection_id=collection_id).all()
+        cases = db.session.scalars(select(ApiTestCase).filter_by(collection_id=collection_id)).all()
         if not cases:
             return {'total_cases': 0, 'estimated_seconds': 0, 'estimated_minutes': 0, 'per_case': []}
 
@@ -41,13 +42,11 @@ class TestCostEstimator:
         # 查询历史平均执行时间
         avg_times = {}
         if case_ids:
-            results = db.session.query(
-                TestRun.case_id,
-                func.avg(TestRun.duration_ms).label('avg_time'),
-            ).filter(
+            results = db.session.execute(select(TestRun.case_id,
+                func.avg(TestRun.duration_ms).label('avg_time'),).filter(
                 TestRun.case_id.in_(case_ids),
                 TestRun.duration_ms.isnot(None),
-            ).group_by(TestRun.case_id).all()
+            ).group_by(TestRun.case_id)).all()
 
             for case_id, avg_time in results:
                 avg_times[case_id] = float(avg_time) if avg_time else 0

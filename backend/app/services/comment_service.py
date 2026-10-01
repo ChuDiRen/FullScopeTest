@@ -12,6 +12,8 @@ from ..models.comment import Comment
 from ..models.user import User
 from ..utils.exceptions import NotFoundError, PermissionError, ValidationError
 from ..core.logging import get_logger
+from sqlalchemy import select
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 
@@ -57,7 +59,7 @@ class CommentService(BaseService):
 
         # 验证父评论存在且属于同一资源
         if parent_id:
-            parent = Comment.query.get(parent_id)
+            parent = db.session.get(Comment, parent_id)
             if not parent:
                 raise NotFoundError("父评论", parent_id)
             if parent.resource_type != resource_type or parent.resource_id != resource_id:
@@ -88,17 +90,18 @@ class CommentService(BaseService):
         Returns:
             分页结果
         """
-        query = Comment.query.filter_by(
+        query = select(Comment).filter_by(
             resource_type=resource_type,
             resource_id=resource_id,
             parent_id=None,  # 仅顶层评论
             is_deleted=False,
         )
-        total = query.count()
-        comments = query.order_by(Comment.created_at.asc()) \
-            .offset((page - 1) * per_page) \
-            .limit(per_page) \
-            .all()
+        total = db.session.scalar(select(func.count()).select_from(query.subquery()))
+        comments = db.session.scalars(
+            query.order_by(Comment.created_at.asc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        ).all()
 
         return {
             'items': [c.to_dict(include_replies=True) for c in comments],
@@ -122,7 +125,7 @@ class CommentService(BaseService):
         Returns:
             更新后的评论字典
         """
-        comment = Comment.query.get(comment_id)
+        comment = db.session.get(Comment, comment_id)
         if not comment:
             raise NotFoundError("评论", comment_id)
         if comment.is_deleted:
@@ -148,7 +151,7 @@ class CommentService(BaseService):
         """
         软删除评论（仅作者或管理员可删除）
         """
-        comment = Comment.query.get(comment_id)
+        comment = db.session.get(Comment, comment_id)
         if not comment:
             raise NotFoundError("评论", comment_id)
         if comment.is_deleted:
@@ -164,7 +167,7 @@ class CommentService(BaseService):
 
     def get_comment(self, comment_id: int) -> dict:
         """获取单条评论详情"""
-        comment = Comment.query.get(comment_id)
+        comment = db.session.get(Comment, comment_id)
         if not comment:
             raise NotFoundError("评论", comment_id)
         return comment.to_dict(include_replies=True)
@@ -185,7 +188,7 @@ class CommentService(BaseService):
 
         user_ids = []
         for username in set(usernames):
-            user = User.query.filter_by(username=username).first()
+            user = db.session.scalar(select(User).filter_by(username=username))
             if user:
                 user_ids.append(user.id)
         return user_ids

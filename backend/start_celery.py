@@ -26,27 +26,26 @@ import app.tasks  # 导入任务模块
 def _reset_stale_running_status():
     """Worker 启动前清理数据库中遗留的 running 状态，防止前端误判为仍在运行"""
     try:
-        from app import create_app
+        from app.core.runtime import init_runtime
         from app.extensions import db
         from app.models.perf_test_scenario import PerfTestScenario
 
-        app = create_app()
-        with app.app_context():
-            updated = PerfTestScenario.query.filter_by(status='running').update(
-                {
-                    'status': 'failed',
-                    'last_result': {
-                        'success': False,
-                        'error': 'worker restarted: marking stale running task as failed',
-                    }
-                },
-                synchronize_session=False,
-            )
-            if updated:
-                db.session.commit()
-                print(f"[celery-start] 重置遗留运行中任务数: {updated}")
-            else:
-                db.session.rollback()
+        init_runtime()
+        updated = PerfTestScenario.query.filter_by(status='running').update(
+            {
+                'status': 'failed',
+                'last_result': {
+                    'success': False,
+                    'error': 'worker restarted: marking stale running task as failed',
+                }
+            },
+            synchronize_session=False,
+        )
+        if updated:
+            db.session.commit()
+            print(f"[celery-start] 重置遗留运行中任务数: {updated}")
+        else:
+            db.session.rollback()
     except Exception as e:
         print(f"[celery-start] 重置运行中任务失败: {e}")
 

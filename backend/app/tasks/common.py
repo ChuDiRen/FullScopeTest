@@ -1,4 +1,6 @@
 """共享工具函数"""
+from sqlalchemy import select
+from ..extensions import db
 
 import subprocess
 import tempfile
@@ -8,20 +10,111 @@ import os
 import json
 import threading
 import queue
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
 
-_flask_app_cache = None
+_backend_root_cache = None
 
 
-def _get_flask_app():
-    """延迟获取 Flask 应用实例，避免循环导入（缓存复用）"""
-    global _flask_app_cache
-    if _flask_app_cache is None:
-        from app import create_app
-        _flask_app_cache = create_app()
-    return _flask_app_cache
+from contextlib import contextmanager
+
+
+@contextmanager
+def runtime_context():
+    """任务执行上下文（原 Flask app_context 的零依赖替代）。
+
+    运行时由 ContextTask.__call__ 统一 ensure + session_teardown；
+    此管理器仅保留旧代码的 with 缩进结构。
+    """
+    from app.core.runtime import ensure_runtime
+
+    ensure_runtime()
+    yield
+
+
+def parse_target_url(url: str) -> tuple:
+    """解析目标 URL → (base_host, endpoint_path)（原 v1 perf_test 同名纯函数）"""
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(url)
+        base_host = f"{parsed.scheme}://{parsed.netloc}"
+        endpoint_path = parsed.path or "/"
+        return base_host, endpoint_path
+    except Exception:
+        return url.rstrip("/"), "/"
+
+
+def get_backend_root() -> str:
+    """backend 目录绝对路径（原 Flask app.root_path 的等价物，缓存复用）"""
+    global _backend_root_cache
+    if _backend_root_cache is None:
+        _backend_root_cache = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return _backend_root_cache
+
+
+def _minimal_locust_env() -> dict:
+    """Locust 子进程最小环境。
+
+    旧实现未传 env=，子进程继承后端全部环境变量（DATABASE_URL、SECRET_KEY、
+    OSS/AI 密钥等），任何能创建性能测试场景的用户都能窃取。此处只保留子进程
+    运行必需项，业务密钥一律不透传。
+    """
+    env = {
+        'PATH': os.environ.get('PATH', ''),
+        'SYSTEMROOT': os.environ.get('SYSTEMROOT', ''),   # Windows 必需
+        'COMSPEC': os.environ.get('COMSPEC', ''),         # Windows subprocess 必需
+        'TEMP': os.environ.get('TEMP', ''),
+        'TMP': os.environ.get('TMP', ''),
+        'LANG': os.environ.get('LANG', ''),
+    }
+    return {k: v for k, v in env.items() if v}
+
+
+def sweep_stale_running_tasks(stale_hours: int = 2) -> dict:
+    """把长时间停留在 running 状态的执行记录标记为 failed，防止僵尸任务。
+
+    - TestRun: 无 updated_at 字段，按 created_at 判定；错误信息写入 error_message
+    - PerformanceTestResult: 按 updated_at 判定；错误信息写入 raw_result JSON
+
+    Returns:
+        dict: 各表清扫的记录数
+    """
+    from app.extensions import db
+    from app.models.test_run import TestRun
+    from app.models.perf_test_result import PerformanceTestResult
+
+    cutoff = datetime.utcnow() - timedelta(hours=stale_hours)
+    swept = {'test_runs': 0, 'performance_test_results': 0}
+
+    stale_runs = db.session.scalars(select(TestRun).filter(
+        TestRun.status == 'running',
+        TestRun.created_at < cutoff,
+    )).all()
+    for run in stale_runs:
+        run.status = 'failed'
+        run.error_message = 'task timeout - swept'
+        run.finished_at = datetime.utcnow()
+    swept['test_runs'] = len(stale_runs)
+
+    stale_results = db.session.scalars(select(PerformanceTestResult).filter(
+        PerformanceTestResult.status == 'running',
+        PerformanceTestResult.updated_at < cutoff,
+    )).all()
+    for result in stale_results:
+        result.status = 'failed'
+        result.raw_result = {
+            'error': 'task timeout - swept',
+            'swept_at': datetime.utcnow().isoformat() + 'Z',
+        }
+        result.finished_at = datetime.utcnow()
+    swept['performance_test_results'] = len(stale_results)
+
+    if stale_runs or stale_results:
+        db.session.commit()
+
+    return swept
 
 
 class RealtimeStatsCollector:
@@ -109,6 +202,8 @@ def _inject_step_load_shape(script_content, stages):
     shape_script = f'''
 
 from locust import LoadTestShape
+from sqlalchemy import select
+from ..extensions import db
 
 class StepLoadShape(LoadTestShape):
     stages = {json.dumps(stages)}

@@ -5,47 +5,49 @@ GitHub 集成模型
 """
 
 from datetime import datetime, timezone
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class GitHubIntegration(db.Model):
+class GitHubIntegration(Base):
     """GitHub 集成表 - 存储用户 GitHub OAuth 绑定信息"""
 
     __tablename__ = 'github_integrations'
     __table_args__ = (
-        db.Index('idx_github_integrations_user_id', 'user_id'),
-        db.Index('idx_github_integrations_github_user_id', 'github_user_id'),
+        Index('idx_github_integrations_user_id', 'user_id'),
+        Index('idx_github_integrations_github_user_id', 'github_user_id'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='本地用户 ID')
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='本地用户 ID')
 
     # GitHub OAuth 信息
-    github_user_id = db.Column(db.String(50), nullable=False, comment='GitHub 用户 ID')
-    github_username = db.Column(db.String(100), nullable=False, comment='GitHub 用户名')
-    github_email = db.Column(db.String(200), comment='GitHub 邮箱')
-    github_avatar = db.Column(db.String(500), comment='GitHub 头像 URL')
+    github_user_id = Column(String(50), nullable=False, comment='GitHub 用户 ID')
+    github_username = Column(String(100), nullable=False, comment='GitHub 用户名')
+    github_email = Column(String(200), comment='GitHub 邮箱')
+    github_avatar = Column(String(500), comment='GitHub 头像 URL')
 
     # Token 信息（加密存储）
-    access_token_encrypted = db.Column(db.Text, nullable=False, comment='加密的 Access Token')
-    token_type = db.Column(db.String(50), default='bearer', comment='Token 类型')
-    scope = db.Column(db.String(500), comment='授权的 scope')
-    token_expires_at = db.Column(db.DateTime, comment='Token 过期时间（可为 null 表示不过期）')
+    access_token_encrypted = Column(Text, nullable=False, comment='加密的 Access Token')
+    token_type = Column(String(50), default='bearer', comment='Token 类型')
+    scope = Column(String(500), comment='授权的 scope')
+    token_expires_at = Column(DateTime, comment='Token 过期时间（可为 null 表示不过期）')
 
     # Refresh Token（可选）
-    refresh_token_encrypted = db.Column(db.Text, comment='加密的 Refresh Token')
-    refresh_token_expires_at = db.Column(db.DateTime, comment='Refresh Token 过期时间')
+    refresh_token_encrypted = Column(Text, comment='加密的 Refresh Token')
+    refresh_token_expires_at = Column(DateTime, comment='Refresh Token 过期时间')
 
     # 状态
-    is_active = db.Column(db.Boolean, default=True, comment='是否激活')
+    is_active = Column(Boolean, default=True, comment='是否激活')
 
     # 时间戳
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
-    last_used_at = db.Column(db.DateTime, comment='最后使用时间')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    last_used_at = Column(DateTime, comment='最后使用时间')
 
     # 关联关系
-    user = db.relationship('User', backref='github_integrations')
+    user = relationship('User', backref='github_integrations')
 
     def to_dict(self):
         """转换为字典（不包含敏感 Token 信息）"""

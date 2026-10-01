@@ -22,7 +22,7 @@ def _register_and_login(client, username=None, password="Str0ng!Pass"):
         "/api/v1/auth/login",
         json={"username": username, "password": password},
     )
-    data = login_resp.get_json()["data"]
+    data = login_resp.json()["data"]
     return {
         "username": username,
         "access_token": data["access_token"],
@@ -39,7 +39,7 @@ def _create_collection(client, token, name=None):
         headers={"Authorization": f"Bearer {token}"},
         json={"name": name, "description": "Test collection"},
     )
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _create_case(client, token, collection_id=None, name=None):
@@ -61,7 +61,7 @@ def _create_case(client, token, collection_id=None, name=None):
         headers={"Authorization": f"Bearer {token}"},
         json=payload,
     )
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 class TestCollectionCRUD:
@@ -86,7 +86,7 @@ class TestCollectionCRUD:
             headers={"Authorization": f"Bearer {user['access_token']}"},
         )
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert len(data) >= 2
 
     def test_update_collection(self, client):
@@ -100,7 +100,7 @@ class TestCollectionCRUD:
             json={"name": "Updated Name", "description": "Updated desc"},
         )
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["name"] == "Updated Name"
+        assert resp.json()["data"]["name"] == "Updated Name"
 
     def test_delete_collection(self, client):
         """删除集合"""
@@ -118,7 +118,7 @@ class TestCollectionCRUD:
             "/api/v1/api-test/collections",
             headers={"Authorization": f"Bearer {user['access_token']}"},
         )
-        ids = [c["id"] for c in resp.get_json()["data"]]
+        ids = [c["id"] for c in resp.json()["data"]]
         assert collection["id"] not in ids
 
     def test_update_nonexistent_collection(self, client):
@@ -174,7 +174,7 @@ class TestCaseCRUD:
             headers={"Authorization": f"Bearer {user['access_token']}"},
         )
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert len(data) >= 2
 
     def test_get_case_detail(self, client):
@@ -187,7 +187,7 @@ class TestCaseCRUD:
             headers={"Authorization": f"Bearer {user['access_token']}"},
         )
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["id"] == case["id"]
+        assert resp.json()["data"]["id"] == case["id"]
 
     def test_update_case(self, client):
         """更新用例"""
@@ -205,7 +205,7 @@ class TestCaseCRUD:
             },
         )
         assert resp.status_code == 200
-        updated = resp.get_json()["data"]
+        updated = resp.json()["data"]
         assert updated["name"] == "Updated Case"
         assert updated["method"] == "POST"
 
@@ -264,10 +264,10 @@ class TestMockServer:
             },
         )
 
-        # 访问 Mock 端点
+        # 访问 Mock 端点（回放配置的 mock_response_code=201）
         resp = client.get(f"/api/v1/api-test/mock/{case['id']}")
         assert resp.status_code == 201
-        assert resp.get_data(as_text=True) == '{"mock": true}'
+        assert resp.text == '{"mock": true}'
         assert resp.headers.get("X-Custom") == "test"
 
     def test_mock_endpoint_disabled(self, client):
@@ -289,14 +289,14 @@ class TestCurlParser:
 
     def test_parse_simple_get(self):
         """解析简单 GET 请求"""
-        from app.api.api_test import parse_curl
+        from app.api.v2.v1.api_test import parse_curl
         result = parse_curl("curl https://example.com/api")
         assert result['method'] == 'GET'
         assert result['url'] == 'https://example.com/api'
 
     def test_parse_post_with_data(self):
         """解析 POST 请求带 data"""
-        from app.api.api_test import parse_curl
+        from app.api.v2.v1.api_test import parse_curl
         result = parse_curl('curl -X POST https://example.com/api -d \'{"key": "value"}\'')
         assert result['method'] == 'POST'
         assert result['url'] == 'https://example.com/api'
@@ -304,7 +304,7 @@ class TestCurlParser:
 
     def test_parse_multiline_curl(self):
         """解析多行 cURL（\\ 换行）"""
-        from app.api.api_test import parse_curl
+        from app.api.v2.v1.api_test import parse_curl
         curl_cmd = """curl -X POST \\
   https://example.com/api \\
   -H 'Content-Type: application/json' \\
@@ -317,27 +317,27 @@ class TestCurlParser:
 
     def test_parse_data_raw(self):
         """解析 --data-raw 参数"""
-        from app.api.api_test import parse_curl
+        from app.api.v2.v1.api_test import parse_curl
         result = parse_curl('curl https://example.com --data-raw "test=1&foo=2"')
         assert result['method'] == 'POST'
         assert result['body'] == 'test=1&foo=2'
 
     def test_parse_compressed_ignored(self):
         """--compressed 参数应被忽略"""
-        from app.api.api_test import parse_curl
+        from app.api.v2.v1.api_test import parse_curl
         result = parse_curl('curl --compressed https://example.com')
         assert result['url'] == 'https://example.com'
 
     def test_parse_empty_raises(self):
         """空命令应抛出 ValueError"""
-        from app.api.api_test import parse_curl
+        from app.api.v2.v1.api_test import parse_curl
         import pytest
         with pytest.raises(ValueError, match="为空"):
             parse_curl("")
 
     def test_parse_no_url_raises(self):
         """无 URL 应抛出 ValueError"""
-        from app.api.api_test import parse_curl
+        from app.api.v2.v1.api_test import parse_curl
         import pytest
         with pytest.raises(ValueError, match="未找到 URL"):
             parse_curl("curl -X GET")
@@ -353,7 +353,7 @@ class TestCurlParser:
             headers=headers,
         )
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["method"] == "POST"
         assert data["url"] == "https://example.com"
         assert data["headers"]["Content-Type"] == "application/json"
@@ -375,7 +375,7 @@ class TestCurlParser:
             headers=headers,
         )
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["method"] == "PUT"
         assert "users/1" in data["url"]
         assert data["headers"]["Authorization"] == "Bearer token123"

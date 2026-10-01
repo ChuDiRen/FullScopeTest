@@ -15,6 +15,8 @@ from ..ai.base import AIServiceBase
 from ...models.api_test_case import ApiTestCase, ApiTestCollection
 from ...core.logging import get_logger
 from ...utils.exceptions import NotFoundError
+from sqlalchemy import select
+from ...extensions import db
 
 logger = get_logger(__name__)
 
@@ -37,18 +39,18 @@ class CaseReviewerService(AIServiceBase):
 
     def review_case(self, case_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
         """审查单个用例"""
-        case = ApiTestCase.query.get(case_id)
+        case = db.session.get(ApiTestCase, case_id)
         if not case:
             raise NotFoundError("测试用例", case_id)
         return self._do_review(case, user_id)
 
     def review_collection(self, collection_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
         """审查整个用例集"""
-        collection = ApiTestCollection.query.get(collection_id)
+        collection = db.session.get(ApiTestCollection, collection_id)
         if not collection:
             raise NotFoundError("用例集", collection_id)
 
-        cases = ApiTestCase.query.filter_by(collection_id=collection_id).all()
+        cases = db.session.scalars(select(ApiTestCase).filter_by(collection_id=collection_id)).all()
         results = []
         for case in cases:
             try:

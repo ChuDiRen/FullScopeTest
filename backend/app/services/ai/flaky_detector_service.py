@@ -13,6 +13,7 @@ from typing import Dict, Any, List, Optional
 from ...extensions import db
 from ...models.api_test_case import ApiTestCase
 from ...core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -37,15 +38,15 @@ class FlakyDetectorService:
         Returns:
             List[Dict]: flaky 用例列表，按 flaky_score 降序
         """
-        query = ApiTestCase.query
+        query = select(ApiTestCase)
         if project_id:
             query = query.filter_by(project_id=project_id)
 
         # 只分析有过执行记录的用例
-        cases = query.filter(
+        cases = db.session.scalars(query.filter(
             ApiTestCase.last_status.isnot(None),
             ApiTestCase.last_run_at.isnot(None),
-        ).all()
+        )).all()
 
         results = []
         for case in cases:

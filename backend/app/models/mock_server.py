@@ -6,26 +6,28 @@
 """
 
 from datetime import datetime, timezone
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class MockServer(db.Model):
+class MockServer(Base):
     """独立 Mock 服务器"""
     __tablename__ = 'mock_servers'
 
-    id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, index=True)
-    name = db.Column(db.String(200), nullable=False, comment='服务器名称')
-    description = db.Column(db.Text, default='', comment='描述')
-    path_prefix = db.Column(db.String(200), default='/', comment='路径前缀')
-    is_enabled = db.Column(db.Boolean, default=True, comment='是否启用')
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=False, index=True)
+    name = Column(String(200), nullable=False, comment='服务器名称')
+    description = Column(Text, default='', comment='描述')
+    path_prefix = Column(String(200), default='/', comment='路径前缀')
+    is_enabled = Column(Boolean, default=True, comment='是否启用')
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
 
     # 关联规则
-    rules = db.relationship('MockRule', backref='server', lazy='dynamic',
+    rules = relationship('MockRule', backref='server', lazy='dynamic',
                             cascade='all, delete-orphan', order_by='MockRule.priority')
 
     def to_dict(self):
@@ -49,35 +51,35 @@ class MockServer(db.Model):
         return data
 
 
-class MockRule(db.Model):
+class MockRule(Base):
     """Mock 规则"""
     __tablename__ = 'mock_rules'
 
-    id = db.Column(db.Integer, primary_key=True)
-    server_id = db.Column(db.Integer, db.ForeignKey('mock_servers.id'), nullable=False, index=True)
-    name = db.Column(db.String(200), nullable=False, comment='规则名称')
-    match_method = db.Column(db.String(10), default='*', comment='匹配 HTTP 方法，* 表示全部')
-    match_path = db.Column(db.String(500), nullable=False, comment='匹配路径模式，支持通配符')
-    priority = db.Column(db.Integer, default=0, comment='规则优先级，数值越小越优先')
-    is_enabled = db.Column(db.Boolean, default=True, comment='是否启用')
+    id = Column(Integer, primary_key=True)
+    server_id = Column(Integer, ForeignKey('mock_servers.id'), nullable=False, index=True)
+    name = Column(String(200), nullable=False, comment='规则名称')
+    match_method = Column(String(10), default='*', comment='匹配 HTTP 方法，* 表示全部')
+    match_path = Column(String(500), nullable=False, comment='匹配路径模式，支持通配符')
+    priority = Column(Integer, default=0, comment='规则优先级，数值越小越优先')
+    is_enabled = Column(Boolean, default=True, comment='是否启用')
 
     # 条件匹配（可选）
-    match_query = db.Column(db.JSON, default=dict, comment='匹配 query 参数 {key: value}')
-    match_header = db.Column(db.JSON, default=dict, comment='匹配请求头 {key: value}')
-    match_body_contains = db.Column(db.String(500), default='', comment='匹配请求体包含字符串')
+    match_query = Column(JSON, default=dict, comment='匹配 query 参数 {key: value}')
+    match_header = Column(JSON, default=dict, comment='匹配请求头 {key: value}')
+    match_body_contains = Column(String(500), default='', comment='匹配请求体包含字符串')
 
     # 响应配置
-    response_code = db.Column(db.Integer, default=200, comment='响应状态码')
-    response_body = db.Column(db.Text, default='', comment='响应体')
-    response_headers = db.Column(db.JSON, default=dict, comment='响应头')
-    response_delay_ms = db.Column(db.Integer, default=0, comment='响应延迟(ms)')
+    response_code = Column(Integer, default=200, comment='响应状态码')
+    response_body = Column(Text, default='', comment='响应体')
+    response_headers = Column(JSON, default=dict, comment='响应头')
+    response_delay_ms = Column(Integer, default=0, comment='响应延迟(ms)')
 
     # 有状态 Mock
-    is_stateful = db.Column(db.Boolean, default=False, comment='是否为有状态响应')
-    state_sequence = db.Column(db.JSON, default=list, comment='有状态响应序列 [{code, body, headers}]')
-    _current_state_idx = db.Column('current_state_idx', db.Integer, default=0, comment='当前状态索引')
+    is_stateful = Column(Boolean, default=False, comment='是否为有状态响应')
+    state_sequence = Column(JSON, default=list, comment='有状态响应序列 [{code, body, headers}]')
+    _current_state_idx = Column('current_state_idx', Integer, default=0, comment='当前状态索引')
 
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {
@@ -120,21 +122,21 @@ class MockRule(db.Model):
         }
 
 
-class MockRequestLog(db.Model):
+class MockRequestLog(Base):
     """Mock 请求日志"""
     __tablename__ = 'mock_request_logs'
 
-    id = db.Column(db.Integer, primary_key=True)
-    server_id = db.Column(db.Integer, db.ForeignKey('mock_servers.id'), nullable=False, index=True)
-    rule_id = db.Column(db.Integer, db.ForeignKey('mock_rules.id'), nullable=True)
-    method = db.Column(db.String(10), nullable=False)
-    path = db.Column(db.String(500), nullable=False)
-    query_params = db.Column(db.JSON, default=dict)
-    request_headers = db.Column(db.JSON, default=dict)
-    request_body = db.Column(db.Text, default='')
-    response_code = db.Column(db.Integer, default=200)
-    response_body_preview = db.Column(db.String(500), default='', comment='响应体前 500 字符')
-    matched_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    id = Column(Integer, primary_key=True)
+    server_id = Column(Integer, ForeignKey('mock_servers.id'), nullable=False, index=True)
+    rule_id = Column(Integer, ForeignKey('mock_rules.id'), nullable=True)
+    method = Column(String(10), nullable=False)
+    path = Column(String(500), nullable=False)
+    query_params = Column(JSON, default=dict)
+    request_headers = Column(JSON, default=dict)
+    request_body = Column(Text, default='')
+    response_code = Column(Integer, default=200)
+    response_body_preview = Column(String(500), default='', comment='响应体前 500 字符')
+    matched_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {

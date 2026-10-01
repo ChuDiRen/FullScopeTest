@@ -8,10 +8,12 @@
     [{"date": "2026-01-01", "api": 95.5, "web": 88.2, "perf": 92.0}]
 """
 from datetime import datetime, timezone, timedelta
+from typing import Optional, List
 from sqlalchemy import func, case, and_
 from ..extensions import db
 from ..models.test_run import TestRun
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -23,14 +25,17 @@ def get_pass_rate_trend(
     project_id: int = None,
     days: int = 30,
     granularity: str = 'week',
+    project_ids: Optional[List[int]] = None,
 ) -> list:
     """
     获取通过率趋势
 
     Args:
-        project_id: 项目 ID（None 表示全组织）
+        project_id: 项目 ID（None 表示按 project_ids 域过滤）
         days: 时间范围（天数，7/30/90）
         granularity: 聚合粒度（day/week/month）
+        project_ids: 可访问项目域（用户自有 + 所在组织项目）；
+            提供时替代 project_id 过滤，为空列表时直接返回空趋势（防跨租户泄露）
 
     Returns:
         [{date, api, web, perf, total_runs, total_passed, total_failed}]
@@ -38,14 +43,18 @@ def get_pass_rate_trend(
     since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
     # 基础查询：已完成的执行记录
-    query = TestRun.query.filter(
+    query = select(TestRun).filter(
         TestRun.created_at >= since,
         TestRun.status.in_(['success', 'failed']),
     )
     if project_id:
         query = query.filter_by(project_id=project_id)
+    elif project_ids is not None:
+        if not project_ids:
+            return []
+        query = query.filter(TestRun.project_id.in_(project_ids))
 
-    runs = query.order_by(TestRun.created_at.asc()).all()
+    runs = db.session.scalars(query.order_by(TestRun.created_at.asc())).all()
 
     if not runs:
         return []
@@ -86,24 +95,33 @@ def get_pass_rate_trend(
     return result
 
 
-def get_dashboard_stats(project_id: int = None, days: int = 30) -> dict:
+def get_dashboard_stats(project_id: int = None, days: int = 30,
+                        project_ids: Optional[List[int]] = None) -> dict:
     """
     获取 Dashboard 统计数据
 
     Args:
         project_id: 项目 ID
         days: 统计范围
+        project_ids: 可访问项目域（project_id 为空时生效，语义同 get_pass_rate_trend）
 
     Returns:
         {period_days, total_runs, pass_rate, by_type: {api: {...}, ...}, daily: [...]}
     """
     since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
-    query = TestRun.query.filter(TestRun.created_at >= since)
+    query = select(TestRun).filter(TestRun.created_at >= since)
     if project_id:
         query = query.filter_by(project_id=project_id)
-
-    runs = query.all()
+        runs = db.session.scalars(query).all()
+    elif project_ids is not None:
+        if not project_ids:
+            runs = []
+        else:
+            query = query.filter(TestRun.project_id.in_(project_ids))
+            runs = db.session.scalars(query).all()
+    else:
+        runs = db.session.scalars(query).all()
 
     total_runs = len(runs)
     success_runs = sum(1 for r in runs if r.status == 'success')
@@ -123,7 +141,7 @@ def get_dashboard_stats(project_id: int = None, days: int = 30) -> dict:
         }
 
     # 每日趋势
-    daily = get_pass_rate_trend(project_id, days, granularity='day')
+    daily = get_pass_rate_trend(project_id, days, granularity='day', project_ids=project_ids)
 
     return {
         'period_days': days,

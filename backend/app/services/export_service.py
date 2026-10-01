@@ -18,6 +18,7 @@ from ..models.test_run import TestRun
 from ..models.project import Project
 from ..utils.exceptions import NotFoundError, ValidationError
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -32,7 +33,7 @@ def generate_pdf_report(test_run_id: int) -> Optional[bytes]:
     Returns:
         PDF 文件的 bytes，None 表示 ReportLab 未安装
     """
-    run = TestRun.query.get(test_run_id)
+    run = db.session.get(TestRun, test_run_id)
     if not run:
         raise NotFoundError("测试执行记录", test_run_id)
 
@@ -48,7 +49,7 @@ def generate_pdf_report(test_run_id: int) -> Optional[bytes]:
         logger.warning("ReportLab 未安装，无法生成 PDF")
         return None
 
-    project = Project.query.get(run.project_id)
+    project = db.session.get(Project, run.project_id)
 
     # 尝试注册中文字体（可选）
     _try_register_chinese_font()
@@ -173,10 +174,10 @@ def generate_enhanced_excel(
 def _query_runs(test_run_id, project_id, days, test_type) -> list:
     """查询 TestRun 列表"""
     if test_run_id:
-        run = TestRun.query.get(test_run_id)
+        run = db.session.get(TestRun, test_run_id)
         return [run] if run else []
 
-    query = TestRun.query
+    query = select(TestRun)
     if project_id:
         query = query.filter_by(project_id=project_id)
     if test_type:
@@ -185,7 +186,7 @@ def _query_runs(test_run_id, project_id, days, test_type) -> list:
         since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
         query = query.filter(TestRun.created_at >= since)
 
-    return query.order_by(TestRun.created_at.desc()).limit(500).all()
+    return db.session.scalars(query.order_by(TestRun.created_at.desc()).limit(500)).all()
 
 
 def _write_summary_sheet(ws, runs, header_font, header_fill, header_align):

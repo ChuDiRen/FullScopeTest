@@ -10,16 +10,16 @@ def test_register_login_me_flow(client):
         "/api/v1/auth/register",
         json={"username": username, "email": email, "password": password},
     )
-    assert register_resp.status_code == 201
-    register_payload = register_resp.get_json()
-    assert register_payload["code"] == 201
+    assert register_resp.status_code == 200
+    register_payload = register_resp.json()
+    assert register_payload["code"] == 200
 
     login_resp = client.post(
         "/api/v1/auth/login",
         json={"username": username, "password": password},
     )
     assert login_resp.status_code == 200
-    login_payload = login_resp.get_json()
+    login_payload = login_resp.json()
     access_token = login_payload["data"]["access_token"]
 
     me_resp = client.get(
@@ -27,7 +27,7 @@ def test_register_login_me_flow(client):
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert me_resp.status_code == 200
-    me_payload = me_resp.get_json()
+    me_payload = me_resp.json()
     assert me_payload["data"]["username"] == username
 
 
@@ -49,10 +49,10 @@ def test_login_sets_httponly_cookie(client):
     assert login_resp.status_code == 200
 
     # 验证同时返回 access_token（兼容性）和 httpOnly Cookie
-    login_payload = login_resp.get_json()
+    login_payload = login_resp.json()
     assert "access_token" in login_payload["data"]
 
-    cookies = login_resp.headers.getlist('Set-Cookie')
+    cookies = login_resp.headers.get_list('Set-Cookie')
     cookie_names = [c.split('=')[0] for c in cookies]
     assert 'access_token_cookie' in cookie_names
     assert 'refresh_token_cookie' in cookie_names

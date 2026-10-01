@@ -7,26 +7,39 @@ Token 黑名单服务
 - Token 过期后自动清理
 """
 
+import time
+
 import redis
 from datetime import datetime, timezone, timedelta
 from ..core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Redis 连接（延迟初始化）
+# Redis 连接（延迟初始化）+ 不可用熔断窗口：
+# ping 失败的坏客户端必须重置（否则永久复用、每请求刷 ERROR），
+# 熔断窗口期内直接降级放行，不再每请求付 2s 超时
 _redis_client = None
+_redis_unavailable_until = 0.0
+_REDIS_RETRY_INTERVAL = 30.0
 
 
 def _get_redis():
-    """获取 Redis 连接"""
-    global _redis_client
+    """获取 Redis 连接（惰性初始化，带不可用熔断）"""
+    global _redis_client, _redis_unavailable_until
+    if time.time() < _redis_unavailable_until:
+        return None
     if _redis_client is None:
         import os
         redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
         try:
-            _redis_client = redis.from_url(redis_url, decode_responses=True)
+            _redis_client = redis.from_url(
+                redis_url, decode_responses=True,
+                socket_connect_timeout=2, socket_timeout=2,
+            )
             _redis_client.ping()
         except Exception as e:
+            _redis_client = None
+            _redis_unavailable_until = time.time() + _REDIS_RETRY_INTERVAL
             logger.warning('Redis not available for token blacklist', error=str(e))
             return None
     return _redis_client

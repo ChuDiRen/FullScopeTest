@@ -13,7 +13,7 @@ def _auth_headers(client):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -27,7 +27,7 @@ def _create_scenario(client, headers, name=None):
         "spawn_rate": 2,
         "duration": 30,
     })
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 # ====================================================================
@@ -38,7 +38,7 @@ class TestPerfTestHealth:
     def test_health_returns_ok(self, client):
         resp = client.get("/api/v1/perf-test/health")
         assert resp.status_code == 200
-        assert resp.get_json()["code"] == 200
+        assert resp.json()["code"] == 200
 
 
 # ====================================================================
@@ -56,7 +56,7 @@ class TestPerfScenarioCRUD:
             "duration": 60,
         })
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["id"] is not None
         assert data["name"] == "Load Test"
         assert data["user_count"] == 50
@@ -67,7 +67,7 @@ class TestPerfScenarioCRUD:
         _create_scenario(client, headers, "S2")
         resp = client.get("/api/v1/perf-test/scenarios", headers=headers)
         assert resp.status_code == 200
-        items = resp.get_json()["data"]
+        items = resp.json()["data"]
         assert len(items) >= 2
 
     def test_update_scenario(self, client):
@@ -76,7 +76,7 @@ class TestPerfScenarioCRUD:
         resp = client.put(f"/api/v1/perf-test/scenarios/{s['id']}", headers=headers,
                           json={"name": "Updated", "user_count": 100})
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["name"] == "Updated"
+        assert resp.json()["data"]["name"] == "Updated"
 
     def test_delete_scenario(self, client):
         headers = _auth_headers(client)
@@ -89,7 +89,7 @@ class TestPerfScenarioCRUD:
         s = _create_scenario(client, headers)
         resp = client.get(f"/api/v1/perf-test/scenarios/{s['id']}", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["id"] == s["id"]
+        assert resp.json()["data"]["id"] == s["id"]
 
     def test_create_scenario_missing_name(self, client):
         headers = _auth_headers(client)
@@ -187,11 +187,11 @@ class TestPerfScenarioRun:
 
         def _fake_apply_async(*a, **k):
             return SimpleNamespace(id="fake-perf-task")
-        monkeypatch.setattr("app.api.perf_test.run_perf_test_task.apply_async", _fake_apply_async)
+        monkeypatch.setattr("app.api.v2.v1.perf_test.run_perf_test_task.apply_async", _fake_apply_async)
 
         resp = client.post(f"/api/v1/perf-test/scenarios/{s['id']}/run", headers=headers)
         assert resp.status_code == 200
-        assert "task_id" in resp.get_json()["data"]
+        assert "task_id" in resp.json()["data"]
 
     def test_run_nonexistent_scenario(self, client):
         headers = _auth_headers(client)
@@ -219,14 +219,11 @@ class TestPerfResults:
         resp = client.get("/api/v1/perf-test/running", headers=headers)
         assert resp.status_code == 200
 
-    def test_get_results_list_exposes_query_bug(self, client):
-        """perf_test.py:757 的 Query.paginate 调用存在已知 bug，
-        join() 后返回标准 SQLAlchemy Query 而非 Flask-SQLAlchemy BaseQuery。
-        此测试记录该 bug，待后续修复。"""
-        import pytest as _pytest
+    def test_get_results_list(self, client):
+        """结果列表应正常返回（纯 SQLAlchemy paginate，旧 BaseQuery bug 已随 Flask 移除）"""
         headers = _auth_headers(client)
-        with _pytest.raises(AttributeError):
-            client.get("/api/v1/perf-test/results", headers=headers)
+        resp = client.get("/api/v1/perf-test/results", headers=headers)
+        assert resp.status_code == 200
 
     def test_get_result_detail_not_found(self, client):
         headers = _auth_headers(client)

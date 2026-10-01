@@ -1,5 +1,6 @@
 """性能测试异步任务"""
 
+from app.config import BaseConfig
 from app.extensions import celery, db
 from app.models.perf_test_scenario import PerfTestScenario
 from app.core.logging import get_logger
@@ -14,9 +15,15 @@ import threading
 from datetime import datetime, timezone
 
 from app.utils.sandbox import check_script_safety
-from .common import _get_flask_app, _build_step_stages, _inject_step_load_shape, _build_locust_command
+from .common import runtime_context, get_backend_root, parse_target_url as _parse_target_url, _build_step_stages, _inject_step_load_shape, _build_locust_command, _minimal_locust_env
+from app.core.runtime import ensure_runtime
+from sqlalchemy import select
+from ..extensions import db
 
 logger = get_logger(__name__)
+
+# 性能测试最大时长（秒），来自 config 的 PERF_TEST_LIMITS['max_duration']（环境变量 PERF_TEST_MAX_DURATION）
+_PERF_MAX_DURATION = BaseConfig.PERF_TEST_LIMITS['max_duration']
 
 
 @celery.task(
@@ -27,6 +34,8 @@ logger = get_logger(__name__)
     retry_backoff_max=300,
     retry_jitter=True,
     autoretry_for=(IOError, OSError, TimeoutError),
+    time_limit=_PERF_MAX_DURATION + 300,
+    soft_time_limit=_PERF_MAX_DURATION + 240,
 )
 def run_perf_test_task(
     self,
@@ -40,9 +49,8 @@ def run_perf_test_task(
 ):
     """异步执行性能测试：改为子进程运行 Locust，避免 Celery/greenlet 冲突"""
     task_start_time = time.time()
-    with _get_flask_app().app_context():
-        from app.api.perf_test import _parse_target_url
-
+    with runtime_context():
+        
         scenario = None
         temp_dir = None
         monitor_thread = None
@@ -92,7 +100,7 @@ def run_perf_test_task(
                 return None
 
         try:
-            scenario = PerfTestScenario.query.get(scenario_id)
+            scenario = db.session.get(PerfTestScenario, scenario_id)
             if not scenario:
                 return {'success': False, 'error': '场景不存在'}
 
@@ -158,7 +166,7 @@ def run_perf_test_task(
 
             # 监控线程：每2秒读取 CSV 并写入时间序列数据
             def monitor_realtime():
-                app = _get_flask_app()
+                ensure_runtime()
                 test_start = time.time()
                 while not stop_monitor.is_set():
                     time.sleep(2)
@@ -166,7 +174,7 @@ def run_perf_test_task(
                     if not stats:
                         continue
                     try:
-                        with app.app_context():
+                        with runtime_context():
                             # 写入时间序列采样数据
                             elapsed = int(time.time() - test_start)
                             sample = PerformanceMetricSample(
@@ -187,7 +195,7 @@ def run_perf_test_task(
                             db.session.commit()
 
                             # 同时更新场景实时状态
-                            s = PerfTestScenario.query.get(scenario_id)
+                            s = db.session.get(PerfTestScenario, scenario_id)
                             if s and s.status == 'running':
                                 s.avg_response_time = stats['avg_response_time_ms']
                                 s.min_response_time = stats['min_response_time_ms']
@@ -223,7 +231,8 @@ def run_perf_test_task(
                 cwd=temp_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                env=_minimal_locust_env(),
             )
 
             self.update_state(state='PROGRESS', meta={'status': '正在执行性能测试...'})
@@ -232,6 +241,11 @@ def run_perf_test_task(
                 proc.wait(timeout=run_time + 30)
             except subprocess.TimeoutExpired:
                 proc.terminate()
+                try:
+                    # terminate 后最多等 10 秒，仍未退出则强杀
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
             finally:
                 stop_monitor.set()
                 if monitor_thread:
@@ -277,7 +291,7 @@ def run_perf_test_task(
             # 更新性能测试结果记录
             try:
                 from app.models.perf_test_result import PerformanceTestResult
-                perf_result = PerformanceTestResult.query.get(perf_result_id)
+                perf_result = db.session.get(PerformanceTestResult, perf_result_id)
                 if perf_result:
                     perf_result.status = 'completed' if proc.returncode == 0 else 'failed'
                     perf_result.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -328,7 +342,7 @@ def run_perf_test_task(
             try:
                 from app.models.perf_test_result import PerformanceTestResult
                 if perf_result_id is not None:
-                    perf_result = PerformanceTestResult.query.get(perf_result_id)
+                    perf_result = db.session.get(PerformanceTestResult, perf_result_id)
                     if perf_result:
                         perf_result.status = 'failed'
                         perf_result.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)

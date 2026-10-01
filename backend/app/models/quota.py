@@ -4,29 +4,31 @@
 定义组织级别的资源配额限制，支持按计划（免费/专业/企业）配置不同的配额。
 """
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class Quota(db.Model):
+class Quota(Base):
     """组织资源配额表"""
 
     __tablename__ = 'quotas'
     __table_args__ = (
-        db.UniqueConstraint('organization_id', 'resource_type', name='uq_org_resource_quota'),
-        db.Index('idx_quotas_org_id', 'organization_id'),
+        UniqueConstraint('organization_id', 'resource_type', name='uq_org_resource_quota'),
+        Index('idx_quotas_org_id', 'organization_id'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=False, comment='组织 ID')
-    resource_type = db.Column(db.String(50), nullable=False, comment='资源类型')
-    limit = db.Column(db.Integer, nullable=False, default=0, comment='配额上限（-1 表示不限）')
-    used = db.Column(db.Integer, nullable=False, default=0, comment='已使用量')
-    plan = db.Column(db.String(20), default='free', comment='计划类型: free/pro/enterprise')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey('organizations.id'), nullable=False, comment='组织 ID')
+    resource_type = Column(String(50), nullable=False, comment='资源类型')
+    limit = Column(Integer, nullable=False, default=0, comment='配额上限（-1 表示不限）')
+    used = Column(Integer, nullable=False, default=0, comment='已使用量')
+    plan = Column(String(20), default='free', comment='计划类型: free/pro/enterprise')
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系
-    organization = db.relationship('Organization', backref='quotas')
+    organization = relationship('Organization', backref='quotas')
 
     def to_dict(self):
         return {

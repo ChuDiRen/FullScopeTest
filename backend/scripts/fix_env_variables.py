@@ -13,17 +13,18 @@ backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, backend_dir)
 os.chdir(backend_dir)
 
-from app import create_app
+from app.core.runtime import init_runtime
 from app.extensions import db
 from app.models.environment import Environment
+from sqlalchemy import select
 
 
 def fix_variables():
     """修复 variables 字段类型"""
-    app = create_app()
+    init_runtime()
 
-    with app.app_context():
-        envs = Environment.query.all()
+    with __import__('contextlib').nullcontext():
+        envs = db.session.scalars(select(Environment)).all()
         print("=" * 60)
         print("Fix Environment Variables Data Type")
         print("=" * 60)

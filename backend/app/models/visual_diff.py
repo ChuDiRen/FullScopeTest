@@ -5,60 +5,62 @@
 """
 
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class VisualDiff(db.Model):
+class VisualDiff(Base):
     """视觉回归差异记录表"""
 
     __tablename__ = 'visual_diffs'
     __table_args__ = (
-        db.Index('idx_visual_diffs_test_run_id', 'test_run_id'),
-        db.Index('idx_visual_diffs_baseline_id', 'baseline_id'),
-        db.Index('idx_visual_diffs_test_case_id', 'test_case_id'),
-        db.Index('idx_visual_diffs_status', 'status'),
+        Index('idx_visual_diffs_test_run_id', 'test_run_id'),
+        Index('idx_visual_diffs_baseline_id', 'baseline_id'),
+        Index('idx_visual_diffs_test_case_id', 'test_case_id'),
+        Index('idx_visual_diffs_status', 'status'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    test_run_id = db.Column(db.Integer, db.ForeignKey('test_runs.id'), nullable=False, comment='关联的测试执行记录 ID')
-    baseline_id = db.Column(db.Integer, db.ForeignKey('visual_baselines.id'), nullable=True, comment='关联的基准截图 ID')
-    test_case_id = db.Column(db.Integer, nullable=False, comment='关联的测试用例 ID')
-    test_type = db.Column(db.String(20), nullable=False, comment='测试类型: api/web/app')
+    id = Column(Integer, primary_key=True)
+    test_run_id = Column(Integer, ForeignKey('test_runs.id'), nullable=False, comment='关联的测试执行记录 ID')
+    baseline_id = Column(Integer, ForeignKey('visual_baselines.id'), nullable=True, comment='关联的基准截图 ID')
+    test_case_id = Column(Integer, nullable=False, comment='关联的测试用例 ID')
+    test_type = Column(String(20), nullable=False, comment='测试类型: api/web/app')
 
     # 截图对比信息
-    step_index = db.Column(db.Integer, nullable=False, comment='测试步骤索引')
-    step_name = db.Column(db.String(255), comment='测试步骤名称')
-    current_image_path = db.Column(db.String(500), nullable=False, comment='当前截图存储路径')
-    diff_image_path = db.Column(db.String(500), comment='差异标注图存储路径')
+    step_index = Column(Integer, nullable=False, comment='测试步骤索引')
+    step_name = Column(String(255), comment='测试步骤名称')
+    current_image_path = Column(String(500), nullable=False, comment='当前截图存储路径')
+    diff_image_path = Column(String(500), comment='差异标注图存储路径')
 
     # 差异分析结果
-    diff_percentage = db.Column(db.Float, nullable=False, default=0.0, comment='差异百分比 (0-100)')
-    diff_pixel_count = db.Column(db.Integer, default=0, comment='差异像素数量')
-    total_pixel_count = db.Column(db.Integer, default=0, comment='总像素数量')
-    similarity_score = db.Column(db.Float, comment='感知哈希相似度 (0-1)')
+    diff_percentage = Column(Float, nullable=False, default=0.0, comment='差异百分比 (0-100)')
+    diff_pixel_count = Column(Integer, default=0, comment='差异像素数量')
+    total_pixel_count = Column(Integer, default=0, comment='总像素数量')
+    similarity_score = Column(Float, comment='感知哈希相似度 (0-1)')
 
     # 截图元数据
-    viewport_width = db.Column(db.Integer, comment='视口宽度')
-    viewport_height = db.Column(db.Integer, comment='视口高度')
+    viewport_width = Column(Integer, comment='视口宽度')
+    viewport_height = Column(Integer, comment='视口高度')
 
     # 对比配置
-    threshold = db.Column(db.Float, default=5.0, comment='差异阈值 (%)，超过则判定为视觉失败')
+    threshold = Column(Float, default=5.0, comment='差异阈值 (%)，超过则判定为视觉失败')
 
     # 状态
-    status = db.Column(db.String(20), default='pending', comment='状态: pending/visual_pass/visual_fail/approved/rejected')
-    is_baseline_current = db.Column(db.Boolean, default=True, comment='基准截图是否为最新版本')
+    status = Column(String(20), default='pending', comment='状态: pending/visual_pass/visual_fail/approved/rejected')
+    is_baseline_current = Column(Boolean, default=True, comment='基准截图是否为最新版本')
 
     # 审核信息
-    reviewed_by = db.Column(db.Integer, comment='审核人用户 ID')
-    reviewed_at = db.Column(db.DateTime, comment='审核时间')
-    review_comment = db.Column(db.Text, comment='审核备注')
+    reviewed_by = Column(Integer, comment='审核人用户 ID')
+    reviewed_at = Column(DateTime, comment='审核时间')
+    review_comment = Column(Text, comment='审核备注')
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
     # 关联关系
-    test_run = db.relationship('TestRun', backref='visual_diffs')
-    baseline = db.relationship('VisualBaseline', backref='diffs')
+    test_run = relationship('TestRun', backref='visual_diffs')
+    baseline = relationship('VisualBaseline', backref='diffs')
 
     def to_dict(self):
         """转换为字典"""

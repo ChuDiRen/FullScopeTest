@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Optional
 from ...extensions import db
 from ...models.ai_invocation_log import AIInvocationLog
 from ...core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -66,15 +67,13 @@ class ModelManager:
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         from sqlalchemy import func as sa_func
-        query = db.session.query(
-            sa_func.sum(AIInvocationLog.cost_estimate)
-        ).filter(
+        query = select(sa_func.sum(AIInvocationLog.cost_estimate)).filter(
             AIInvocationLog.created_at >= month_start,
         )
         if user_id:
             query = query.filter_by(user_id=user_id)
 
-        used = query.scalar() or 0.0
+        used = db.session.scalar(query) or 0.0
         remaining = max(self.monthly_budget - used, 0)
         percentage = (used / self.monthly_budget * 100) if self.monthly_budget > 0 else 0
 
@@ -104,11 +103,11 @@ class ModelManager:
         """
         since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
-        query = AIInvocationLog.query.filter(AIInvocationLog.created_at >= since)
+        query = select(AIInvocationLog).filter(AIInvocationLog.created_at >= since)
         if user_id:
             query = query.filter_by(user_id=user_id)
 
-        logs = query.all()
+        logs = db.session.scalars(query).all()
 
         total_tokens = sum(l.total_tokens or 0 for l in logs)
         total_cost = sum(l.cost_estimate or 0 for l in logs)

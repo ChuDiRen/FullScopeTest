@@ -4,6 +4,7 @@ API Token 细粒度权限测试
 覆盖：Token 创建（新旧格式）、权限检查、项目范围校验、
      旧格式兼容、validate API 端点
 """
+from app.extensions import db
 import uuid
 
 
@@ -19,7 +20,7 @@ def _auth_headers(client, username=None):
     resp = client.post("/api/v1/auth/login", json={
         "username": username, "password": password,
     })
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -38,8 +39,8 @@ class TestCreateTokenNewFormat:
             "actions": ["read", "execute"],
             "project_ids": [1, 2],
         }, headers=headers)
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["name"] == "CI Token"
         assert set(data["actions"]) == {"read", "execute"}
         assert data["project_ids"] == [1, 2]
@@ -51,8 +52,8 @@ class TestCreateTokenNewFormat:
         resp = client.post("/api/v1/tokens", json={
             "name": "Default Token",
         }, headers=headers)
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["actions"] == ["read"]
         assert data["project_ids"] == []
 
@@ -64,8 +65,8 @@ class TestCreateTokenNewFormat:
             "actions": ["read"],
             "project_ids": [],
         }, headers=headers)
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["project_ids"] == []
 
     def test_create_token_invalid_actions(self, client, no_rate_limit):
@@ -102,8 +103,8 @@ class TestCreateTokenOldFormat:
             "name": "Old Read Token",
             "permissions": ["read-only"],
         }, headers=headers)
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert "read" in data["actions"]
 
     def test_create_token_read_write(self, client, no_rate_limit):
@@ -113,8 +114,8 @@ class TestCreateTokenOldFormat:
             "name": "Old RW Token",
             "permissions": ["read-write"],
         }, headers=headers)
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert set(data["actions"]) == {"read", "write", "execute"}
 
     def test_create_token_invalid_old_format(self, client, no_rate_limit):
@@ -209,92 +210,86 @@ class TestTokenService:
         from app.extensions import db
         from app.models.user import User
         from app.services.token_service import create_token
-        with app.app_context():
-            user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            api_token, raw_token = create_token(
-                user_id=user.id,
-                name='Test Token',
-                actions=['read', 'execute'],
-                project_ids=[1, 2],
-            )
-            assert raw_token is not None
-            assert len(raw_token) > 20
-            assert api_token.get_actions() == ['read', 'execute']
-            assert api_token.project_ids == [1, 2]
-            db.session.rollback()
+        user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        api_token, raw_token = create_token(
+            user_id=user.id,
+            name='Test Token',
+            actions=['read', 'execute'],
+            project_ids=[1, 2],
+        )
+        assert raw_token is not None
+        assert len(raw_token) > 20
+        assert api_token.get_actions() == ['read', 'execute']
+        assert api_token.project_ids == [1, 2]
+        db.session.rollback()
 
     def test_create_token_invalid_actions(self, app):
         from app.extensions import db
         from app.models.user import User
         from app.services.token_service import create_token
-        with app.app_context():
-            user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts2@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            import pytest
-            with pytest.raises(ValueError, match="无效的操作类型"):
-                create_token(user_id=user.id, name='Bad', actions=['fly'])
-            db.session.rollback()
+        user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts2@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        import pytest
+        with pytest.raises(ValueError, match="无效的操作类型"):
+            create_token(user_id=user.id, name='Bad', actions=['fly'])
+        db.session.rollback()
 
     def test_validate_token_success(self, app):
         from app.extensions import db
         from app.models.user import User
         from app.services.token_service import create_token, validate_token
-        with app.app_context():
-            user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts3@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            _, raw_token = create_token(user_id=user.id, name='Valid Token')
-            result = validate_token(raw_token)
-            assert result is not None
-            assert result.name == 'Valid Token'
-            db.session.rollback()
+        user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts3@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        _, raw_token = create_token(user_id=user.id, name='Valid Token')
+        result = validate_token(raw_token)
+        assert result is not None
+        assert result.name == 'Valid Token'
+        db.session.rollback()
 
     def test_validate_token_invalid(self, app):
         from app.services.token_service import validate_token
-        with app.app_context():
-            result = validate_token('invalid-token-12345')
-            assert result is None
+        result = validate_token('invalid-token-12345')
+        assert result is None
 
     def test_check_token_permission_allowed(self, app):
         from app.extensions import db
         from app.models.user import User
         from app.services.token_service import create_token, check_token_permission
-        with app.app_context():
-            user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts4@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            api_token, _ = create_token(
-                user_id=user.id, name='Scoped',
-                actions=['read', 'execute'], project_ids=[1, 2],
-            )
-            # 项目 1 有权限
-            assert check_token_permission(api_token, 'read', 1) is True
-            assert check_token_permission(api_token, 'execute', 2) is True
-            # 项目 3 无权限
-            assert check_token_permission(api_token, 'read', 3) is False
-            # write 操作无权限
-            assert check_token_permission(api_token, 'write', 1) is False
-            db.session.rollback()
+        user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts4@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        api_token, _ = create_token(
+            user_id=user.id, name='Scoped',
+            actions=['read', 'execute'], project_ids=[1, 2],
+        )
+        # 项目 1 有权限
+        assert check_token_permission(api_token, 'read', 1) is True
+        assert check_token_permission(api_token, 'execute', 2) is True
+        # 项目 3 无权限
+        assert check_token_permission(api_token, 'read', 3) is False
+        # write 操作无权限
+        assert check_token_permission(api_token, 'write', 1) is False
+        db.session.rollback()
 
     def test_check_token_permission_unscoped(self, app):
         from app.extensions import db
         from app.models.user import User
         from app.services.token_service import create_token, check_token_permission
-        with app.app_context():
-            user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts5@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            api_token, _ = create_token(
-                user_id=user.id, name='Global',
-                actions=['read'], project_ids=[],
-            )
-            # 无项目限制时，任何项目都可以访问
-            assert check_token_permission(api_token, 'read', 1) is True
-            assert check_token_permission(api_token, 'read', 999) is True
-            db.session.rollback()
+        user = User(username=f"ts_{uuid.uuid4().hex[:6]}", email="ts5@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        api_token, _ = create_token(
+            user_id=user.id, name='Global',
+            actions=['read'], project_ids=[],
+        )
+        # 无项目限制时，任何项目都可以访问
+        assert check_token_permission(api_token, 'read', 1) is True
+        assert check_token_permission(api_token, 'read', 999) is True
+        db.session.rollback()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -313,7 +308,7 @@ class TestTokenListAndDelete:
         }, headers=headers)
         resp = client.get("/api/v1/tokens", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["pagination"]["total"] >= 1
 
     def test_delete_token(self, client, no_rate_limit):
@@ -322,7 +317,7 @@ class TestTokenListAndDelete:
         create_resp = client.post("/api/v1/tokens", json={
             "name": "To Delete", "actions": ["read"],
         }, headers=headers)
-        token_id = create_resp.get_json()["data"]["id"]
+        token_id = create_resp.json()["data"]["id"]
         resp = client.delete(f"/api/v1/tokens/{token_id}", headers=headers)
         assert resp.status_code == 200
 

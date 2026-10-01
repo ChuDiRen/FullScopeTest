@@ -1,3 +1,10 @@
+"""
+pytest 共享 fixtures（零 Flask）
+
+- `app` fixture：初始化运行时（testing 配置 + SQLite 临时库），返回 FastAPI 应用实例
+- `client` / `v2_client`：原生 httpx TestClient
+"""
+
 import os
 import sys
 import tempfile
@@ -13,36 +20,41 @@ os.close(_db_fd)
 
 os.environ.setdefault("TEST_DATABASE_URL", f"sqlite:///{_db_path}")
 
+_fastapi_app = None
+
+
+def _get_test_fastapi_app():
+    global _fastapi_app
+    if _fastapi_app is None:
+        from app.fastapi_app import create_fastapi_app
+
+        _fastapi_app = create_fastapi_app("testing")
+    return _fastapi_app
+
 
 @pytest.fixture(scope="session")
 def app():
-    os.environ.setdefault("FLASK_ENV", "testing")
+    os.environ.setdefault("APP_ENV", "testing")
     os.environ["CELERY_ENABLE"] = "false"
     # 禁用登录锁定，防止测试间状态泄漏
     os.environ["MAX_LOGIN_FAILURES"] = "999999"
     os.environ["LOCKOUT_DURATION_SECONDS"] = "1"
 
-    from app import create_app
+    from app.core.runtime import init_runtime
     from app.extensions import db
 
-    flask_app = create_app("testing")
-    flask_app.config.update(
-        TESTING=True,
-        SQLALCHEMY_ENGINE_OPTIONS={"connect_args": {"check_same_thread": False}},
-        JWT_SECRET_KEY="test-jwt-secret-key-for-testing-only-32bytes!",
-    )
+    init_runtime("testing")
 
-    with flask_app.app_context():
-        # 确保所有模型都被导入，以便 create_all 能创建它们
-        import app.models
-        db.create_all()
+    import app.models  # noqa: F401 — 确保所有模型注册
+    db.create_all()
 
-    yield flask_app
+    yield _get_test_fastapi_app()
 
-    with flask_app.app_context():
-        db.session.remove()
-        db.drop_all()
-        db.engine.dispose()
+    from app.extensions import db as _db
+
+    _db.session.remove()
+    _db.drop_all()
+    _db.engine.dispose()
 
     try:
         os.remove(_db_path)
@@ -53,59 +65,39 @@ def app():
 @pytest.fixture(autouse=True)
 def _isolate_tests(app):
     """每个测试前清除内存状态，测试后回滚数据库事务"""
-    # 清除登录锁定状态
     import app.services.password_policy as _pp
+
     _pp._login_failure_store.clear()
 
     yield
 
-    # 回滚未提交的事务，防止测试间数据泄漏
-    with app.app_context():
-        from app.extensions import db
-        db.session.rollback()
-    # 再次清除锁定状态
+    from app.extensions import db
+
+    db.session.rollback()
+    db.session.remove()
     _pp._login_failure_store.clear()
 
 
 @pytest.fixture()
 def no_rate_limit(monkeypatch):
-    """按需禁用限流的 fixture
-
-    在需要避免限流干扰的测试中显式使用：
-        def test_xxx(client, no_rate_limit):
-            ...
-    """
+    """按需禁用限流的 fixture"""
     monkeypatch.setattr(
-        "app.middleware.rate_limit.sliding_window_rate_limit",
+        "app.services.rate_limit_service.sliding_window_rate_limit",
         lambda key, limit, **kw: True,
     )
 
 
-
-
 @pytest.fixture()
 def client(app):
-    return app.test_client()
+    """FastAPI TestClient（httpx 接口：resp.json() / resp.text / resp.content）"""
+    from fastapi.testclient import TestClient
+
+    return TestClient(app)
 
 
 @pytest.fixture()
 def v2_client(app):
-    """Create FastAPI test client that shares the same DB as Flask app context"""
+    """FastAPI TestClient（tests/api_v2/ 套件使用，共享同一数据库）"""
     from fastapi.testclient import TestClient
-    from app.fastapi_app import create_fastapi_app
 
-    fastapi_app = create_fastapi_app("testing", flask_app=app)
-
-    # We need to run inside Flask's app context for DB operations
-    with app.app_context():
-        from app.extensions import db as flask_db
-
-        # Ensure tables exist in the shared DB
-        flask_db.create_all()
-
-        # Create FastAPI test client
-        client = TestClient(fastapi_app)
-
-        # Store the app context for use in tests
-        client.flask_app = app
-        yield client
+    return TestClient(app)

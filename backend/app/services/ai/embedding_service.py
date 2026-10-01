@@ -24,6 +24,7 @@ from collections import Counter
 from ...extensions import db
 from ...models.embedding_cache import EmbeddingCache
 from ...core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -101,7 +102,7 @@ class EmbeddingService:
         if not text or not text.strip():
             return []
         content_hash = _text_hash(text)
-        cached = EmbeddingCache.query.filter_by(content_hash=content_hash).first()
+        cached = db.session.scalar(select(EmbeddingCache).filter_by(content_hash=content_hash))
         if cached:
             return json.loads(cached.embedding)
 
@@ -132,10 +133,9 @@ class EmbeddingService:
         hashes = [_text_hash(t) for t in texts]
         cached_entries = {
             e.content_hash: e
-            for e in EmbeddingCache.query.filter(
+            for e in db.session.scalars(select(EmbeddingCache).filter(
                 EmbeddingCache.content_hash.in_(hashes)
-            ).all()
-        }
+            )).all()}
         uncached_indices = []
         for i, (text, h) in enumerate(zip(texts, hashes)):
             if h in cached_entries:

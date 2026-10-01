@@ -4,7 +4,14 @@
 提供按组织 ID 过滤查询的辅助函数
 """
 from typing import Optional, List
-from ..middleware.tenant import get_current_organization_id, get_current_user_organization_ids
+from ..core.runtime import ctx
+from sqlalchemy import select
+from ..extensions import db
+
+
+def get_current_organization_id() -> Optional[int]:
+    """当前请求/任务的组织 ID（由 ASGI 中间件写入 runtime ctx）"""
+    return ctx.get_organization_id()
 
 
 def get_org_filter():
@@ -41,7 +48,7 @@ def get_org_project_ids() -> List[int]:
     from ..models.project import Project
     org_id = get_current_organization_id()
     if org_id:
-        return [p.id for p in Project.query.filter_by(organization_id=org_id).all()]
+        return [p.id for p in db.session.scalars(select(Project).filter_by(organization_id=org_id)).all()]
     return []
 
 

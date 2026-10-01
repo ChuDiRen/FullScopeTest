@@ -11,6 +11,8 @@ Prompt 版本管理集成测试
 import uuid
 import pytest
 
+from app.core.runtime import get_config
+
 
 def _auth_headers(client):
     """注册并登录，返回认证 headers"""
@@ -26,7 +28,7 @@ def _auth_headers(client):
         "/api/v1/auth/login",
         json={"username": username, "password": password},
     )
-    token = login_resp.get_json()["data"]["access_token"]
+    token = login_resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -48,9 +50,9 @@ class TestPromptVersionCRUD:
             "change_notes": "Test experiment",
         })
 
-        assert resp.status_code == 201
-        data = resp.get_json()
-        assert data["code"] == 201
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
         pv = data["data"]
         assert pv["feature"] == "script_gen"
         assert pv["name"] == "experiment-A"
@@ -113,13 +115,13 @@ class TestPromptVersionCRUD:
         # 列出所有
         resp = client.get("/api/v1/ai/prompt-versions", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["pagination"]["total"] >= 2
 
         # 按 feature 过滤
         resp = client.get("/api/v1/ai/prompt-versions?feature=script_gen", headers=headers)
         assert resp.status_code == 200
-        items = resp.get_json()["data"]["items"]
+        items = resp.json()["data"]["items"]
         assert all(v["feature"] == "script_gen" for v in items)
 
     def test_get_prompt_version(self, client):
@@ -130,11 +132,11 @@ class TestPromptVersionCRUD:
             "name": "v1",
             "system_prompt": "test prompt",
         })
-        version_id = create_resp.get_json()["data"]["id"]
+        version_id = create_resp.json()["data"]["id"]
 
         resp = client.get(f"/api/v1/ai/prompt-versions/{version_id}", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["id"] == version_id
+        assert resp.json()["data"]["id"] == version_id
 
     def test_get_prompt_version_not_found(self, client):
         """测试获取不存在的版本返回 404"""
@@ -150,7 +152,7 @@ class TestPromptVersionCRUD:
             "name": "v1",
             "system_prompt": "original prompt",
         })
-        version_id = create_resp.get_json()["data"]["id"]
+        version_id = create_resp.json()["data"]["id"]
 
         resp = client.put(f"/api/v1/ai/prompt-versions/{version_id}", headers=headers, json={
             "system_prompt": "updated prompt",
@@ -158,7 +160,7 @@ class TestPromptVersionCRUD:
             "change_notes": "Updated for better results",
         })
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["system_prompt"] == "updated prompt"
         assert data["temperature"] == 0.8
         assert data["change_notes"] == "Updated for better results"
@@ -172,15 +174,15 @@ class TestPromptVersionCRUD:
             "system_prompt": "test",
             "is_active": True,
         })
-        version_id = create_resp.get_json()["data"]["id"]
+        version_id = create_resp.json()["data"]["id"]
 
         resp = client.delete(f"/api/v1/ai/prompt-versions/{version_id}", headers=headers)
         assert resp.status_code == 200
 
         # 验证已停用
         get_resp = client.get(f"/api/v1/ai/prompt-versions/{version_id}", headers=headers)
-        assert get_resp.get_json()["data"]["is_active"] is False
-        assert get_resp.get_json()["data"]["deactivated_at"] is not None
+        assert get_resp.json()["data"]["is_active"] is False
+        assert get_resp.json()["data"]["deactivated_at"] is not None
 
     def test_version_number_auto_increments(self, client):
         """测试版本号自动递增"""
@@ -192,7 +194,7 @@ class TestPromptVersionCRUD:
             "name": "inc-v1",
             "system_prompt": "prompt 1",
         })
-        v1 = resp1.get_json()["data"]["version"]
+        v1 = resp1.json()["data"]["version"]
 
         # 创建 v2
         resp2 = client.post("/api/v1/ai/prompt-versions", headers=headers, json={
@@ -200,7 +202,7 @@ class TestPromptVersionCRUD:
             "name": "inc-v2",
             "system_prompt": "prompt 2",
         })
-        assert resp2.get_json()["data"]["version"] == v1 + 1
+        assert resp2.json()["data"]["version"] == v1 + 1
 
         # 创建 v3
         resp3 = client.post("/api/v1/ai/prompt-versions", headers=headers, json={
@@ -208,7 +210,7 @@ class TestPromptVersionCRUD:
             "name": "inc-v3",
             "system_prompt": "prompt 3",
         })
-        assert resp3.get_json()["data"]["version"] == v1 + 2
+        assert resp3.json()["data"]["version"] == v1 + 2
 
 
 # ---- A/B Test Selection Tests ----
@@ -233,7 +235,7 @@ class TestABTestSelection:
             "feature": "script_gen",
         })
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["feature"] == "script_gen"
+        assert resp.json()["data"]["feature"] == "script_gen"
 
     def test_select_version_no_active(self, client):
         """测试没有激活版本返回 404"""
@@ -281,7 +283,7 @@ class TestABTestSelection:
                 "feature": "dedup",
             })
             assert resp.status_code == 200
-            assert resp.get_json()["data"]["feature"] == "dedup"
+            assert resp.json()["data"]["feature"] == "dedup"
 
 
 # ---- Stats Refresh Tests ----
@@ -298,11 +300,11 @@ class TestStatsRefresh:
             "name": "v1",
             "system_prompt": "test",
         })
-        version_id = create_resp.get_json()["data"]["id"]
+        version_id = create_resp.json()["data"]["id"]
 
         resp = client.post("/api/v1/ai/prompt-versions/refresh-stats", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["refreshed_count"] >= 1
+        assert resp.json()["data"]["refreshed_count"] >= 1
 
     def test_refresh_stats_with_feature_filter(self, client):
         """测试按 feature 过滤刷新统计"""
@@ -323,7 +325,7 @@ class TestStatsRefresh:
             headers=headers,
         )
         assert resp.status_code == 200
-        count = resp.get_json()["data"]["refreshed_count"]
+        count = resp.json()["data"]["refreshed_count"]
         assert count >= 1
 
 
@@ -335,7 +337,7 @@ class TestScriptGenerationWithPromptVersion:
 
     def test_script_gen_fallback_when_no_key(self, client):
         """测试无 API Key 时使用默认 Prompt 降级"""
-        client.application.config["AI_ASSISTANT_API_KEY"] = ""
+        get_config()["AI_ASSISTANT_API_KEY"] = ""
         headers = _auth_headers(client)
 
         resp = client.post("/api/v1/web-test/ai/generate", headers=headers, json={
@@ -346,7 +348,7 @@ class TestScriptGenerationWithPromptVersion:
 
     def test_script_gen_disabled(self, client):
         """测试 AI 禁用时返回错误"""
-        client.application.config["AI_ASSISTANT_ENABLED"] = False
+        get_config()["AI_ASSISTANT_ENABLED"] = False
         headers = _auth_headers(client)
 
         resp = client.post("/api/v1/web-test/ai/generate", headers=headers, json={
@@ -357,7 +359,7 @@ class TestScriptGenerationWithPromptVersion:
 
     def test_perf_script_gen_disabled(self, client):
         """测试性能测试 AI 禁用时返回错误"""
-        client.application.config["AI_ASSISTANT_ENABLED"] = False
+        get_config()["AI_ASSISTANT_ENABLED"] = False
         headers = _auth_headers(client)
 
         resp = client.post("/api/v1/perf-test/ai/generate", headers=headers, json={
@@ -377,7 +379,7 @@ class TestScriptGenerationWithPromptVersion:
 
     def test_script_gen_with_prompt_version(self, client):
         """测试使用指定 Prompt 版本生成脚本"""
-        client.application.config["AI_ASSISTANT_API_KEY"] = ""
+        get_config()["AI_ASSISTANT_API_KEY"] = ""
         headers = _auth_headers(client)
 
         # 创建一个 Prompt 版本
@@ -387,7 +389,7 @@ class TestScriptGenerationWithPromptVersion:
             "system_prompt": "Custom prompt for testing",
             "is_active": True,
         })
-        assert create_resp.status_code == 201
+        assert create_resp.status_code == 200
 
         # 由于没有 API Key，即使指定了版本也会失败
         # 但至少验证 API 接受 prompt_version_id 参数

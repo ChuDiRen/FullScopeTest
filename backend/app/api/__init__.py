@@ -1,47 +1,6 @@
 """
-API 蓝图模块
+API 包
 
-集中注册所有 API 路由
+v2 FastAPI 路由位于 app.api.v2（由 app.fastapi_app 装配）。
+原 Flask 蓝图集合已随零 Flask 改造移除。
 """
-
-from flask import Blueprint
-
-# 创建 API 蓝图
-api_bp = Blueprint('api', __name__)
-
-
-# 导入并注册各模块路由
-from . import auth
-from . import projects
-from . import environments
-from . import api_test
-from . import web_test
-from . import app_test
-from . import perf_test
-from . import reports
-from . import docs
-from . import ai_copilot
-from . import triggers
-from . import global_search
-from . import visual
-from . import alert_rules
-from . import prompt_versions
-from . import swagger_gen
-from . import semantic_dedup
-from . import ai_stats
-from . import github_integration
-from . import github_checks
-from . import quality_gates
-from .webhooks import gitlab
-from . import organizations
-from . import tokens
-from . import test_plans
-from . import comments
-from . import audit_logs
-from . import notifications
-from . import mock_server
-from . import webhook_debugger
-from . import health_monitor
-from . import dashboard_config
-from . import badge
-from . import visitor_stats

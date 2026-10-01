@@ -1,9 +1,9 @@
 # This file will be written using a different approach
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 
@@ -141,35 +141,39 @@ def _generate_metersphere_format(openapi_schema):
     return {"project_name": "FullScopeTest", "version": "2.0.0", "description": openapi_schema.get("info", {}).get("description", ""), "modules": list(merged.values()), "import_time": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"}
 
 @router.get("/openapi/postman", summary="导出 Postman Collection", description="将当前 OpenAPI schema 转换为 Postman Collection v2.1 格式。", response_class=JSONResponse)
-async def export_postman_collection():
-    from ...fastapi_app import create_fastapi_app
-    app = create_fastapi_app("production")
-    openapi_schema = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes)
+async def export_postman_collection(request: Request):
+    openapi_schema = get_openapi(
+        title=request.app.title, version=request.app.version,
+        description=request.app.description, routes=request.app.routes,
+    )
     collection = _generate_postman_collection(openapi_schema)
     return JSONResponse(content=collection, headers={"Content-Disposition": "attachment; filename=fullscopetest-api-v2.postman_collection.json"})
 
 @router.get("/openapi/metersphere", summary="导出 MeterSphere 兼容格式", description="将当前 OpenAPI schema 转换为 MeterSphere 可导入的接口定义格式。", response_class=JSONResponse)
-async def export_metersphere_format():
-    from ...fastapi_app import create_fastapi_app
-    app = create_fastapi_app("production")
-    openapi_schema = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes)
+async def export_metersphere_format(request: Request):
+    openapi_schema = get_openapi(
+        title=request.app.title, version=request.app.version,
+        description=request.app.description, routes=request.app.routes,
+    )
     ms_format = _generate_metersphere_format(openapi_schema)
     return JSONResponse(content=ms_format, headers={"Content-Disposition": "attachment; filename=fullscopetest-api-v2.metersphere.json"})
 
 @router.get("/openapi/schema", summary="获取完整 OpenAPI Schema", description="返回当前 FastAPI 应用的完整 OpenAPI 3.0 Schema。", response_class=JSONResponse)
-async def get_full_openapi_schema():
-    from ...fastapi_app import create_fastapi_app
-    app = create_fastapi_app("production")
-    schema = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes)
+async def get_full_openapi_schema(request: Request):
+    schema = get_openapi(
+        title=request.app.title, version=request.app.version,
+        description=request.app.description, routes=request.app.routes,
+    )
     # 增强 schema：添加认证说明和示例
     schema = _enhance_openapi_schema(schema)
     return schema
 
 @router.get("/openapi/stats", summary="获取 API 统计信息", description="返回当前 API 的端点数量、标签分布、认证方式等统计信息。")
-async def get_api_stats():
-    from ...fastapi_app import create_fastapi_app
-    app = create_fastapi_app("production")
-    openapi_schema = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes)
+async def get_api_stats(request: Request):
+    openapi_schema = get_openapi(
+        title=request.app.title, version=request.app.version,
+        description=request.app.description, routes=request.app.routes,
+    )
     paths = openapi_schema.get("paths", {})
     total_endpoints = 0
     tag_counts = {}

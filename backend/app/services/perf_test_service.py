@@ -10,21 +10,22 @@ from .base import BaseService
 from ..extensions import db
 from ..models.perf_test_scenario import PerfTestScenario
 from ..utils.exceptions import NotFoundError, ValidationError
+from sqlalchemy import select
 
 
 class PerfTestService(BaseService):
 
     def get_scenarios(self, user_id: int, project_id: int = None):
         """获取性能测试场景列表"""
-        query = PerfTestScenario.query.filter_by(user_id=user_id)
+        query = select(PerfTestScenario).filter_by(user_id=user_id)
         if project_id:
             query = query.filter_by(project_id=project_id)
-        scenarios = query.order_by(PerfTestScenario.created_at.desc()).all()
+        scenarios = db.session.scalars(query.order_by(PerfTestScenario.created_at.desc())).all()
         return [s.to_dict() for s in scenarios]
 
     def get_scenario(self, scenario_id: int, user_id: int):
         """获取场景详情"""
-        scenario = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user_id).first()
+        scenario = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user_id))
         if not scenario:
             raise NotFoundError("场景", scenario_id)
         return scenario.to_dict()
@@ -57,7 +58,7 @@ class PerfTestService(BaseService):
 
     def update_scenario(self, scenario_id: int, user_id: int, data: dict):
         """更新性能测试场景"""
-        scenario = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user_id).first()
+        scenario = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user_id))
         if not scenario:
             raise NotFoundError("场景", scenario_id)
 
@@ -75,7 +76,7 @@ class PerfTestService(BaseService):
 
     def delete_scenario(self, scenario_id: int, user_id: int):
         """删除性能测试场景"""
-        scenario = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user_id).first()
+        scenario = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user_id))
         if not scenario:
             raise NotFoundError("场景", scenario_id)
 

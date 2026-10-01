@@ -9,6 +9,8 @@ from typing import Dict, Any, List, Optional
 from ...extensions import db
 from ...models.prompt_version import PromptVersion
 from ...core.logging import get_logger
+from sqlalchemy import select
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 
@@ -66,10 +68,10 @@ class PromptMarketplace:
                 continue
             templates.append({**bt, "source": "builtin", "version": 1, "usage_count": 0})
 
-        query = PromptVersion.query
+        query = select(PromptVersion)
         if feature:
             query = query.filter_by(feature=feature)
-        for pt in query.order_by(PromptVersion.created_at.desc()).limit(100).all():
+        for pt in db.session.scalars(query.order_by(PromptVersion.created_at.desc()).limit(100)).all():
             variables = self._extract_variables(pt.user_prompt_template or "")
             templates.append({
                 "id": pt.id, "feature": pt.feature, "name": pt.name,
@@ -86,7 +88,7 @@ class PromptMarketplace:
                         temperature: float = 0.3) -> Dict[str, Any]:
         """创建自定义 Prompt 模板"""
         from sqlalchemy import func
-        max_ver = db.session.query(func.max(PromptVersion.version)).filter_by(feature=feature).scalar() or 0
+        max_ver = db.session.scalar(select(func.max(PromptVersion.version)).filter_by(feature=feature)) or 0
         template = PromptVersion(
             feature=feature, name=name, version=max_ver + 1, is_active=False,
             system_prompt=system_prompt, user_prompt_template=user_prompt_template,
@@ -99,7 +101,7 @@ class PromptMarketplace:
 
     def render_template(self, template_id: int, variables: Dict[str, str]) -> Dict[str, str]:
         """渲染模板（替换变量占位符）"""
-        template = PromptVersion.query.get(template_id)
+        template = db.session.get(PromptVersion, template_id)
         if not template:
             raise ValueError(f"模板 {template_id} 不存在")
         user_prompt = template.user_prompt_template or ""
@@ -113,11 +115,11 @@ class PromptMarketplace:
 
     def rollback_template(self, feature: str, target_version: int, user_id: int) -> Dict[str, Any]:
         """回滚到指定版本"""
-        target = PromptVersion.query.filter_by(feature=feature, version=target_version).first()
+        target = db.session.scalar(select(PromptVersion).filter_by(feature=feature, version=target_version))
         if not target:
             raise ValueError(f"版本 {target_version} 不存在")
         from sqlalchemy import func
-        max_ver = db.session.query(func.max(PromptVersion.version)).filter_by(feature=feature).scalar() or 0
+        max_ver = db.session.scalar(select(func.max(PromptVersion.version)).filter_by(feature=feature)) or 0
         new = PromptVersion(
             feature=feature, name=f"回滚到 v{target_version}", version=max_ver + 1,
             is_active=True, system_prompt=target.system_prompt,

@@ -1,38 +1,17 @@
 """
-Flask 扩展实例
+扩展实例
 
-集中管理所有 Flask 扩展，避免循环导入
-
-数据库模块已迁移到 database.py，支持 Flask 和 FastAPI 双框架。
+集中管理跨模块共享的基础设施实例，避免循环导入：
+- db: SQLAlchemy 2.0 数据层（app/database.py）
+- celery: Celery 实例（配置由 app/celery_app.make_celery 在启动时装入）
 """
 
-from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
 from celery import Celery
 
-# 数据库 ORM（从独立模块导入，不再依赖 Flask-SQLAlchemy）
 from .database import db
 
-# 数据库迁移
-migrate = Migrate()
-
-# JWT 认证
-jwt = JWTManager()
-
-
-# JWT Token 黑名单检查
-@jwt.token_in_blocklist_loader
-def check_if_token_revoked(jwt_header, jwt_payload):
-    """检查 JWT Token 是否已被注销"""
-    from .services.token_blacklist import is_token_blacklisted
-    jti = jwt_payload.get('jti')
-    if not jti:
-        return False
-    return is_token_blacklisted(jti)
-
-
-# Celery 实例 - 配置稍后从 Flask 配置加载
+# Celery 实例 - 配置由 celery_app.make_celery() 在启动时装入
 celery = Celery(
     __name__,
-    include=['app.tasks']  # 自动导入任务模块
+    include=["app.tasks"],  # 自动导入任务模块
 )

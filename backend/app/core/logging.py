@@ -5,7 +5,7 @@
 - timestamp: ISO 8601 时间戳
 - level: 日志级别
 - module: 模块名
-- trace_id: 请求追踪 ID（Flask request context 中生成）
+- trace_id: 请求追踪 ID（每请求生成）
 
 使用方式：
     from app.core.logging import get_logger

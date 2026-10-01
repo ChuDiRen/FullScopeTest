@@ -12,6 +12,7 @@ from ..extensions import db
 from ..models.api_test_case import ApiTestCase, ApiTestCollection
 from ..core.logging import get_logger
 from ..utils.exceptions import ValidationError
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -110,7 +111,7 @@ class HARImportService:
 
         # 使用或创建集合
         if collection_id:
-            collection = ApiTestCollection.query.get(collection_id)
+            collection = db.session.get(ApiTestCollection, collection_id)
             if not collection:
                 raise ValidationError(f'集合 {collection_id} 不存在')
         else:

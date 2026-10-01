@@ -178,7 +178,22 @@ def upgrade():
         "ALTER TABLE mock_request_logs ADD COLUMN IF NOT EXISTS latency_ms INTEGER",
     ]
     for sql in fix_sqls:
-        op.execute(sql)
+        _add_column_if_missing(op, sa, sql)
+
+
+def _add_column_if_missing(op, sa, sql):
+    """按列存在性补列；SQLite 不支持 IF NOT EXISTS 与 ::json 转型，降级语法。"""
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    table_name = sql.split()[2]
+    col_name = sql.split("ADD COLUMN ")[1].split()[0]
+    existing = {c["name"] for c in inspector.get_columns(table_name)}
+    if col_name in existing:
+        return
+    if bind.dialect.name != "postgresql":
+        sql = sql.replace("ADD COLUMN IF NOT EXISTS ", "ADD COLUMN ")
+        sql = sql.replace("'::json", "'")
+    op.execute(sql)
 
 
 def downgrade():

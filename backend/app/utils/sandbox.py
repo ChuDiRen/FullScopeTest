@@ -22,6 +22,8 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from ..core.logging import get_logger
+from sqlalchemy import func
+from sqlalchemy import update
 
 logger = get_logger(__name__)
 
@@ -29,45 +31,70 @@ logger = get_logger(__name__)
 DEFAULT_TIMEOUT = 300
 
 # AST 检查中拦截的危险模块和函数
+# 注意：BLOCKED_IMPORTS 按"模块顶层名"匹配（import a.b 只看 a）
 BLOCKED_IMPORTS = {
-    "os",          # os.system, os.popen 等
-    "shutil",      # 文件删除等（部分场景）
+    # 进程 / 系统
+    "os",          # os.system, os.popen, os.environ 等
+    "sys",         # sys.modules['os'].system 等逃逸路径
+    "builtins",    # __import__('builtins').open 等
+    "subprocess",  # 任意命令执行（禁止一切形式的导入）
+    "ctypes",      # 直接内存操作 / FFI
+    "multiprocessing",  # 多进程
+    "threading",   # 多线程（可用于 DoS）
+    "asyncio",     # 异步（可用于 DoS）
+    "signal",      # 信号处理
+    "shutil",      # 文件删除等
     "pty",         # 伪终端
-    "telnetlib",   # 远程连接
-    "subprocess",  # 整体导入拦截，仅允许 from subprocess import run/Popen 等白名单
-    "ctypes",      # 直接内存操作
+    # 文件系统 / 路径
+    "pathlib",     # Path.open()/read_text 可读取 .env 等敏感文件
+    # 网络
     "socket",      # 原始网络套接字
     "http.server", # HTTP 服务器
     "http.client", # 底层 HTTP 客户端
+    "urllib",      # URL 打开（file:// / 内网探测）
+    "requests",    # HTTP 客户端（严格模式下禁止，locust 场景单独放行）
+    "telnetlib",   # 远程连接
+    "ftplib",
+    "smtplib",
     "xmlrpc",      # XML-RPC 远程调用
-    "code",        # 交互式解释器
-    "compileall",  # 编译所有 .py 文件
-    "zipimport",   # 从 zip 导入
+    "webbrowser",
+    # 导入机制 / 解释器内部（防逃逸）
     "importlib",   # 动态导入（可绕过静态检查）
     "pkgutil",     # 包工具
+    "zipimport",   # 从 zip 导入
+    "runpy",       # 按模块名运行代码
+    "code",        # 交互式解释器
+    "codeop",
+    "compileall",  # 编译所有 .py 文件
     "pdb",         # 调试器
     "profile",     # 性能分析
     "cProfile",    # 性能分析
     "traceback",   # 堆栈跟踪（信息泄露）
     "faulthandler",# 崩溃转储
-    "signal",      # 信号处理
-    "multiprocessing",  # 多进程
-    "threading",   # 多线程（可用于 DoS）
-    "asyncio",     # 异步（可用于 DoS）
+    "gc",          # 垃圾回收器（可触达对象图）
+    "atexit",
+    "site",
+    "venv",
+    # 可扩展逃逸
+    "pickle",      # 反序列化 RCE
+    "dill",
+    "shelve",
+    "marshal",
 }
 
-BLOCKED_FUNCTIONS = {
-    "system",      # os.system
-    "popen",       # os.popen
-    "call",        # subprocess.call（当 shell=True 时）
-    "check_output",  # subprocess.check_output（潜在滥用）
-    "check_call",  # subprocess.check_call
-    "spawn",       # multiprocessing.spawn
-    "fork",        # os.fork
-}
+# 允许网络库的宽松画像（Locust 压测脚本本质是发压工具，需要 requests/urllib）
+NETWORK_MODULES = {"requests", "urllib", "http.client", "socket"}
 
-# subprocess 模块中允许的属性（白名单模式）
-ALLOWED_SUBPROCESS_ATTRS = {"run", "PIPE", "STDOUT", "DEVNULL", "TimeoutExpired", "CompletedProcess"}
+# 禁止调用的内建函数（严格模式）
+BLOCKED_BUILTINS = {"open", "eval", "exec", "compile", "getattr", "breakpoint", "input"}
+
+# 经典沙箱逃逸的 dunder 属性访问（obj.__class__ 等）
+BLOCKED_DUNDER_ATTRS = {
+    "__class__", "__bases__", "__subclasses__", "__mro__", "__globals__",
+    "__code__", "__builtins__", "__import__", "__loader__", "__spec__",
+    "__init_subclass__", "__reduce__", "__reduce_ex__", "__getattribute__",
+    "__dict__", "__closure__", "__self__",
+}
 
 
 def _get_sandbox_mode() -> str:
@@ -86,12 +113,14 @@ def _compute_script_hash(script_content: str) -> str:
     return hashlib.sha256(script_content.encode("utf-8")).hexdigest()[:16]
 
 
-def check_script_safety(script_content: str) -> tuple:
+def check_script_safety(script_content: str, allow_network_libs: bool = False) -> tuple:
     """
     通过 AST 静态分析检查脚本安全性
 
     Args:
         script_content: 用户脚本源代码
+        allow_network_libs: True 时放行 requests/urllib/socket/http.client
+            （仅用于 Locust 压测脚本；Web/App 脚本沙箱必须保持 False）
 
     Returns:
         (is_safe, message):
@@ -104,46 +133,40 @@ def check_script_safety(script_content: str) -> tuple:
         # 语法错误的脚本会在执行时报错，此处不拦截
         return True, ""
 
+    blocked = set(BLOCKED_IMPORTS)
+    if allow_network_libs:
+        blocked -= NETWORK_MODULES
+
     for node in ast.walk(tree):
         # 检查 import 语句：import os / from os import system
         if isinstance(node, ast.Import):
             for alias in node.names:
                 module_name = alias.name.split(".")[0]
-                if module_name in BLOCKED_IMPORTS:
+                if module_name in blocked:
                     return False, f"脚本不允许导入模块: {alias.name}"
 
-        # 检查 from X import Y 语句
+        # 检查 from X import Y 语句（subprocess 无白名单，一律拦截）
         if isinstance(node, ast.ImportFrom):
             if node.module:
                 module_name = node.module.split(".")[0]
-                if module_name in BLOCKED_IMPORTS:
-                    # 允许 from subprocess import run, Popen 等安全接口
-                    if module_name == "subprocess":
-                        for alias in node.names:
-                            if alias.name not in ALLOWED_SUBPROCESS_ATTRS:
-                                return False, f"脚本不允许使用 subprocess.{alias.name}"
-                    else:
-                        return False, f"脚本不允许从 {node.module} 导入"
+                if module_name in blocked:
+                    return False, f"脚本不允许从 {node.module} 导入"
 
         # 检查 __import__ 调用
         if isinstance(node, ast.Call):
             func = node.func
             if isinstance(func, ast.Name) and func.id == "__import__":
                 if node.args and isinstance(node.args[0], ast.Constant):
-                    if node.args[0].value in BLOCKED_IMPORTS:
+                    if node.args[0].value in blocked:
                         return False, f"脚本不允许通过 __import__ 导入: {node.args[0].value}"
 
-            # 检查 eval / exec 调用
-            if isinstance(func, ast.Name) and func.id in ("eval", "exec"):
+            # 检查危险内建函数调用（open/eval/exec/compile/getattr 等）
+            if isinstance(func, ast.Name) and func.id in BLOCKED_BUILTINS:
                 return False, f"脚本不允许使用 {func.id}"
 
-            # 检查 getattr 动态获取危险属性
-            if isinstance(func, ast.Name) and func.id == "getattr":
-                return False, "脚本不允许使用 getattr（防止动态属性访问）"
-
-            # 检查 vars / locals / globals（可访问内部属性）
-            if isinstance(func, ast.Name) and func.id in ("vars", "locals", "globals", "dir", "type", "super"):
-                return False, f"脚本不允许使用 {func.id}（防止内部属性访问）"
+        # 检查 dunder 属性访问（obj.__class__.mro() 等沙箱逃逸）
+        if isinstance(node, ast.Attribute) and node.attr in BLOCKED_DUNDER_ATTRS:
+            return False, f"脚本不允许访问内部属性: {node.attr}"
 
         # 检查字符串拼接绕过：__import__('o' + 's')
         if isinstance(node, ast.Call):
@@ -271,22 +294,34 @@ def execute_script(
             f.write(script_content)
             temp_file = f.name
 
-        # 步骤 3：构建安全的执行环境
-        env = os.environ.copy()
-        # 移除敏感环境变量
-        for sensitive_key in ("SECRET_KEY", "JWT_SECRET_KEY", "DATABASE_URL", "REDIS_PASSWORD"):
-            env.pop(sensitive_key, None)
-        # 设置 PYTHONPATH
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
-        # 追加额外环境变量
+        # 步骤 3：构建最小化执行环境
+        # 不继承后端进程环境（旧实现 os.environ.copy() 仅删 4 个键，
+        # OSS/AI/GITHUB 等密钥仍会泄漏给用户脚本），只保留运行必需项。
+        env = {
+            "PATH": os.environ.get("PATH", ""),
+            "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),  # Windows Python 必需
+            "COMSPEC": os.environ.get("COMSPEC", ""),
+            "TEMP": os.environ.get("TEMP", work_dir),
+            "TMP": os.environ.get("TMP", work_dir),
+            "LANG": os.environ.get("LANG", ""),
+            "HOME": work_dir,
+            "PYTHONIOENCODING": "utf-8",
+            "PYTHONDONTWRITEBYTECODE": "1",
+        }
+        env = {k: v for k, v in env.items() if v}
+        # 追加额外环境变量（调用方显式提供）
         if env_extra:
             env.update(env_extra)
 
         # 步骤 4：执行脚本
         if sandbox_mode == "docker":
-            # Docker 模式（预留扩展点）
-            logger.info("Docker 沙箱模式尚未实现，回退到 subprocess 模式")
+            # Docker 模式未实现时显式失败（fail-closed），不再静默回退到同权执行
+            if os.environ.get("SANDBOX_ALLOW_FALLBACK", "").lower() != "true":
+                raise RuntimeError(
+                    "SANDBOX_MODE=docker 尚未实现；请设置 SANDBOX_MODE=subprocess "
+                    "或 SANDBOX_ALLOW_FALLBACK=true 显式接受降级风险"
+                )
+            logger.warning("Docker 沙箱模式尚未实现，经 SANDBOX_ALLOW_FALLBACK 允许后回退到 subprocess 模式")
 
         # subprocess 模式（默认）
         result = subprocess.run(

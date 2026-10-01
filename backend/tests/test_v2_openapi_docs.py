@@ -1,20 +1,8 @@
 """Tests for FastAPI OpenAPI documentation enhancement module"""
+from app.extensions import db
 
 import uuid
 import pytest
-from fastapi.testclient import TestClient
-from app.fastapi_app import create_fastapi_app
-
-
-@pytest.fixture()
-def v2_client(app):
-    fastapi_app = create_fastapi_app("testing", flask_app=app)
-    with app.app_context():
-        from app.extensions import db as flask_db
-        flask_db.create_all()
-        client = TestClient(fastapi_app)
-        client.flask_app = app
-        yield client
 
 
 def _register_and_login(client, username=None):
@@ -73,7 +61,7 @@ class TestV2OpenAPIDocs:
         data = resp.json()
         assert len(data["modules"]) > 0
         module_names = [m["name"] for m in data["modules"]]
-        assert "auth" in module_names
+        assert "v1-auth" in module_names
 
     def test_schema_export(self, v2_client):
         resp = v2_client.get("/api/v2/openapi/schema")
@@ -95,7 +83,7 @@ class TestV2OpenAPIDocs:
     def test_stats_has_expected_tags(self, v2_client):
         resp = v2_client.get("/api/v2/openapi/stats")
         data = resp.json()
-        assert "auth" in data["by_tag"]
+        assert "v1-auth" in data["by_tag"]
         assert "test-cases" in data["by_tag"]
         assert "api-tests" in data["by_tag"]
 

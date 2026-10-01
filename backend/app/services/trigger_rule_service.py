@@ -13,6 +13,8 @@ from ..extensions import db
 from ..models.trigger_rule import TriggerRule
 from ..models.test_run import TestRun
 from ..core.logging import get_logger
+from sqlalchemy import select
+from sqlalchemy import update
 
 logger = get_logger(__name__)
 
@@ -41,14 +43,14 @@ def evaluate_push_event(
     branch = ref.replace('refs/heads/', '') if ref.startswith('refs/heads/') else ref
 
     # 获取所有激活的 push 规则
-    query = TriggerRule.query.filter_by(
+    query = select(TriggerRule).filter_by(
         trigger_event='push',
         is_active=True,
     )
     if project_id:
         query = query.filter_by(project_id=project_id)
 
-    rules = query.all()
+    rules = db.session.scalars(query).all()
 
     matched_rules = []
 
@@ -90,6 +92,7 @@ def evaluate_pr_event(
     pr_title: str,
     repository: str,
     changed_files: List[str],
+    project_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     评估 pull_request 事件是否应该触发测试
@@ -107,10 +110,13 @@ def evaluate_pr_event(
         dict: 包含 should_trigger, test_type, target_id, matched_rules 等信息
     """
     # 获取所有激活的 pull_request 规则
-    rules = TriggerRule.query.filter_by(
+    query = select(TriggerRule).filter_by(
         trigger_event='pull_request',
         is_active=True,
-    ).all()
+    )
+    if project_id:
+        query = query.filter_by(project_id=project_id)
+    rules = db.session.scalars(query).all()
 
     matched_rules = []
 
@@ -325,7 +331,7 @@ def update_rule(
     Returns:
         TriggerRule: 更新后的规则，如果不存在则返回 None
     """
-    rule = TriggerRule.query.get(rule_id)
+    rule = db.session.get(TriggerRule, rule_id)
     if not rule:
         return None
 
@@ -348,7 +354,7 @@ def delete_rule(rule_id: int) -> bool:
     Returns:
         bool: 是否成功删除
     """
-    rule = TriggerRule.query.get(rule_id)
+    rule = db.session.get(TriggerRule, rule_id)
     if not rule:
         return False
 
@@ -368,9 +374,9 @@ def get_rules_by_project(project_id: int) -> List[TriggerRule]:
     Returns:
         List[TriggerRule]: 规则列表
     """
-    return TriggerRule.query.filter_by(project_id=project_id).order_by(
+    return db.session.scalars(select(TriggerRule).filter_by(project_id=project_id).order_by(
         TriggerRule.created_at.desc()
-    ).all()
+    )).all()
 
 
 def get_active_rules_by_project(project_id: int) -> List[TriggerRule]:
@@ -383,7 +389,7 @@ def get_active_rules_by_project(project_id: int) -> List[TriggerRule]:
     Returns:
         List[TriggerRule]: 规则列表
     """
-    return TriggerRule.query.filter_by(
+    return db.session.scalars(select(TriggerRule).filter_by(
         project_id=project_id,
         is_active=True,
-    ).order_by(TriggerRule.created_at.desc()).all()
+    ).order_by(TriggerRule.created_at.desc())).all()

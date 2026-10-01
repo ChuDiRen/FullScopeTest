@@ -9,11 +9,18 @@
 """
 
 import pytest
+from unittest.mock import patch
 
 
-@pytest.fixture()
-def client(app):
-    return app.test_client()
+def _request_reset_token(client, email):
+    """请求密码重置并从模拟邮件调用中捕获 token（响应不回显 token，防日志泄露）"""
+    with patch('app.services.email_service.email_service.send_password_reset_email') as mock_send:
+        resp = client.post('/api/v1/auth/forgot-password', json={'email': email})
+        assert resp.status_code == 200
+        assert mock_send.called, '未调用邮件服务发送重置邮件'
+        return mock_send.call_args.kwargs['reset_token']
+
+
 
 
 @pytest.fixture()
@@ -36,7 +43,7 @@ class TestPasswordReset:
             'email': registered_user['email'],
         })
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data['message'] == '如果该邮箱已注册，重置链接已发送'
 
     def test_forgot_password_nonexistent_email(self, client):
@@ -49,10 +56,7 @@ class TestPasswordReset:
     def test_reset_password_success(self, client, registered_user):
         """使用有效 token 重置密码成功"""
         # 获取 token
-        resp = client.post('/api/v1/auth/forgot-password', json={
-            'email': registered_user['email'],
-        })
-        token = resp.get_json()['data']['reset_token']
+        token = _request_reset_token(client, registered_user['email'])
 
         # 重置密码
         resp = client.post('/api/v1/auth/reset-password', json={
@@ -85,10 +89,7 @@ class TestPasswordReset:
 
     def test_reset_password_weak_password(self, client, registered_user):
         """使用弱密码重置失败"""
-        resp = client.post('/api/v1/auth/forgot-password', json={
-            'email': registered_user['email'],
-        })
-        token = resp.get_json()['data']['reset_token']
+        token = _request_reset_token(client, registered_user['email'])
 
         resp = client.post('/api/v1/auth/reset-password', json={
             'token': token,
@@ -98,10 +99,7 @@ class TestPasswordReset:
 
     def test_token_single_use(self, client, registered_user):
         """重置 token 只能使用一次"""
-        resp = client.post('/api/v1/auth/forgot-password', json={
-            'email': registered_user['email'],
-        })
-        token = resp.get_json()['data']['reset_token']
+        token = _request_reset_token(client, registered_user['email'])
 
         # 第一次使用成功
         resp = client.post('/api/v1/auth/reset-password', json={

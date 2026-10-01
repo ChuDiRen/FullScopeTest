@@ -64,13 +64,13 @@ class TestPrometheusMetrics:
         response = client.get("/metrics")
         assert response.status_code == 200
         # Check that the response contains expected metric names
-        data = response.data.decode("utf-8")
+        data = response.text
         assert "api_requests_total" in data or "HELP" in data
 
     def test_metrics_include_app_info(self, client):
         """Verify metrics endpoint includes app_info"""
         response = client.get("/metrics")
         assert response.status_code == 200
-        data = response.data.decode("utf-8")
+        data = response.text
         # prometheus-flask-exporter should expose app_info
         assert "app_info" in data or "fullscopetest" in data.lower()

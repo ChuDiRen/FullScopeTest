@@ -8,26 +8,23 @@ import tempfile
 from unittest.mock import patch, MagicMock
 
 import pytest
-from flask import Flask
 
 
 class TestRemoveJob:
 
     def test_remove_existing_job(self, app):
         from app.scheduler import remove_job, scheduler
-        with app.app_context():
-            with patch.object(scheduler, "get_job", return_value=MagicMock()):
-                with patch.object(scheduler, "remove_job") as mock_remove:
-                    remove_job(1)
-                    mock_remove.assert_called_once_with("scheduled_task_1")
+        with patch.object(scheduler, "get_job", return_value=MagicMock()):
+            with patch.object(scheduler, "remove_job") as mock_remove:
+                remove_job(1)
+                mock_remove.assert_called_once_with("scheduled_task_1")
 
     def test_remove_nonexistent_job(self, app):
         from app.scheduler import remove_job, scheduler
-        with app.app_context():
-            with patch.object(scheduler, "get_job", return_value=None):
-                with patch.object(scheduler, "remove_job") as mock_remove:
-                    remove_job(999)
-                    mock_remove.assert_not_called()
+        with patch.object(scheduler, "get_job", return_value=None):
+            with patch.object(scheduler, "remove_job") as mock_remove:
+                remove_job(999)
+                mock_remove.assert_not_called()
 
 
 class TestExecuteScheduledTask:
@@ -40,43 +37,40 @@ class TestExecuteScheduledTask:
         mock_task.target_type = "api_collection"
         mock_task.target_id = 10
         mock_task.name = "API Test"
-        with patch("app.models.scheduled_task.ScheduledTask") as MockTask:
-            MockTask.query.get.return_value = mock_task
+        with patch("app.models.scheduled_task.ScheduledTask"),                     patch("app.scheduler.db") as mock_db:
+            mock_db.session.get.return_value = mock_task
             mock_run = MagicMock()
             mock_run.delay.return_value = MagicMock(id="celery-123")
             with patch.dict("sys.modules", {"app.tasks": MagicMock(run_api_collection_task=mock_run)}):
                 with patch("app.scheduler.send_notification"):
                     with patch("app.scheduler.scheduler") as mock_sched:
                         mock_sched.app = app
-                        with app.app_context():
-                            execute_scheduled_task(1)
-                            mock_run.delay.assert_called_once_with(10, None)
+                        execute_scheduled_task(1)
+                        mock_run.delay.assert_called_once_with(10, None)
 
     def test_execute_inactive_task_returns_early(self, app):
         from app.scheduler import execute_scheduled_task
         mock_task = MagicMock()
         mock_task.is_active = False
-        with patch("app.models.scheduled_task.ScheduledTask") as MockTask:
-            MockTask.query.get.return_value = mock_task
+        with patch("app.models.scheduled_task.ScheduledTask"),                     patch("app.scheduler.db") as mock_db:
+            mock_db.session.get.return_value = mock_task
             mock_run = MagicMock()
             with patch.dict("sys.modules", {"app.tasks": MagicMock(run_api_collection_task=mock_run)}):
                 with patch("app.scheduler.scheduler") as mock_sched:
                     mock_sched.app = app
-                    with app.app_context():
-                        execute_scheduled_task(1)
-                        mock_run.delay.assert_not_called()
+                    execute_scheduled_task(1)
+                    mock_run.delay.assert_not_called()
 
     def test_execute_nonexistent_task_returns_early(self, app):
         from app.scheduler import execute_scheduled_task
-        with patch("app.models.scheduled_task.ScheduledTask") as MockTask:
-            MockTask.query.get.return_value = None
+        with patch("app.models.scheduled_task.ScheduledTask"),                     patch("app.scheduler.db") as mock_db:
+            mock_db.session.get.return_value = None
             mock_run = MagicMock()
             with patch.dict("sys.modules", {"app.tasks": MagicMock(run_api_collection_task=mock_run)}):
                 with patch("app.scheduler.scheduler") as mock_sched:
                     mock_sched.app = app
-                    with app.app_context():
-                        execute_scheduled_task(999)
-                        mock_run.delay.assert_not_called()
+                    execute_scheduled_task(999)
+                    mock_run.delay.assert_not_called()
 
     def test_execute_web_collection_task(self, app):
         from app.scheduler import execute_scheduled_task
@@ -86,17 +80,16 @@ class TestExecuteScheduledTask:
         mock_task.target_type = "web_collection"
         mock_task.target_id = 20
         mock_task.name = "Web Test"
-        with patch("app.models.scheduled_task.ScheduledTask") as MockTask:
-            MockTask.query.get.return_value = mock_task
+        with patch("app.models.scheduled_task.ScheduledTask"),                     patch("app.scheduler.db") as mock_db:
+            mock_db.session.get.return_value = mock_task
             mock_run = MagicMock()
             mock_run.delay.return_value = MagicMock(id="celery-456")
             with patch.dict("sys.modules", {"app.tasks": MagicMock(run_web_collection_task=mock_run)}):
                 with patch("app.scheduler.send_notification"):
                     with patch("app.scheduler.scheduler") as mock_sched:
                         mock_sched.app = app
-                        with app.app_context():
-                            execute_scheduled_task(2)
-                            mock_run.delay.assert_called_once_with(20, None)
+                        execute_scheduled_task(2)
+                        mock_run.delay.assert_called_once_with(20, None)
 
     def test_execute_perf_scenario_task(self, app):
         from app.scheduler import execute_scheduled_task
@@ -106,17 +99,16 @@ class TestExecuteScheduledTask:
         mock_task.target_type = "perf_scenario"
         mock_task.target_id = 30
         mock_task.name = "Perf Test"
-        with patch("app.models.scheduled_task.ScheduledTask") as MockTask:
-            MockTask.query.get.return_value = mock_task
+        with patch("app.models.scheduled_task.ScheduledTask"),                     patch("app.scheduler.db") as mock_db:
+            mock_db.session.get.return_value = mock_task
             mock_run = MagicMock()
             mock_run.delay.return_value = MagicMock(id="celery-789")
             with patch.dict("sys.modules", {"app.tasks": MagicMock(run_perf_scenario_task=mock_run)}):
                 with patch("app.scheduler.send_notification"):
                     with patch("app.scheduler.scheduler") as mock_sched:
                         mock_sched.app = app
-                        with app.app_context():
-                            execute_scheduled_task(3)
-                            mock_run.delay.assert_called_once_with(30)
+                        execute_scheduled_task(3)
+                        mock_run.delay.assert_called_once_with(30)
 
     def test_execute_unknown_target_type(self, app):
         from app.scheduler import execute_scheduled_task
@@ -126,8 +118,8 @@ class TestExecuteScheduledTask:
         mock_task.target_type = "unknown_type"
         mock_task.target_id = 40
         mock_task.name = "Unknown Test"
-        with patch("app.models.scheduled_task.ScheduledTask") as MockTask:
-            MockTask.query.get.return_value = mock_task
+        with patch("app.models.scheduled_task.ScheduledTask"),                     patch("app.scheduler.db") as mock_db:
+            mock_db.session.get.return_value = mock_task
             mock_api = MagicMock()
             mock_web = MagicMock()
             mock_perf = MagicMock()
@@ -135,11 +127,10 @@ class TestExecuteScheduledTask:
                 with patch("app.scheduler.send_notification"):
                     with patch("app.scheduler.scheduler") as mock_sched:
                         mock_sched.app = app
-                        with app.app_context():
-                            execute_scheduled_task(4)
-                            mock_api.delay.assert_not_called()
-                            mock_web.delay.assert_not_called()
-                            mock_perf.delay.assert_not_called()
+                        execute_scheduled_task(4)
+                        mock_api.delay.assert_not_called()
+                        mock_web.delay.assert_not_called()
+                        mock_perf.delay.assert_not_called()
 
 
 class TestSendNotification:
@@ -291,11 +282,10 @@ class TestAddOrUpdateJob:
         mock_task.id = 1
         mock_task.name = "Test Task"
         mock_task.cron_expression = "0 9 * * *"
-        with app.app_context():
-            with patch.object(scheduler, "get_job", return_value=None):
-                with patch.object(scheduler, "add_job") as mock_add:
-                    add_or_update_job(mock_task)
-                    mock_add.assert_called_once()
+        with patch.object(scheduler, "get_job", return_value=None):
+            with patch.object(scheduler, "add_job") as mock_add:
+                add_or_update_job(mock_task)
+                mock_add.assert_called_once()
 
     def test_update_existing_job(self, app):
         from app.scheduler import add_or_update_job, scheduler
@@ -303,11 +293,10 @@ class TestAddOrUpdateJob:
         mock_task.id = 1
         mock_task.name = "Test Task"
         mock_task.cron_expression = "0 9 * * *"
-        with app.app_context():
-            with patch.object(scheduler, "get_job", return_value=MagicMock()):
-                with patch.object(scheduler, "modify_job") as mock_modify:
-                    add_or_update_job(mock_task)
-                    mock_modify.assert_called_once()
+        with patch.object(scheduler, "get_job", return_value=MagicMock()):
+            with patch.object(scheduler, "modify_job") as mock_modify:
+                add_or_update_job(mock_task)
+                mock_modify.assert_called_once()
 
     def test_invalid_cron_expression(self, app):
         from app.scheduler import add_or_update_job
@@ -315,35 +304,28 @@ class TestAddOrUpdateJob:
         mock_task.id = 1
         mock_task.name = "Test Task"
         mock_task.cron_expression = "invalid cron"
-        with app.app_context():
-            add_or_update_job(mock_task)
+        add_or_update_job(mock_task)
 
 
 class TestInitScheduler:
 
     def test_init_scheduler_on_windows(self, app):
         from app.scheduler import init_scheduler, scheduler
-        with app.app_context():
-            with patch("app.scheduler.sys") as mock_sys:
-                mock_sys.platform = "win32"
-                with patch.object(scheduler, "init_app") as mock_init:
-                    with patch.object(scheduler, "start") as mock_start:
-                        init_scheduler(app)
-                        mock_init.assert_called_once_with(app)
-                        mock_start.assert_called_once()
+        with patch("app.scheduler.sys") as mock_sys:
+            mock_sys.platform = "win32"
+            with patch.object(scheduler, "start") as mock_start:
+                assert init_scheduler() is True
+                mock_start.assert_called_once()
 
     def test_init_scheduler_skips_when_lock_held(self, app):
         from app.scheduler import init_scheduler, scheduler
-        with app.app_context():
-            with patch("app.scheduler.fcntl") as mock_fcntl:
-                mock_fcntl.flock.side_effect = IOError("Resource temporarily unavailable")
-                mock_fcntl.LOCK_EX = 2
-                mock_fcntl.LOCK_NB = 4
-                with patch("app.scheduler.sys") as mock_sys:
-                    mock_sys.platform = "linux"
-                    with patch("builtins.open", return_value=MagicMock()):
-                        with patch.object(scheduler, "init_app") as mock_init:
-                            with patch.object(scheduler, "start") as mock_start:
-                                init_scheduler(app)
-                                mock_init.assert_not_called()
-                                mock_start.assert_not_called()
+        with patch("app.scheduler.fcntl") as mock_fcntl:
+            mock_fcntl.flock.side_effect = IOError("Resource temporarily unavailable")
+            mock_fcntl.LOCK_EX = 2
+            mock_fcntl.LOCK_NB = 4
+            with patch("app.scheduler.sys") as mock_sys:
+                mock_sys.platform = "linux"
+                with patch("builtins.open", return_value=MagicMock()):
+                    with patch.object(scheduler, "start") as mock_start:
+                        assert init_scheduler() is False
+                        mock_start.assert_not_called()

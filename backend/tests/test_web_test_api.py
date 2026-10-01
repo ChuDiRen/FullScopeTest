@@ -13,7 +13,7 @@ def _auth_headers(client):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -25,7 +25,7 @@ class TestWebTestHealth:
     def test_health_returns_ok(self, client):
         resp = client.get("/api/v1/web-test/health")
         assert resp.status_code == 200
-        assert resp.get_json()["code"] == 200
+        assert resp.json()["code"] == 200
 
 
 # ====================================================================
@@ -37,7 +37,7 @@ class TestWebCollectionCRUD:
         headers = _auth_headers(client)
         resp = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "Smoke"})
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["id"] is not None
         assert data["name"] == "Smoke"
 
@@ -47,19 +47,19 @@ class TestWebCollectionCRUD:
         client.post("/api/v1/web-test/collections", headers=headers, json={"name": "B"})
         resp = client.get("/api/v1/web-test/collections", headers=headers)
         assert resp.status_code == 200
-        items = resp.get_json()["data"]
+        items = resp.json()["data"]
         assert len(items) >= 2
 
     def test_update_collection(self, client):
         headers = _auth_headers(client)
-        cid = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "Old"}).get_json()["data"]["id"]
+        cid = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "Old"}).json()["data"]["id"]
         resp = client.put(f"/api/v1/web-test/collections/{cid}", headers=headers, json={"name": "New"})
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["name"] == "New"
+        assert resp.json()["data"]["name"] == "New"
 
     def test_delete_collection(self, client):
         headers = _auth_headers(client)
-        cid = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "ToDel"}).get_json()["data"]["id"]
+        cid = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "ToDel"}).json()["data"]["id"]
         resp = client.delete(f"/api/v1/web-test/collections/{cid}", headers=headers)
         assert resp.status_code == 200
 
@@ -93,7 +93,7 @@ class TestWebScriptCRUD:
         headers = _auth_headers(client)
         resp = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "S1"})
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["name"] == "S1"
         assert data["id"] is not None
 
@@ -104,21 +104,21 @@ class TestWebScriptCRUD:
 
     def test_get_script_detail(self, client):
         headers = _auth_headers(client)
-        sid = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "D"}).get_json()["data"]["id"]
+        sid = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "D"}).json()["data"]["id"]
         resp = client.get(f"/api/v1/web-test/scripts/{sid}", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["name"] == "D"
+        assert resp.json()["data"]["name"] == "D"
 
     def test_update_script(self, client):
         headers = _auth_headers(client)
-        sid = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "Old"}).get_json()["data"]["id"]
+        sid = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "Old"}).json()["data"]["id"]
         resp = client.put(f"/api/v1/web-test/scripts/{sid}", headers=headers, json={"name": "New"})
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["name"] == "New"
+        assert resp.json()["data"]["name"] == "New"
 
     def test_delete_script(self, client):
         headers = _auth_headers(client)
-        sid = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "Del"}).get_json()["data"]["id"]
+        sid = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "Del"}).json()["data"]["id"]
         resp = client.delete(f"/api/v1/web-test/scripts/{sid}", headers=headers)
         assert resp.status_code == 200
 
@@ -143,15 +143,15 @@ class TestWebScriptCRUD:
         resp = client.post("/api/v1/web-test/scripts", headers=headers,
                            json={"name": "Custom", "script_content": custom})
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["script_content"] == custom
+        assert resp.json()["data"]["script_content"] == custom
 
     def test_create_script_with_collection(self, client):
         headers = _auth_headers(client)
-        cid = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "C"}).get_json()["data"]["id"]
+        cid = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "C"}).json()["data"]["id"]
         resp = client.post("/api/v1/web-test/scripts", headers=headers,
                            json={"name": "InCol", "collection_id": cid})
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["collection_id"] == cid
+        assert resp.json()["data"]["collection_id"] == cid
 
     def test_create_script_collection_not_found(self, client):
         headers = _auth_headers(client)
@@ -162,16 +162,16 @@ class TestWebScriptCRUD:
     def test_create_script_default_has_template(self, client):
         headers = _auth_headers(client)
         resp = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "Tpl"})
-        content = resp.get_json()["data"]["script_content"]
+        content = resp.json()["data"]["script_content"]
         assert "playwright" in content.lower() or "playwright" in content
 
     def test_scripts_filter_by_collection(self, client):
         headers = _auth_headers(client)
-        cid = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "F"}).get_json()["data"]["id"]
+        cid = client.post("/api/v1/web-test/collections", headers=headers, json={"name": "F"}).json()["data"]["id"]
         client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "A", "collection_id": cid})
         client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "B"})
         resp = client.get(f"/api/v1/web-test/scripts?collection_id={cid}", headers=headers)
-        items = resp.get_json()["data"]
+        items = resp.json()["data"]
         assert len(items) == 1
 
 
@@ -183,15 +183,15 @@ class TestWebScriptRun:
     def test_run_script(self, client, monkeypatch):
         from types import SimpleNamespace
         headers = _auth_headers(client)
-        sid = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "R"}).get_json()["data"]["id"]
+        sid = client.post("/api/v1/web-test/scripts", headers=headers, json={"name": "R"}).json()["data"]["id"]
 
         def _fake_apply_async(*a, **k):
             return SimpleNamespace(id="fake-task-001")
-        monkeypatch.setattr("app.api.web_test.run_web_test_task.apply_async", _fake_apply_async)
+        monkeypatch.setattr("app.api.v2.v1.web_test.run_web_test_task.apply_async", _fake_apply_async)
 
         resp = client.post(f"/api/v1/web-test/scripts/{sid}/run", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["task_id"] == "fake-task-001"
+        assert resp.json()["data"]["task_id"] == "fake-task-001"
 
     def test_run_nonexistent_script_returns_404(self, client):
         headers = _auth_headers(client)
@@ -208,7 +208,7 @@ class TestRecordingStatus:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/web-test/record/status", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["is_recording"] is False
+        assert resp.json()["data"]["is_recording"] is False
 
     def test_stop_when_no_recording_returns_400(self, client):
         headers = _auth_headers(client)
@@ -226,7 +226,7 @@ class TestWebTestSSRF:
         resp = client.post("/api/v1/web-test/ai/explore", headers=headers,
                            json={"start_url": "http://127.0.0.1/admin"})
         assert resp.status_code == 400
-        assert "内网" in resp.get_json()["message"]
+        assert "内网" in resp.json()["message"]
 
     def test_record_rejects_localhost(self, client):
         headers = _auth_headers(client)

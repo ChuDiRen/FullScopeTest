@@ -24,6 +24,7 @@ from ..utils.env_variables import (
 )
 from ..utils.js_executor import get_executor
 from ..utils.assertion_evaluator import get_assertion_evaluator
+from sqlalchemy import select
 from ..utils.script_context import (
     build_pre_script_context, build_post_script_context,
     apply_pre_script_changes, apply_env_changes, calculate_case_passed
@@ -84,7 +85,7 @@ class ApiExecutionService(BaseService):
 
         env_vars = {}
         if env_id:
-            env = Environment.query.filter_by(id=env_id).first()
+            env = db.session.scalar(select(Environment).filter_by(id=env_id))
             if env:
                 env_vars = env.variables or {}
 
@@ -136,7 +137,7 @@ class ApiExecutionService(BaseService):
         # 通过 case_id 检查 mock
         case_id = data.get('case_id')
         if case_id and not data.get('mock_enabled'):
-            case = ApiTestCase.query.get(case_id)
+            case = db.session.get(ApiTestCase, case_id)
             if case and case.mock_enabled:
                 return self._handle_case_mock(case, script_execution)
 
@@ -151,13 +152,13 @@ class ApiExecutionService(BaseService):
 
     def run_case(self, case_id: int, user_id: int, env_id: int = None):
         """执行单个测试用例"""
-        case = ApiTestCase.query.filter_by(id=case_id, user_id=user_id).first()
+        case = db.session.scalar(select(ApiTestCase).filter_by(id=case_id, user_id=user_id))
         if not case:
             raise NotFoundError('用例', case_id)
 
         env_vars = {}
         if env_id:
-            env = Environment.query.filter_by(id=env_id).first()
+            env = db.session.scalar(select(Environment).filter_by(id=env_id))
             if env:
                 env_vars = env.variables or {}
 
@@ -330,11 +331,11 @@ class ApiExecutionService(BaseService):
 
     def create_pending_run(self, collection_id: int, user_id: int, env_id: int = None) -> int:
         """P30-5: 创建待执行的 run 记录并返回 run_id（用于异步模式）"""
-        collection = ApiTestCollection.query.filter_by(id=collection_id, user_id=user_id).first()
+        collection = db.session.scalar(select(ApiTestCollection).filter_by(id=collection_id, user_id=user_id))
         if not collection:
             raise NotFoundError('集合', collection_id)
 
-        cases = ApiTestCase.query.filter_by(collection_id=collection_id, is_enabled=True).all()
+        cases = db.session.scalars(select(ApiTestCase).filter_by(collection_id=collection_id, is_enabled=True)).all()
         if not cases:
             raise ValidationError('集合中没有可执行的用例')
 
@@ -364,7 +365,7 @@ class ApiExecutionService(BaseService):
         Args:
             existing_run_id: P30-5 — 若传入则复用已创建的 run 记录（异步模式）
         """
-        collection = ApiTestCollection.query.filter_by(id=collection_id, user_id=user_id).first()
+        collection = db.session.scalar(select(ApiTestCollection).filter_by(id=collection_id, user_id=user_id))
         if not collection:
             raise NotFoundError('集合', collection_id)
 
@@ -373,7 +374,7 @@ class ApiExecutionService(BaseService):
             from ..utils.exceptions import PermissionError as PermErr
             raise PermErr('无权限执行该集合')
 
-        cases = ApiTestCase.query.filter_by(collection_id=collection_id, is_enabled=True).all()
+        cases = db.session.scalars(select(ApiTestCase).filter_by(collection_id=collection_id, is_enabled=True)).all()
         if not cases:
             raise ValidationError('集合中没有可执行的用例')
 
@@ -521,7 +522,7 @@ class ApiExecutionService(BaseService):
                     if case_env:
                         project_id = case_env.project_id
         if not project_id:
-            user_project = Project.query.filter_by(owner_id=user_id).first()
+            user_project = db.session.scalar(select(Project).filter_by(owner_id=user_id))
             if user_project:
                 project_id = user_project.id
         return project_id

@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional
 from ..extensions import db
 from ..models.test_run import TestRun
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -28,11 +29,11 @@ class CICDMetricsService:
             Dict: CI/CD 指标
         """
         since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
-        query = TestRun.query.filter(TestRun.created_at >= since)
+        query = select(TestRun).filter(TestRun.created_at >= since)
         if project_id:
             query = query.filter_by(project_id=project_id)
 
-        runs = query.all()
+        runs = db.session.scalars(query).all()
         total_runs = len(runs)
         if total_runs == 0:
             return self._empty_metrics(days)

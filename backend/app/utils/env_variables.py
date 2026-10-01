@@ -10,6 +10,8 @@ import uuid
 import time
 import random
 from typing import Dict, Any, Optional
+from ..extensions import db
+from sqlalchemy import update
 
 
 # 内置动态变量（每次调用生成新值）

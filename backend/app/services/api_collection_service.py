@@ -8,16 +8,17 @@ from .base import BaseService
 from ..extensions import db
 from ..models.api_test_case import ApiTestCollection
 from ..utils.exceptions import NotFoundError, ValidationError
+from sqlalchemy import select
 
 
 class ApiCollectionService(BaseService):
 
     def get_collections(self, user_id: int, project_id: int = None):
         """获取用例集合列表"""
-        query = ApiTestCollection.query.filter_by(user_id=user_id)
+        query = select(ApiTestCollection).filter_by(user_id=user_id)
         if project_id:
             query = query.filter_by(project_id=project_id)
-        collections = query.order_by(ApiTestCollection.created_at.desc()).all()
+        collections = db.session.scalars(query.order_by(ApiTestCollection.created_at.desc())).all()
         return [c.to_dict() for c in collections]
 
     def create_collection(self, user_id: int, name: str, description: str = '', project_id: int = None):
@@ -39,7 +40,7 @@ class ApiCollectionService(BaseService):
 
     def update_collection(self, collection_id: int, user_id: int, data: dict):
         """更新用例集合"""
-        collection = ApiTestCollection.query.filter_by(id=collection_id, user_id=user_id).first()
+        collection = db.session.scalar(select(ApiTestCollection).filter_by(id=collection_id, user_id=user_id))
         if not collection:
             raise NotFoundError("集合", collection_id)
 
@@ -54,7 +55,7 @@ class ApiCollectionService(BaseService):
 
     def delete_collection(self, collection_id: int, user_id: int):
         """删除用例集合"""
-        collection = ApiTestCollection.query.filter_by(id=collection_id, user_id=user_id).first()
+        collection = db.session.scalar(select(ApiTestCollection).filter_by(id=collection_id, user_id=user_id))
         if not collection:
             raise NotFoundError("集合", collection_id)
 

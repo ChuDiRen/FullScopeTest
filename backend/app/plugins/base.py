@@ -16,7 +16,7 @@
                 pass
 
         def get_routes(self):
-            return []  # 返回 Flask Blueprint 或路由列表
+            return []  # 返回路由列表（零 Flask 运行时无 Blueprint，返回 None/空列表即不注册）
 """
 from abc import ABC, abstractmethod
 from ..core.logging import get_logger
@@ -42,7 +42,7 @@ class PluginBase(ABC):
         on_event(event_name, data): 事件处理
 
     可选方法：
-        get_routes(): 返回 Flask Blueprint
+        get_routes(): 返回路由列表（可选）
         on_init(app): 应用初始化时调用
         on_destroy(): 应用关闭时调用
     """

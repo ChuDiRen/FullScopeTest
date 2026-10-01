@@ -13,6 +13,10 @@ RBAC 角色与权限模型
 自定义角色可由组织管理员创建，权限范围不超过创建者自身。
 """
 from datetime import datetime
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
+from ..database import Base
+from sqlalchemy import select
 from ..extensions import db
 
 # ── 权限常量 ──────────────────────────────────────────────────────────────────
@@ -108,7 +112,7 @@ LEGACY_ROLE_MAPPING = {
 VALID_ROLES = ['admin', 'manager', 'tester', 'viewer']
 
 
-class Role(db.Model):
+class Role(Base):
     """
     角色表
 
@@ -118,29 +122,29 @@ class Role(db.Model):
 
     __tablename__ = 'roles'
     __table_args__ = (
-        db.UniqueConstraint('name', 'organization_id', name='uq_role_name_org'),
-        db.Index('idx_roles_org_id', 'organization_id'),
+        UniqueConstraint('name', 'organization_id', name='uq_role_name_org'),
+        Index('idx_roles_org_id', 'organization_id'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, comment='角色标识（英文）')
-    display_name = db.Column(db.String(100), nullable=False, comment='角色显示名称')
-    description = db.Column(db.Text, comment='角色描述')
-    organization_id = db.Column(
-        db.Integer, db.ForeignKey('organizations.id'),
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False, comment='角色标识（英文）')
+    display_name = Column(String(100), nullable=False, comment='角色显示名称')
+    description = Column(Text, comment='角色描述')
+    organization_id = Column(
+        Integer, ForeignKey('organizations.id'),
         nullable=True, comment='所属组织（null 表示系统角色）',
     )
-    is_system = db.Column(db.Boolean, nullable=False, server_default='0', comment='是否为系统内置角色')
-    is_active = db.Column(db.Boolean, nullable=False, server_default='1', comment='是否激活')
-    permissions = db.Column(db.JSON, nullable=False, server_default='{}', comment='权限配置 {resource: [actions]}')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_system = Column(Boolean, nullable=False, server_default='0', comment='是否为系统内置角色')
+    is_active = Column(Boolean, nullable=False, server_default='1', comment='是否激活')
+    permissions = Column(JSON, nullable=False, server_default='{}', comment='权限配置 {resource: [actions]}')
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联
-    organization = db.relationship('Organization', backref='roles')
+    organization = relationship('Organization', backref='roles')
 
     def __init__(self, **kwargs):
-        # 设置 Python 层面的默认值（db.Column 的 default 仅在 INSERT 时生效）
+        # 设置 Python 层面的默认值（Column 的 default 仅在 INSERT 时生效）
         kwargs.setdefault('is_system', False)
         kwargs.setdefault('is_active', True)
         kwargs.setdefault('permissions', {})
@@ -184,7 +188,7 @@ def get_effective_permissions(role_name: str) -> dict:
     # 先尝试从数据库查找（管理员创建的自定义角色）
     # 注意：数据库查询需要在 app context 中调用
     try:
-        role = Role.query.filter_by(name=mapped_name, is_system=True, is_active=True).first()
+        role = db.session.scalar(select(Role).filter_by(name=mapped_name, is_system=True, is_active=True))
         if role:
             return role.permissions
     except Exception:

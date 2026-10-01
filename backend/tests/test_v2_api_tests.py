@@ -1,4 +1,5 @@
 """FastAPI v2 接口测试执行模块测试"""
+from app.extensions import db
 
 import uuid
 import pytest
@@ -10,12 +11,11 @@ from app.fastapi_app import create_fastapi_app
 def v2_client(app):
     """Create FastAPI test client that shares the same DB as Flask"""
     fastapi_app = create_fastapi_app("testing")
-    with app.app_context():
-        from app.extensions import db as flask_db
-        flask_db.create_all()
-        client = TestClient(fastapi_app)
-        client.flask_app = app
-        yield client
+    from app.extensions import db as db
+    db.create_all()
+    client = TestClient(fastapi_app)
+
+    yield client
 
 
 def _register_and_login_v2(client, username=None, password="Str0ng!Pass"):
@@ -46,15 +46,14 @@ def _create_collection_v2(client, user_id, name=None):
     from app.extensions import db
     from app.models.api_test_case import ApiTestCollection
 
-    with client.flask_app.app_context():
-        collection = ApiTestCollection(
-            name=name or f"Coll_{uuid.uuid4().hex[:8]}",
-            description="Test collection",
-            user_id=user_id,
-        )
-        db.session.add(collection)
-        db.session.commit()
-        return {"id": collection.id, "name": collection.name}
+    collection = ApiTestCollection(
+        name=name or f"Coll_{uuid.uuid4().hex[:8]}",
+        description="Test collection",
+        user_id=user_id,
+    )
+    db.session.add(collection)
+    db.session.commit()
+    return {"id": collection.id, "name": collection.name}
 
 
 def _create_case_v2(client, user_id, collection_id=None, name=None):
@@ -62,18 +61,17 @@ def _create_case_v2(client, user_id, collection_id=None, name=None):
     from app.extensions import db
     from app.models.api_test_case import ApiTestCase
 
-    with client.flask_app.app_context():
-        case = ApiTestCase(
-            name=name or f"Case_{uuid.uuid4().hex[:8]}",
-            method="GET",
-            url="https://httpbin.org/get",
-            description="Test case",
-            collection_id=collection_id,
-            user_id=user_id,
-        )
-        db.session.add(case)
-        db.session.commit()
-        return {"id": case.id, "name": case.name}
+    case = ApiTestCase(
+        name=name or f"Case_{uuid.uuid4().hex[:8]}",
+        method="GET",
+        url="https://httpbin.org/get",
+        description="Test case",
+        collection_id=collection_id,
+        user_id=user_id,
+    )
+    db.session.add(case)
+    db.session.commit()
+    return {"id": case.id, "name": case.name}
 
 
 class TestV2ExecuteRequest:
@@ -130,14 +128,14 @@ class TestV2ExecuteRequest:
         assert data["status_code"] == 201
 
     def test_execute_missing_method(self, v2_client):
-        """缺少 method 字段应返回 422"""
+        """缺少 method 字段应返回 400（全局校验错误契约：422 统一转 400 信封）"""
         user = _register_and_login_v2(v2_client)
         resp = v2_client.post(
             "/api/v2/api-tests/execute",
             headers={"Authorization": f"Bearer {user['access_token']}"},
             json={"url": "https://example.com"},
         )
-        assert resp.status_code == 422
+        assert resp.status_code == 400
 
 
 class TestV2RunCase:
@@ -159,29 +157,28 @@ class TestV2RunCase:
 
     def test_run_case_mock(self, v2_client):
         """Mock 用例应直接返回 Mock 数据"""
-        from app.extensions import db as flask_db
+        from app.extensions import db as db
         from app.models.api_test_case import ApiTestCase as ATC
-        import flask_jwt_extended
+        from app.core import jwt as core_jwt
 
         user = _register_and_login_v2(v2_client)
 
         # Decode token to get actual user_id
-        decoded = flask_jwt_extended.decode_token(user["access_token"])
+        decoded = core_jwt.decode_token(user["access_token"])
         actual_user_id = int(decoded["sub"])
 
-        with v2_client.flask_app.app_context():
-            case = ATC(
-                name="MockCase",
-                method="GET",
-                url="https://httpbin.org/get",
-                user_id=actual_user_id,
-                mock_enabled=True,
-                mock_response_code=201,
-                mock_response_body='{"mocked": true}',
-            )
-            flask_db.session.add(case)
-            flask_db.session.commit()
-            case_id = case.id
+        case = ATC(
+            name="MockCase",
+            method="GET",
+            url="https://httpbin.org/get",
+            user_id=actual_user_id,
+            mock_enabled=True,
+            mock_response_code=201,
+            mock_response_body='{"mocked": true}',
+        )
+        db.session.add(case)
+        db.session.commit()
+        case_id = case.id
 
         resp = v2_client.post(
             f"/api/v2/api-tests/cases/{case_id}/run",
@@ -213,23 +210,22 @@ class TestV2RunCollection:
 
     def test_run_collection_empty(self, v2_client):
         """空集合应返回 400"""
-        from app.extensions import db as flask_db
+        from app.extensions import db as db
         from app.models.api_test_case import ApiTestCollection
-        import flask_jwt_extended
+        from app.core import jwt as core_jwt
 
         user = _register_and_login_v2(v2_client)
 
-        decoded = flask_jwt_extended.decode_token(user["access_token"])
+        decoded = core_jwt.decode_token(user["access_token"])
         actual_user_id = int(decoded["sub"])
 
-        with v2_client.flask_app.app_context():
-            collection = ApiTestCollection(
-                name="Empty_Coll",
-                user_id=actual_user_id,
-            )
-            flask_db.session.add(collection)
-            flask_db.session.commit()
-            coll_id = collection.id
+        collection = ApiTestCollection(
+            name="Empty_Coll",
+            user_id=actual_user_id,
+        )
+        db.session.add(collection)
+        db.session.commit()
+        coll_id = collection.id
 
         resp = v2_client.post(
             f"/api/v2/api-tests/collections/{coll_id}/run",

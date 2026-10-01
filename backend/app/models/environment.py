@@ -5,23 +5,24 @@
 """
 
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String
+from ..database import Base
 
 
-class Environment(db.Model):
+class Environment(Base):
     """环境配置表"""
     
     __tablename__ = 'environments'
     
-    id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, comment='项目 ID')
-    name = db.Column(db.String(50), nullable=False, comment='环境名称')
-    base_url = db.Column(db.String(255), nullable=False, comment='基础 URL')
-    variables = db.Column(db.JSON, default=dict, comment='环境变量')
-    headers = db.Column(db.JSON, default=dict, comment='默认请求头')
-    is_default = db.Column(db.Boolean, default=False, comment='是否默认环境')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=False, comment='项目 ID')
+    name = Column(String(50), nullable=False, comment='环境名称')
+    base_url = Column(String(255), nullable=False, comment='基础 URL')
+    variables = Column(JSON, default=dict, comment='环境变量')
+    headers = Column(JSON, default=dict, comment='默认请求头')
+    is_default = Column(Boolean, default=False, comment='是否默认环境')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
     
     def to_dict(self):
         """转换为字典"""

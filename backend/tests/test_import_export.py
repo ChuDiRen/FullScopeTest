@@ -4,6 +4,7 @@
 覆盖：Postman JSON 导入、CSV 导入/导出、Excel 导出、模板生成、
      错误处理、去重逻辑
 """
+from app.extensions import db
 import csv
 import io
 import json
@@ -17,14 +18,14 @@ def _auth_headers(client, username=None):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 def _create_project(client, headers, name=None):
     name = name or f"Proj_{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/v1/projects", headers=headers, json={"name": name})
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -83,7 +84,7 @@ class TestPostmanImport:
             "content": json.dumps(self.SAMPLE_POSTMAN),
         })
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 3
         assert data["imported"] == 3
         assert data["skipped"] == 0
@@ -101,7 +102,7 @@ class TestPostmanImport:
         resp = client.post("/api/v1/api-test/import/postman", headers=headers, json={
             "project_id": project["id"], "content": content,
         })
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["imported"] == 0
         assert data["skipped"] == 3
 
@@ -165,7 +166,7 @@ class TestCSVImport:
             "content": self.SAMPLE_CSV,
         })
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 2
         assert data["imported"] == 2
 
@@ -180,7 +181,7 @@ class TestCSVImport:
         resp = client.post("/api/v1/api-test/import/csv", headers=headers, json={
             "project_id": project["id"], "content": self.SAMPLE_CSV,
         })
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["imported"] == 0
         assert data["skipped"] == 2
 
@@ -193,7 +194,7 @@ class TestCSVImport:
         resp = client.post("/api/v1/api-test/import/csv", headers=headers, json={
             "project_id": project["id"], "content": csv_content,
         })
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 2
         assert data["imported"] == 1
         assert data["skipped"] == 1
@@ -218,7 +219,7 @@ class TestCSVImport:
         resp = client.post("/api/v1/api-test/import/csv", headers=headers, json={
             "project_id": project["id"], "content": csv_content,
         })
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["skipped"] == 1
 
 
@@ -234,7 +235,7 @@ class TestCSVTemplate:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/api-test/import/template", headers=headers)
         assert resp.status_code == 200
-        template = resp.get_json()["data"]["template"]
+        template = resp.json()["data"]["template"]
         assert "name" in template
         assert "method" in template
         assert "url" in template
@@ -252,41 +253,39 @@ class TestImportServiceUnit:
         from app.models.user import User
         from app.models.project import Project
         from app.services.import_export_service import import_from_postman_json
-        with app.app_context():
-            user = User(username=f"ie_{uuid.uuid4().hex[:6]}", email="ie@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="IEProj", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
+        user = User(username=f"ie_{uuid.uuid4().hex[:6]}", email="ie@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="IEProj", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
 
-            content = json.dumps({
-                "item": [{
-                    "name": "Test",
-                    "request": {"method": "GET", "url": {"raw": "https://example.com"}},
-                }]
-            })
-            result = import_from_postman_json(user.id, proj.id, content)
-            assert result['imported'] == 1
-            db.session.rollback()
+        content = json.dumps({
+            "item": [{
+                "name": "Test",
+                "request": {"method": "GET", "url": {"raw": "https://example.com"}},
+            }]
+        })
+        result = import_from_postman_json(user.id, proj.id, content)
+        assert result['imported'] == 1
+        db.session.rollback()
 
     def test_import_csv_service(self, app):
         from app.extensions import db
         from app.models.user import User
         from app.models.project import Project
         from app.services.import_export_service import import_from_csv
-        with app.app_context():
-            user = User(username=f"ie_{uuid.uuid4().hex[:6]}", email="ie2@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="IEProj2", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
+        user = User(username=f"ie_{uuid.uuid4().hex[:6]}", email="ie2@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="IEProj2", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
 
-            csv_content = "name,method,url\nTest,GET,https://example.com\n"
-            result = import_from_csv(user.id, proj.id, csv_content)
-            assert result['imported'] == 1
-            db.session.rollback()
+        csv_content = "name,method,url\nTest,GET,https://example.com\n"
+        result = import_from_csv(user.id, proj.id, csv_content)
+        assert result['imported'] == 1
+        db.session.rollback()
 
     def test_generate_csv_template_service(self):
         from app.services.import_export_service import generate_csv_template
@@ -305,26 +304,25 @@ class TestExportServiceUnit:
         from app.models.project import Project
         from app.models.test_run import TestRun
         from app.services.import_export_service import export_test_report_csv
-        with app.app_context():
-            user = User(username=f"ie_{uuid.uuid4().hex[:6]}", email="ie3@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="IEProj3", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
-            run = TestRun(
-                project_id=proj.id, test_type='api', status='success',
-                total_cases=5, passed=4, failed=1,
-                results=[{'name': 'Test1', 'status': 'passed'}, {'name': 'Test2', 'status': 'failed'}],
-            )
-            db.session.add(run)
-            db.session.flush()
+        user = User(username=f"ie_{uuid.uuid4().hex[:6]}", email="ie3@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="IEProj3", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
+        run = TestRun(
+            project_id=proj.id, test_type='api', status='success',
+            total_cases=5, passed=4, failed=1,
+            results=[{'name': 'Test1', 'status': 'passed'}, {'name': 'Test2', 'status': 'failed'}],
+        )
+        db.session.add(run)
+        db.session.flush()
 
-            csv_content = export_test_report_csv(run.id)
-            assert '执行 ID' in csv_content
-            assert 'Test1' in csv_content
-            assert 'Test2' in csv_content
-            db.session.rollback()
+        csv_content = export_test_report_csv(run.id)
+        assert '执行 ID' in csv_content
+        assert 'Test1' in csv_content
+        assert 'Test2' in csv_content
+        db.session.rollback()
 
     def test_export_excel_service(self, app):
         from app.extensions import db
@@ -332,23 +330,22 @@ class TestExportServiceUnit:
         from app.models.project import Project
         from app.models.test_run import TestRun
         from app.services.import_export_service import export_test_report_excel
-        with app.app_context():
-            user = User(username=f"ie_{uuid.uuid4().hex[:6]}", email="ie4@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="IEProj4", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
-            run = TestRun(
-                project_id=proj.id, test_type='api', status='success',
-                total_cases=3, passed=3, failed=0,
-            )
-            db.session.add(run)
-            db.session.flush()
+        user = User(username=f"ie_{uuid.uuid4().hex[:6]}", email="ie4@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="IEProj4", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
+        run = TestRun(
+            project_id=proj.id, test_type='api', status='success',
+            total_cases=3, passed=3, failed=0,
+        )
+        db.session.add(run)
+        db.session.flush()
 
-            excel_bytes = export_test_report_excel(run.id)
-            if excel_bytes is not None:
-                # openpyxl 已安装
-                assert len(excel_bytes) > 0
-                assert b'PK' in excel_bytes[:4]  # Excel 是 ZIP 格式
-            db.session.rollback()
+        excel_bytes = export_test_report_excel(run.id)
+        if excel_bytes is not None:
+            # openpyxl 已安装
+            assert len(excel_bytes) > 0
+            assert b'PK' in excel_bytes[:4]  # Excel 是 ZIP 格式
+        db.session.rollback()

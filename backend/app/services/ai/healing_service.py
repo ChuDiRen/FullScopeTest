@@ -12,6 +12,8 @@ from ...models.test_case_version import TestCaseVersion
 from ..ai.base import AIServiceBase
 from ...core.logging import get_logger
 from ...utils.exceptions import NotFoundError
+from sqlalchemy import select
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 
@@ -27,7 +29,11 @@ class HealingService(AIServiceBase):
 
     def heal_case(self, case_id: int, failure_info: Dict[str, Any], user_id: Optional[int] = None) -> Dict[str, Any]:
         """为单个失败用例生成修复建议"""
-        case = ApiTestCase.query.get(case_id)
+        # 属主校验：只允许访问当前用户自己的用例
+        case_query = select(ApiTestCase).filter_by(id=case_id)
+        if user_id is not None:
+            case_query = case_query.filter_by(user_id=user_id)
+        case = db.session.scalar(case_query)
         if not case:
             raise NotFoundError("测试用例", case_id)
 
@@ -45,7 +51,11 @@ class HealingService(AIServiceBase):
     def heal_collection(self, collection_id: int, failures: List[Dict[str, Any]], user_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """批量自愈用例集中的失败用例"""
         from ...models.api_test_case import ApiTestCollection
-        collection = ApiTestCollection.query.get(collection_id)
+        # 属主校验：只允许访问当前用户自己的用例集
+        collection_query = select(ApiTestCollection).filter_by(id=collection_id)
+        if user_id is not None:
+            collection_query = collection_query.filter_by(user_id=user_id)
+        collection = db.session.scalar(collection_query)
         if not collection:
             raise NotFoundError("用例集", collection_id)
         results = []
@@ -59,16 +69,20 @@ class HealingService(AIServiceBase):
 
     def apply_fix(self, case_id: int, fixes: List[Dict[str, Any]], user_id: Optional[int] = None) -> Dict[str, Any]:
         """应用修复建议到用例"""
-        case = ApiTestCase.query.get(case_id)
+        # 属主校验：只允许修改当前用户自己的用例
+        case_query = select(ApiTestCase).filter_by(id=case_id)
+        if user_id is not None:
+            case_query = case_query.filter_by(user_id=user_id)
+        case = db.session.scalar(case_query)
         if not case:
             raise NotFoundError("测试用例", case_id)
         # 保存版本快照
         try:
             # 获取最新版本号
             from sqlalchemy import func
-            max_ver = db.session.query(func.max(TestCaseVersion.version)).filter_by(
+            max_ver = db.session.scalar(select(func.max(TestCaseVersion.version)).filter_by(
                 case_type="api", case_id=case.id
-            ).scalar() or 0
+            )) or 0
             db.session.add(TestCaseVersion(
                 case_type="api", case_id=case.id, version=max_ver + 1,
                 content=case.to_dict(), change_summary="AI 自愈前快照", created_by=user_id,

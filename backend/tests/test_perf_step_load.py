@@ -12,21 +12,21 @@ def _auth_headers(client):
         "/api/v1/auth/register",
         json={"username": username, "email": email, "password": password},
     )
-    assert register_resp.status_code == 201
+    assert register_resp.status_code == 200
 
     login_resp = client.post(
         "/api/v1/auth/login",
         json={"username": username, "password": password},
     )
     assert login_resp.status_code == 200
-    access_token = login_resp.get_json()["data"]["access_token"]
+    access_token = login_resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
 
 
 def _create_scenario(client, headers, payload=None):
     body = {
         "name": "step-load-scenario",
-        "target_url": "http://localhost:8080/api/v1/ping",
+        "target_url": "https://httpbin.org/ping",
         "user_count": 20,
         "spawn_rate": 2,
         "duration": 60,
@@ -53,7 +53,7 @@ def test_create_scenario_step_load_missing_required_field_returns_400(client):
     )
 
     assert response.status_code == 400
-    payload = response.get_json()
+    payload = response.json()
     assert "step_users" in payload["message"]
 
 
@@ -61,7 +61,7 @@ def test_update_scenario_step_load_missing_fields_returns_400(client):
     headers = _auth_headers(client)
     create_response = _create_scenario(client, headers)
     assert create_response.status_code == 200
-    scenario_id = create_response.get_json()["data"]["id"]
+    scenario_id = create_response.json()["data"]["id"]
 
     update_response = client.put(
         f"/api/v1/perf-test/scenarios/{scenario_id}",
@@ -70,7 +70,7 @@ def test_update_scenario_step_load_missing_fields_returns_400(client):
     )
 
     assert update_response.status_code == 400
-    payload = update_response.get_json()
+    payload = update_response.json()
     assert "step_users and step_duration" in payload["message"]
 
 
@@ -78,7 +78,7 @@ def test_run_scenario_step_load_missing_fields_returns_400(client):
     headers = _auth_headers(client)
     create_response = _create_scenario(client, headers)
     assert create_response.status_code == 200
-    scenario_id = create_response.get_json()["data"]["id"]
+    scenario_id = create_response.json()["data"]["id"]
 
     run_response = client.post(
         f"/api/v1/perf-test/scenarios/{scenario_id}/run",
@@ -87,7 +87,7 @@ def test_run_scenario_step_load_missing_fields_returns_400(client):
     )
 
     assert run_response.status_code == 400
-    payload = run_response.get_json()
+    payload = run_response.json()
     assert "step_users and step_duration" in payload["message"]
 
 

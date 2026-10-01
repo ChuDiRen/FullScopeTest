@@ -24,7 +24,7 @@ def auth_headers(client):
         'username': username,
         'password': password
     })
-    token = response.get_json()['data']['access_token']
+    token = response.json()['data']['access_token']
     return {'Authorization': f'Bearer {token}'}
 
 
@@ -35,7 +35,7 @@ def sample_project(client, auth_headers):
         'name': 'Search Test Project',
         'description': 'Project for search testing'
     }, headers=auth_headers)
-    return response.get_json()['data']
+    return response.json()['data']
 
 
 class TestGlobalSearch:

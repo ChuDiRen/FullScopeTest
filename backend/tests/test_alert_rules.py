@@ -13,7 +13,7 @@ def _auth_headers(client):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     login_resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    access_token = login_resp.get_json()["data"]["access_token"]
+    access_token = login_resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
 
 
@@ -25,7 +25,7 @@ def test_create_alert_rule(client):
         "error_rate_threshold": 5.0,
     }, headers=headers)
     assert resp.status_code == 200
-    data = resp.get_json()["data"]
+    data = resp.json()["data"]
     assert data["name"] == "P99 Alert"
     assert data["p99_threshold"] == 2000
     assert data["error_rate_threshold"] == 5.0
@@ -47,7 +47,7 @@ def test_get_alert_rules(client):
     }, headers=headers)
     resp = client.get("/api/v1/perf-test/alert-rules", headers=headers)
     assert resp.status_code == 200
-    data = resp.get_json()["data"]
+    data = resp.json()["data"]
     assert len(data) >= 1
 
 
@@ -57,12 +57,12 @@ def test_update_alert_rule(client):
         "name": "Old Name",
         "p95_threshold": 500,
     }, headers=headers)
-    rule_id = create_resp.get_json()["data"]["id"]
+    rule_id = create_resp.json()["data"]["id"]
     resp = client.put(f"/api/v1/perf-test/alert-rules/{rule_id}", json={
         "name": "New Name",
     }, headers=headers)
     assert resp.status_code == 200
-    assert resp.get_json()["data"]["name"] == "New Name"
+    assert resp.json()["data"]["name"] == "New Name"
 
 
 def test_delete_alert_rule(client):
@@ -71,22 +71,32 @@ def test_delete_alert_rule(client):
         "name": "To Delete",
         "p95_threshold": 500,
     }, headers=headers)
-    rule_id = create_resp.get_json()["data"]["id"]
+    rule_id = create_resp.json()["data"]["id"]
     resp = client.delete(f"/api/v1/perf-test/alert-rules/{rule_id}", headers=headers)
     assert resp.status_code == 200
 
 
 def test_get_alert_rules_by_scenario(client):
     headers = _auth_headers(client)
-    # Create a rule with scenario_id (scenario may not exist, but rule should still be created)
+    # 场景创建做属主校验（IDOR 防护），先创建属于当前用户的场景
+    scenario_resp = client.post("/api/v1/perf-test/scenarios", json={
+        "name": "Alert Scenario",
+        "target_url": "https://httpbin.org/ping",
+        "user_count": 10,
+        "spawn_rate": 2,
+        "duration": 60,
+    }, headers=headers)
+    assert scenario_resp.status_code == 200
+    scenario_id = scenario_resp.json()["data"]["id"]
+
     create_resp = client.post("/api/v1/perf-test/alert-rules", json={
         "name": "Scenario Alert",
-        "scenario_id": 1,
+        "scenario_id": scenario_id,
         "p95_threshold": 1000,
     }, headers=headers)
     assert create_resp.status_code == 200
     # Query by scenario_id - should return rules for that scenario
-    resp = client.get("/api/v1/perf-test/alert-rules?scenario_id=1", headers=headers)
+    resp = client.get(f"/api/v1/perf-test/alert-rules?scenario_id={scenario_id}", headers=headers)
     assert resp.status_code == 200
 
 
@@ -98,7 +108,7 @@ def test_create_relative_alert_rule(client):
         "relative_rps_degradation": 15,
     }, headers=headers)
     assert resp.status_code == 200
-    data = resp.get_json()["data"]
+    data = resp.json()["data"]
     assert data["relative_p95_degradation"] == 20
     assert data["relative_rps_degradation"] == 15
 
@@ -110,10 +120,10 @@ def test_get_alert_rule_detail(client):
         "error_rate_threshold": 5.0,
         "p95_threshold": 2000,
     }, headers=headers)
-    rule_id = create_resp.get_json()["data"]["id"]
+    rule_id = create_resp.json()["data"]["id"]
     resp = client.get(f"/api/v1/perf-test/alert-rules/{rule_id}", headers=headers)
     assert resp.status_code == 200
-    data = resp.get_json()["data"]
+    data = resp.json()["data"]
     assert data["name"] == "Detail Test"
     assert data["error_rate_threshold"] == 5.0
 
@@ -139,12 +149,11 @@ def test_alert_rule_model_to_dict(client, app):
         "notify_webhook": "https://example.com/hook",
         "enabled": True,
     }, headers=headers)
-    rule_id = create_resp.get_json()["data"]["id"]
-    with app.app_context():
-        from app.models.perf_test_alert import PerformanceAlertRule
-        rule = PerformanceAlertRule.query.get(rule_id)
-        d = rule.to_dict()
-        assert d["name"] == "Model Test"
-        assert d["p95_threshold"] == 100
-        assert d["notify_webhook"] == "https://example.com/hook"
-        assert d["enabled"] is True
+    rule_id = create_resp.json()["data"]["id"]
+    from app.models.perf_test_alert import PerformanceAlertRule
+    rule = db.session.get(PerformanceAlertRule, rule_id)
+    d = rule.to_dict()
+    assert d["name"] == "Model Test"
+    assert d["p95_threshold"] == 100
+    assert d["notify_webhook"] == "https://example.com/hook"
+    assert d["enabled"] is True

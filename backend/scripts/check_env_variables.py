@@ -21,19 +21,20 @@ sys.path.insert(0, backend_dir)
 os.chdir(backend_dir)
 
 # 现在可以安全地导入 app 模块
-from app import create_app
+from app.core.runtime import init_runtime
 from app.extensions import db
 from app.models.environment import Environment
 from app.models.project import Project
+from sqlalchemy import select
 
 
 def check_environments():
     """检查所有环境的变量数据"""
-    app = create_app()
+    init_runtime()
     total_vars = 0
 
-    with app.app_context():
-        envs = Environment.query.all()
+    with __import__('contextlib').nullcontext():
+        envs = db.session.scalars(select(Environment)).all()
         print("=" * 60)
         print("环境变量数据检查报告")
         print("=" * 60)
@@ -134,16 +135,16 @@ def clean_environment_variables(env_id=None, max_vars=100):
         env_id: 环境 ID，如果不指定则清理所有环境
         max_vars: 保留的最大变量数量
     """
-    app = create_app()
+    init_runtime()
 
-    with app.app_context():
+    with __import__('contextlib').nullcontext():
         if env_id:
-            envs = [Environment.query.get(env_id)]
+            envs = [db.session.get(Environment, env_id)]
             if not envs[0]:
                 print(f"错误: 环境 ID {env_id} 不存在")
                 return
         else:
-            envs = Environment.query.all()
+            envs = db.session.scalars(select(Environment)).all()
 
         print("=" * 60)
         print("清理环境变量数据")

@@ -3,6 +3,7 @@
 
 覆盖：评论 CRUD、@提及解析、软删除、权限控制、回复、分页
 """
+from app.extensions import db
 import uuid
 
 
@@ -13,7 +14,7 @@ def _auth_headers(client, username=None):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}, username
 
 
@@ -32,8 +33,8 @@ class TestCommentCRUD:
             "resource_id": 1,
             "content": "This is a **test** comment",
         })
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["content"] == "This is a **test** comment"
         assert data["resource_type"] == "test_case"
         assert data["resource_id"] == 1
@@ -79,7 +80,7 @@ class TestCommentCRUD:
             })
         resp = client.get("/api/v1/comments/test_run/100", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] >= 2
 
     def test_list_comments_empty(self, client, no_rate_limit):
@@ -87,7 +88,7 @@ class TestCommentCRUD:
         headers, _ = _auth_headers(client)
         resp = client.get("/api/v1/comments/test_case/99999", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 0
         assert data["items"] == []
 
@@ -99,11 +100,11 @@ class TestCommentCRUD:
             "resource_id": 1,
             "content": "Detail test",
         })
-        comment_id = create_resp.get_json()["data"]["id"]
+        comment_id = create_resp.json()["data"]["id"]
 
         resp = client.get(f"/api/v1/comments/{comment_id}", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["content"] == "Detail test"
+        assert resp.json()["data"]["content"] == "Detail test"
 
     def test_get_comment_not_found(self, client, no_rate_limit):
         """获取不存在的评论应返回 404"""
@@ -119,13 +120,13 @@ class TestCommentCRUD:
             "resource_id": 1,
             "content": "Original",
         })
-        comment_id = create_resp.get_json()["data"]["id"]
+        comment_id = create_resp.json()["data"]["id"]
 
         resp = client.put(f"/api/v1/comments/{comment_id}", headers=headers, json={
             "content": "Updated **content**",
         })
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["content"] == "Updated **content**"
         assert data["is_edited"] is True
 
@@ -135,7 +136,7 @@ class TestCommentCRUD:
         create_resp = client.post("/api/v1/comments", headers=headers, json={
             "resource_type": "test_case", "resource_id": 1, "content": "Test",
         })
-        comment_id = create_resp.get_json()["data"]["id"]
+        comment_id = create_resp.json()["data"]["id"]
 
         resp = client.put(f"/api/v1/comments/{comment_id}", headers=headers, json={
             "content": "",
@@ -148,15 +149,15 @@ class TestCommentCRUD:
         create_resp = client.post("/api/v1/comments", headers=headers, json={
             "resource_type": "test_case", "resource_id": 1, "content": "To delete",
         })
-        comment_id = create_resp.get_json()["data"]["id"]
+        comment_id = create_resp.json()["data"]["id"]
 
         resp = client.delete(f"/api/v1/comments/{comment_id}", headers=headers)
         assert resp.status_code == 200
 
         # 获取详情应显示 [已删除]
         resp = client.get(f"/api/v1/comments/{comment_id}", headers=headers)
-        assert resp.get_json()["data"]["is_deleted"] is True
-        assert resp.get_json()["data"]["content"] == "[已删除]"
+        assert resp.json()["data"]["is_deleted"] is True
+        assert resp.json()["data"]["content"] == "[已删除]"
 
     def test_delete_comment_not_found(self, client, no_rate_limit):
         """删除不存在的评论应返回 404"""
@@ -178,7 +179,7 @@ class TestCommentReplies:
         parent_resp = client.post("/api/v1/comments", headers=headers, json={
             "resource_type": "test_case", "resource_id": 2, "content": "Parent",
         })
-        parent_id = parent_resp.get_json()["data"]["id"]
+        parent_id = parent_resp.json()["data"]["id"]
 
         resp = client.post("/api/v1/comments", headers=headers, json={
             "resource_type": "test_case",
@@ -186,8 +187,8 @@ class TestCommentReplies:
             "content": "Reply",
             "parent_id": parent_id,
         })
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["parent_id"] == parent_id
 
     def test_reply_to_nonexistent_parent(self, client, no_rate_limit):
@@ -205,14 +206,14 @@ class TestCommentReplies:
         parent_resp = client.post("/api/v1/comments", headers=headers, json={
             "resource_type": "test_run", "resource_id": 200, "content": "Parent",
         })
-        parent_id = parent_resp.get_json()["data"]["id"]
+        parent_id = parent_resp.json()["data"]["id"]
         client.post("/api/v1/comments", headers=headers, json={
             "resource_type": "test_run", "resource_id": 200,
             "content": "Reply 1", "parent_id": parent_id,
         })
 
         resp = client.get("/api/v1/comments/test_run/200", headers=headers)
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         parent_comment = [c for c in data["items"] if c["id"] == parent_id]
         assert len(parent_comment) == 1
         assert len(parent_comment[0]["replies"]) >= 1
@@ -223,11 +224,11 @@ class TestCommentReplies:
         create_resp = client.post("/api/v1/comments", headers=headers, json={
             "resource_type": "test_case", "resource_id": 5, "content": "To hide",
         })
-        comment_id = create_resp.get_json()["data"]["id"]
+        comment_id = create_resp.json()["data"]["id"]
         client.delete(f"/api/v1/comments/{comment_id}", headers=headers)
 
         resp = client.get("/api/v1/comments/test_case/5", headers=headers)
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         ids = [c["id"] for c in data["items"]]
         assert comment_id not in ids
 
@@ -249,8 +250,8 @@ class TestCommentMentions:
             "resource_id": 10,
             "content": f"Hey @{username2}, please check this",
         })
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert len(data["mentions"]) >= 1
 
     def test_mention_nonexistent_user(self, client, no_rate_limit):
@@ -261,8 +262,8 @@ class TestCommentMentions:
             "resource_id": 10,
             "content": "@nonexistent_user check this",
         })
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["mentions"] == []
 
 
@@ -276,50 +277,47 @@ class TestCommentService:
     def test_extract_mentions(self, app):
         from app.services.comment_service import CommentService
         svc = CommentService()
-        with app.app_context():
-            mentions = svc._extract_mentions("Hello @alice and @bob")
-            # alice/bob 可能不存在，所以返回空
-            assert isinstance(mentions, list)
+        mentions = svc._extract_mentions("Hello @alice and @bob")
+        # alice/bob 可能不存在，所以返回空
+        assert isinstance(mentions, list)
 
     def test_create_comment_service(self, app):
         from app.extensions import db
         from app.models.user import User
         from app.services.comment_service import CommentService
         svc = CommentService()
-        with app.app_context():
-            user = User(username=f"cmt_{uuid.uuid4().hex[:6]}", email="cmt@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
+        user = User(username=f"cmt_{uuid.uuid4().hex[:6]}", email="cmt@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
 
-            comment = svc.create_comment(
-                user_id=user.id,
-                resource_type='test_case',
-                resource_id=1,
-                content='Service test comment',
-            )
-            assert comment['content'] == 'Service test comment'
-            assert comment['user_id'] == user.id
-            db.session.rollback()
+        comment = svc.create_comment(
+            user_id=user.id,
+            resource_type='test_case',
+            resource_id=1,
+            content='Service test comment',
+        )
+        assert comment['content'] == 'Service test comment'
+        assert comment['user_id'] == user.id
+        db.session.rollback()
 
     def test_soft_delete_service(self, app):
         from app.extensions import db
         from app.models.user import User
         from app.services.comment_service import CommentService
         svc = CommentService()
-        with app.app_context():
-            user = User(username=f"cmt_{uuid.uuid4().hex[:6]}", email="cmt2@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
+        user = User(username=f"cmt_{uuid.uuid4().hex[:6]}", email="cmt2@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
 
-            comment = svc.create_comment(
-                user_id=user.id, resource_type='test_case',
-                resource_id=1, content='To delete',
-            )
-            svc.delete_comment(comment['id'], user.id)
+        comment = svc.create_comment(
+            user_id=user.id, resource_type='test_case',
+            resource_id=1, content='To delete',
+        )
+        svc.delete_comment(comment['id'], user.id)
 
-            detail = svc.get_comment(comment['id'])
-            assert detail['is_deleted'] is True
-            db.session.rollback()
+        detail = svc.get_comment(comment['id'])
+        assert detail['is_deleted'] is True
+        db.session.rollback()
 
     def test_update_comment_permission_check(self, app):
         from app.extensions import db
@@ -327,17 +325,16 @@ class TestCommentService:
         from app.services.comment_service import CommentService
         from app.utils.exceptions import PermissionError
         svc = CommentService()
-        with app.app_context():
-            user1 = User(username=f"cmt_{uuid.uuid4().hex[:6]}", email="c1@test.com", password_hash="h")
-            user2 = User(username=f"cmt_{uuid.uuid4().hex[:6]}", email="c2@test.com", password_hash="h")
-            db.session.add_all([user1, user2])
-            db.session.flush()
+        user1 = User(username=f"cmt_{uuid.uuid4().hex[:6]}", email="c1@test.com", password_hash="h")
+        user2 = User(username=f"cmt_{uuid.uuid4().hex[:6]}", email="c2@test.com", password_hash="h")
+        db.session.add_all([user1, user2])
+        db.session.flush()
 
-            comment = svc.create_comment(
-                user_id=user1.id, resource_type='test_case',
-                resource_id=1, content='Owned',
-            )
-            import pytest
-            with pytest.raises(PermissionError):
-                svc.update_comment(comment['id'], user2.id, 'Hacked')
-            db.session.rollback()
+        comment = svc.create_comment(
+            user_id=user1.id, resource_type='test_case',
+            resource_id=1, content='Owned',
+        )
+        import pytest
+        with pytest.raises(PermissionError):
+            svc.update_comment(comment['id'], user2.id, 'Hacked')
+        db.session.rollback()

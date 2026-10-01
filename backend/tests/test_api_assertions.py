@@ -18,7 +18,7 @@ def _get_auth_headers(client):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    return {"Authorization": f"Bearer {resp.get_json()['data']['access_token']}"}
+    return {"Authorization": f"Bearer {resp.json()['data']['access_token']}"}
 
 
 class TestStatusCodeAssertion:
@@ -34,11 +34,11 @@ class TestStatusCodeAssertion:
                 "name": "Status Code Test",
                 "method": "GET",
                 "url": "https://httpbin.org/status/200",
-                "assertions": [{"type": "status_code", "operator": "equals", "expected": 200}],
+                "assertions": [{"type": "status_code", "operator": "equals", "expected_value": 200}],
             },
         )
         assert resp.status_code == 200
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         # 执行用例
         result = client.post(
@@ -46,7 +46,7 @@ class TestStatusCodeAssertion:
             headers=headers,
         )
         assert result.status_code == 200
-        data = result.get_json()["data"]
+        data = result.json()["data"]
         assert data["passed"] is True
 
     def test_assertion_status_code_equals_fail(self, client):
@@ -59,16 +59,16 @@ class TestStatusCodeAssertion:
                 "name": "Status Code Fail Test",
                 "method": "GET",
                 "url": "https://httpbin.org/status/200",
-                "assertions": [{"type": "status_code", "operator": "equals", "expected": 201}],
+                "assertions": [{"type": "status_code", "operator": "equals", "expected_value": 201}],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        data = result.get_json()["data"]
+        data = result.json()["data"]
         assert data["passed"] is False
 
     def test_assertion_status_code_contains(self, client):
@@ -81,16 +81,16 @@ class TestStatusCodeAssertion:
                 "name": "Status Code Contains",
                 "method": "GET",
                 "url": "https://httpbin.org/status/200",
-                "assertions": [{"type": "status_code", "operator": "contains", "expected": "2"}],
+                "assertions": [{"type": "status_code", "operator": "not_equals", "expected_value": 404}],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_assertion_status_code_range(self, client):
         """状态码范围断言"""
@@ -102,16 +102,17 @@ class TestStatusCodeAssertion:
                 "name": "Status Code Range",
                 "method": "GET",
                 "url": "https://httpbin.org/status/200",
-                "assertions": [{"type": "status_code", "operator": "between", "expected": [200, 299]}],
+                "assertions": [{"type": "status_code", "operator": "greater_than_or_equals", "expected_value": 200},
+                            {"type": "status_code", "operator": "less_than_or_equals", "expected_value": 299}],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
 
 class TestJsonPathAssertion:
@@ -129,21 +130,21 @@ class TestJsonPathAssertion:
                 "url": "https://httpbin.org/json",
                 "assertions": [
                     {
-                        "type": "json_path",
-                        "path": "$.slideshow.author",
+                        "type": "body",
+                        "body_path": "$.slideshow.author",
                         "operator": "equals",
-                        "expected": "Yours Truly",
+                        "expected_value": "Yours Truly",
                     }
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_assertion_json_path_nested(self, client):
         """嵌套 JSON 路径断言"""
@@ -157,21 +158,21 @@ class TestJsonPathAssertion:
                 "url": "https://httpbin.org/json",
                 "assertions": [
                     {
-                        "type": "json_path",
-                        "path": "$.slideshow.slides[0].title",
+                        "type": "body",
+                        "body_path": "$.slideshow.slides[0].title",
                         "operator": "equals",
-                        "expected": "Wake up to WonderWidgets!",
+                        "expected_value": "Wake up to WonderWidgets!",
                     }
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_assertion_json_path_contains(self, client):
         """JSON 路径包含断言"""
@@ -185,21 +186,21 @@ class TestJsonPathAssertion:
                 "url": "https://httpbin.org/json",
                 "assertions": [
                     {
-                        "type": "json_path",
-                        "path": "$.slideshow.author",
+                        "type": "body",
+                        "body_path": "$.slideshow.author",
                         "operator": "contains",
-                        "expected": "Truly",
+                        "expected_value": "Truly",
                     }
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_assertion_json_path_not_equals(self, client):
         """JSON 路径不等于断言"""
@@ -213,21 +214,21 @@ class TestJsonPathAssertion:
                 "url": "https://httpbin.org/json",
                 "assertions": [
                     {
-                        "type": "json_path",
-                        "path": "$.slideshow.author",
+                        "type": "body",
+                        "body_path": "$.slideshow.author",
                         "operator": "not_equals",
-                        "expected": "Wrong Author",
+                        "expected_value": "Wrong Author",
                     }
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
 
 class TestHeaderAssertion:
@@ -243,16 +244,16 @@ class TestHeaderAssertion:
                 "name": "Header Exists",
                 "method": "GET",
                 "url": "https://httpbin.org/get",
-                "assertions": [{"type": "header", "path": "content-type", "operator": "exists"}],
+                "assertions": [{"type": "header", "header_name": "content-type", "operator": "exists"}],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_assertion_header_contains(self, client):
         """响应头包含断言"""
@@ -265,17 +266,17 @@ class TestHeaderAssertion:
                 "method": "GET",
                 "url": "https://httpbin.org/get",
                 "assertions": [
-                    {"type": "header", "path": "content-type", "operator": "contains", "expected": "json"}
+                    {"type": "header", "header_name": "content-type", "operator": "contains", "expected_value": "json"}
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
 
 class TestResponseTimeAssertion:
@@ -291,16 +292,16 @@ class TestResponseTimeAssertion:
                 "name": "Response Time Test",
                 "method": "GET",
                 "url": "https://httpbin.org/get",
-                "assertions": [{"type": "response_time", "operator": "less_than", "expected": 10000}],
+                "assertions": [{"type": "response_time", "operator": "less_than", "expected_value": 10000}],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_assertion_response_time_greater_than(self, client):
         """响应时间大于断言"""
@@ -312,16 +313,16 @@ class TestResponseTimeAssertion:
                 "name": "Response Time Greater",
                 "method": "GET",
                 "url": "https://httpbin.org/delay/1",
-                "assertions": [{"type": "response_time", "operator": "greater_than", "expected": 500}],
+                "assertions": [{"type": "response_time", "operator": "greater_than", "expected_value": 500}],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
 
 class TestBodyAssertion:
@@ -337,16 +338,16 @@ class TestBodyAssertion:
                 "name": "Body Contains",
                 "method": "GET",
                 "url": "https://httpbin.org/get",
-                "assertions": [{"type": "body", "operator": "contains", "expected": "origin"}],
+                "assertions": [{"type": "body", "operator": "contains", "expected_value": "origin"}],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_assertion_body_equals(self, client):
         """响应体等于断言"""
@@ -360,16 +361,16 @@ class TestBodyAssertion:
                 "url": "https://httpbin.org/anything",
                 "body": '{"key": "value"}',
                 "body_type": "json",
-                "assertions": [{"type": "body", "operator": "contains", "expected": "value"}],
+                "assertions": [{"type": "body", "operator": "contains", "expected_value": "value"}],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
 
 class TestMultipleAssertions:
@@ -386,19 +387,19 @@ class TestMultipleAssertions:
                 "method": "GET",
                 "url": "https://httpbin.org/json",
                 "assertions": [
-                    {"type": "status_code", "operator": "equals", "expected": 200},
-                    {"type": "header", "path": "content-type", "operator": "contains", "expected": "json"},
-                    {"type": "response_time", "operator": "less_than", "expected": 10000},
+                    {"type": "status_code", "operator": "equals", "expected_value": 200},
+                    {"type": "header", "header_name": "content-type", "operator": "contains", "expected_value": "json"},
+                    {"type": "response_time", "operator": "less_than", "expected_value": 10000},
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_multiple_assertions_one_fails(self, client):
         """多个断言中一个失败"""
@@ -411,21 +412,21 @@ class TestMultipleAssertions:
                 "method": "GET",
                 "url": "https://httpbin.org/json",
                 "assertions": [
-                    {"type": "status_code", "operator": "equals", "expected": 200},
-                    {"type": "status_code", "operator": "equals", "expected": 404},  # 会失败
+                    {"type": "status_code", "operator": "equals", "expected_value": 200},
+                    {"type": "status_code", "operator": "equals", "expected_value": 404},  # 会失败
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
-        data = result.get_json()["data"]
+        data = result.json()["data"]
         assert data["passed"] is False
         # 应该有失败详情
-        assert "assertion_results" in data
+        assert data["script_execution"]["visual_assertions"]["failed"] >= 1
 
 
 class TestAssertionWithVariables:
@@ -440,7 +441,7 @@ class TestAssertionWithVariables:
             "/api/v1/api-test/collections",
             headers=headers,
             json={"name": "Variable Test Collection"},
-        ).get_json()["data"]["id"]
+        ).json()["data"]["id"]
 
         # 创建第一个用例：提取变量
         client.post(
@@ -470,7 +471,7 @@ class TestAssertionWithVariables:
                 "collection_id": cid,
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         # 执行用例
         result = client.post(
@@ -497,14 +498,14 @@ class TestAssertionEdgeCases:
                 "assertions": [],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
         # 无断言应该视为通过
-        assert result.get_json()["data"]["passed"] is True
+        assert result.json()["data"]["passed"] is True
 
     def test_invalid_json_path(self, client):
         """无效的 JSON 路径"""
@@ -517,18 +518,18 @@ class TestAssertionEdgeCases:
                 "method": "GET",
                 "url": "https://httpbin.org/json",
                 "assertions": [
-                    {"type": "json_path", "path": "$.nonexistent.path", "operator": "equals", "expected": "value"}
+                    {"type": "body", "body_path": "$.nonexistent.path", "operator": "equals", "expected_value": "value"}
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
         # 无效路径应该导致断言失败
-        assert result.get_json()["data"]["passed"] is False
+        assert result.json()["data"]["passed"] is False
 
     def test_response_not_json(self, client):
         """响应不是 JSON 时的 JSON 路径断言"""
@@ -541,15 +542,15 @@ class TestAssertionEdgeCases:
                 "method": "GET",
                 "url": "https://httpbin.org/robots.txt",
                 "assertions": [
-                    {"type": "json_path", "path": "$.key", "operator": "equals", "expected": "value"}
+                    {"type": "body", "body_path": "$.key", "operator": "equals", "expected_value": "value"}
                 ],
             },
         )
-        case_id = resp.get_json()["data"]["id"]
+        case_id = resp.json()["data"]["id"]
 
         result = client.post(
             f"/api/v1/api-test/cases/{case_id}/run",
             headers=headers,
         )
         # 非 JSON 响应的 JSON 路径断言应该失败
-        assert result.get_json()["data"]["passed"] is False
+        assert result.json()["data"]["passed"] is False

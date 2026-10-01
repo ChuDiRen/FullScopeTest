@@ -4,30 +4,32 @@
 存储用户/组织的通知渠道配置。
 """
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class NotificationConfig(db.Model):
+class NotificationConfig(Base):
     """通知配置表"""
 
     __tablename__ = 'notification_configs'
     __table_args__ = (
-        db.Index('idx_notif_config_user_id', 'user_id'),
+        Index('idx_notif_config_user_id', 'user_id'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='用户 ID')
-    name = db.Column(db.String(100), nullable=False, comment='配置名称')
-    channel = db.Column(db.String(20), nullable=False, comment='渠道: webhook/dingtalk/feishu/slack')
-    webhook_url = db.Column(db.String(500), nullable=False, comment='Webhook URL')
-    token = db.Column(db.String(500), comment='认证 Token（可选）')
-    events = db.Column(db.JSON, default=list, comment='订阅事件列表')
-    is_active = db.Column(db.Boolean, default=True, comment='是否启用')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='用户 ID')
+    name = Column(String(100), nullable=False, comment='配置名称')
+    channel = Column(String(20), nullable=False, comment='渠道: webhook/dingtalk/feishu/slack')
+    webhook_url = Column(String(500), nullable=False, comment='Webhook URL')
+    token = Column(String(500), comment='认证 Token（可选）')
+    events = Column(JSON, default=list, comment='订阅事件列表')
+    is_active = Column(Boolean, default=True, comment='是否启用')
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系
-    user = db.relationship('User', backref='notification_configs')
+    user = relationship('User', backref='notification_configs')
 
     def to_dict(self):
         return {

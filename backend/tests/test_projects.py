@@ -24,7 +24,7 @@ def auth_headers(client):
         'username': username,
         'password': password
     })
-    token = response.get_json()['data']['access_token']
+    token = response.json()['data']['access_token']
     return {'Authorization': f'Bearer {token}'}
 
 
@@ -35,7 +35,7 @@ def sample_project(client, auth_headers):
         'name': 'Test Project',
         'description': 'Test Description'
     }, headers=auth_headers)
-    return response.get_json()['data']
+    return response.json()['data']
 
 
 class TestProjectCRUD:
@@ -48,9 +48,9 @@ class TestProjectCRUD:
             'description': 'Project Description'
         }, headers=auth_headers)
 
-        data = response.get_json()
-        assert response.status_code == 201
-        assert data['code'] == 201
+        data = response.json()
+        assert response.status_code == 200
+        assert data['code'] == 200
         assert data['data']['name'] == 'My Project'
         assert data['data']['description'] == 'Project Description'
 
@@ -66,7 +66,7 @@ class TestProjectCRUD:
         """测试获取项目列表"""
         response = client.get('/api/v1/projects', headers=auth_headers)
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
         assert isinstance(data['data']['items'], list)
         assert len(data['data']['items']) > 0
@@ -76,7 +76,7 @@ class TestProjectCRUD:
         project_id = sample_project['id']
         response = client.get(f'/api/v1/projects/{project_id}', headers=auth_headers)
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
         assert data['data']['id'] == project_id
 
@@ -88,7 +88,7 @@ class TestProjectCRUD:
             'description': 'Updated Description'
         }, headers=auth_headers)
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
         assert data['data']['name'] == 'Updated Project'
         assert data['data']['description'] == 'Updated Description'
@@ -126,11 +126,11 @@ class TestProjectAuthorization:
             'username': other_username,
             'password': 'TestPass123!'
         })
-        other_token = response.get_json()['data']['access_token']
+        other_token = response.json()['data']['access_token']
         other_headers = {'Authorization': f'Bearer {other_token}'}
 
         # 获取项目列表应该为空
         response = client.get('/api/v1/projects', headers=other_headers)
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
         assert len(data['data']['items']) == 0

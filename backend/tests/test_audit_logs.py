@@ -1,8 +1,10 @@
 """
 审计日志完善测试
 
-覆盖：日志记录、查询 API、过滤、统计、装饰器、不可修改/删除
+覆盖：日志记录、查询 API、过滤、统计、不可修改/删除
 """
+from sqlalchemy import func, select
+from app.extensions import db
 import uuid
 from datetime import datetime
 
@@ -14,7 +16,7 @@ def _auth_headers(client, username=None):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -29,25 +31,23 @@ class TestAuditLogRecord:
         from app.extensions import db
         from app.models.audit_log import AuditLog
         from app.services.audit_log_service import log_action
-        with app.app_context():
-            count_before = AuditLog.query.count()
-            log_action('create', 'project', resource_id=1, new_values={'name': 'Test'})
-            count_after = AuditLog.query.count()
-            assert count_after == count_before + 1
+        count_before = db.session.scalar(select(func.count()).select_from(select(AuditLog).subquery()))
+        log_action('create', 'project', resource_id=1, new_values={'name': 'Test'})
+        count_after = db.session.scalar(select(func.count()).select_from(select(AuditLog).subquery()))
+        assert count_after == count_before + 1
 
-            log = AuditLog.query.order_by(AuditLog.id.desc()).first()
-            assert log.action == 'create'
-            assert log.resource_type == 'project'
-            assert log.resource_id == 1
-            db.session.rollback()
+        log = db.session.scalar(select(AuditLog).order_by(AuditLog.id.desc()))
+        assert log.action == 'create'
+        assert log.resource_type == 'project'
+        assert log.resource_id == 1
+        db.session.rollback()
 
     def test_log_action_without_request_context(self, app):
         """无请求上下文时不应抛异常"""
         from app.services.audit_log_service import log_action
-        with app.app_context():
-            # 不在请求上下文中，应静默处理
-            log_action('test', 'test_resource')
-            # 不应抛异常
+        # 不在请求上下文中，应静默处理
+        log_action('test', 'test_resource')
+        # 不应抛异常
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -62,7 +62,7 @@ class TestAuditLogsAPI:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/audit-logs", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] >= 0
         assert "items" in data
 
@@ -98,7 +98,7 @@ class TestAuditLogsAPI:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/audit-logs?page=1&per_page=5", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["page"] == 1
         assert data["per_page"] == 5
 
@@ -109,16 +109,20 @@ class TestAuditLogsAPI:
         from app.services.audit_log_service import log_action
 
         # 先创建一条日志
-        with app.app_context():
-            log_action('create', 'test_resource', resource_id=42)
-            log = AuditLog.query.order_by(AuditLog.id.desc()).first()
-            log_id = log.id
-            db.session.commit()
+        log_action('create', 'test_resource', resource_id=42)
+        log = db.session.scalar(select(AuditLog).order_by(AuditLog.id.desc()))
+        log_id = log.id
+        db.session.commit()
 
-        headers = _auth_headers(client)
+        headers = _auth_headers(client, username='audit_detail_user')
+        from app.models.user import User
+        uid = db.session.scalar(select(User).filter_by(username='audit_detail_user')).id
+        log.user_id = uid
+        db.session.commit()
+
         resp = client.get(f"/api/v1/audit-logs/{log_id}", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["action"] == "create"
         assert data["resource_type"] == "test_resource"
 
@@ -141,7 +145,7 @@ class TestAuditStatsAPI:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/audit-logs/stats?days=30", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert "period_days" in data
         assert "by_action" in data
         assert "by_resource" in data
@@ -152,7 +156,7 @@ class TestAuditStatsAPI:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/audit-logs/stats", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["period_days"] == 30
 
 
@@ -179,38 +183,3 @@ class TestAuditLogModel:
         log = AuditLog(action='delete', resource_type='test_case', resource_id=5)
         assert 'delete' in repr(log)
         assert 'test_case' in repr(log)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 五、审计装饰器测试
-# ══════════════════════════════════════════════════════════════════════════════
-
-class TestAuditDecorator:
-    """审计装饰器测试"""
-
-    def test_get_status_code_tuple(self):
-        from app.middleware.audit import _get_status_code
-        assert _get_status_code(({}, 200)) == 200
-        assert _get_status_code(({}, 201, {})) == 201
-        assert _get_status_code(({}, 400)) == 400
-
-    def test_get_status_code_none(self):
-        from app.middleware.audit import _get_status_code
-        assert _get_status_code("not a response") is None
-
-    def test_extract_resource_id(self):
-        from app.middleware.audit import _extract_resource_id
-        # 模拟 Flask 响应
-        class FakeResp:
-            def get_json(self):
-                return {'data': {'id': 42}}
-        result = _extract_resource_id(FakeResp())
-        assert result == 42
-
-    def test_extract_changes(self):
-        from app.middleware.audit import _extract_changes
-        class FakeResp:
-            def get_json(self):
-                return {'data': {'id': 1, 'name': 'Test'}, 'message': 'Created'}
-        result = _extract_changes(FakeResp(), 'create')
-        assert 'message' in result

@@ -15,6 +15,8 @@ from PIL import Image, ImageChops, ImageDraw
 import imagehash
 
 from ..core.logging import get_logger
+from sqlalchemy import select
+from ..extensions import db
 
 logger = get_logger(__name__)
 
@@ -180,14 +182,14 @@ class VisualDiffService:
 
         # 查找基准
         if baseline_id:
-            baseline = VisualBaseline.query.get(baseline_id)
+            baseline = db.session.get(VisualBaseline, baseline_id)
         else:
-            baseline = VisualBaseline.query.filter_by(
+            baseline = db.session.scalar(select(VisualBaseline).filter_by(
                 test_case_id=test_case_id,
                 step_index=step_index,
                 test_type=test_type,
                 status="active",
-            ).first()
+            ))
 
         if not baseline:
             logger.info("未找到基准截图，跳过对比", test_case_id=test_case_id, step_index=step_index)

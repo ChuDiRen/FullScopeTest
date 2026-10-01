@@ -3,6 +3,7 @@
 
 覆盖：失败计数、账户锁定、锁定解除、密码策略校验
 """
+from app.extensions import db
 import uuid
 import time
 
@@ -73,67 +74,68 @@ class TestLoginFailureTracking:
         from app.extensions import db
         from app.models.user import User
         from app.services.password_policy import record_login_failure, get_login_failures, reset_login_failures
-        with app.app_context():
-            user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
+        user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
 
-            reset_login_failures(user.id)
-            assert get_login_failures(user.id) == 0
+        reset_login_failures(user.id)
+        assert get_login_failures(user.id) == 0
 
-            record_login_failure(user.id, ip_address="127.0.0.1")
-            assert get_login_failures(user.id) == 1
+        record_login_failure(user.id, ip_address="127.0.0.1")
+        assert get_login_failures(user.id) == 1
 
-            record_login_failure(user.id)
-            assert get_login_failures(user.id) == 2
+        record_login_failure(user.id)
+        assert get_login_failures(user.id) == 2
 
-            reset_login_failures(user.id)
-            db.session.rollback()
+        reset_login_failures(user.id)
+        db.session.rollback()
 
     def test_reset_failures_clears_count(self, app):
         from app.extensions import db
         from app.models.user import User
         from app.services.password_policy import record_login_failure, get_login_failures, reset_login_failures
-        with app.app_context():
-            user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf2@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
+        user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf2@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
 
-            reset_login_failures(user.id)
-            for _ in range(3):
-                record_login_failure(user.id)
-            assert get_login_failures(user.id) == 3
+        reset_login_failures(user.id)
+        for _ in range(3):
+            record_login_failure(user.id)
+        assert get_login_failures(user.id) == 3
 
-            reset_login_failures(user.id)
-            assert get_login_failures(user.id) == 0
-            db.session.rollback()
+        reset_login_failures(user.id)
+        assert get_login_failures(user.id) == 0
+        db.session.rollback()
 
 
 class TestAccountLockout:
     """账户锁定测试"""
 
-    def test_account_locked_after_max_failures(self, app):
+    def test_account_locked_after_max_failures(self, app, monkeypatch):
         from app.extensions import db
         from app.models.user import User
+        import app.services.password_policy as pp
         from app.services.password_policy import (
             record_login_failure, is_account_locked, reset_login_failures,
             MAX_LOGIN_FAILURES,
         )
-        with app.app_context():
-            user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf3@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
+        # conftest 全局调高阈值防测试间泄漏；本用例显式恢复真实锁定行为
+        monkeypatch.setattr(pp, 'MAX_LOGIN_FAILURES', 5)
+        monkeypatch.setattr(pp, 'LOCKOUT_DURATION', 900)
+        user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf3@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
 
-            reset_login_failures(user.id)
-            for _ in range(MAX_LOGIN_FAILURES):
-                record_login_failure(user.id)
+        reset_login_failures(user.id)
+        for _ in range(MAX_LOGIN_FAILURES):
+            record_login_failure(user.id)
 
-            locked, remaining = is_account_locked(user.id)
-            assert locked is True
-            assert remaining > 0
+        locked, remaining = is_account_locked(user.id)
+        assert locked is True
+        assert remaining > 0
 
-            reset_login_failures(user.id)
-            db.session.rollback()
+        reset_login_failures(user.id)
+        db.session.rollback()
 
     def test_account_not_locked_below_threshold(self, app):
         from app.extensions import db
@@ -142,20 +144,19 @@ class TestAccountLockout:
             record_login_failure, is_account_locked, reset_login_failures,
             MAX_LOGIN_FAILURES,
         )
-        with app.app_context():
-            user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf4@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
+        user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf4@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
 
-            reset_login_failures(user.id)
-            for _ in range(MAX_LOGIN_FAILURES - 1):
-                record_login_failure(user.id)
+        reset_login_failures(user.id)
+        for _ in range(MAX_LOGIN_FAILURES - 1):
+            record_login_failure(user.id)
 
-            locked, _ = is_account_locked(user.id)
-            assert locked is False
+        locked, _ = is_account_locked(user.id)
+        assert locked is False
 
-            reset_login_failures(user.id)
-            db.session.rollback()
+        reset_login_failures(user.id)
+        db.session.rollback()
 
     def test_lockout_resets_on_successful_login(self, app):
         from app.extensions import db
@@ -164,22 +165,21 @@ class TestAccountLockout:
             record_login_failure, is_account_locked, reset_login_failures, get_login_failures,
             MAX_LOGIN_FAILURES,
         )
-        with app.app_context():
-            user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf5@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
+        user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf5@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
 
-            reset_login_failures(user.id)
-            for _ in range(MAX_LOGIN_FAILURES):
-                record_login_failure(user.id)
+        reset_login_failures(user.id)
+        for _ in range(MAX_LOGIN_FAILURES):
+            record_login_failure(user.id)
 
-            # 模拟成功登录
-            reset_login_failures(user.id)
-            locked, _ = is_account_locked(user.id)
-            assert locked is False
-            assert get_login_failures(user.id) == 0
+        # 模拟成功登录
+        reset_login_failures(user.id)
+        locked, _ = is_account_locked(user.id)
+        assert locked is False
+        assert get_login_failures(user.id) == 0
 
-            db.session.rollback()
+        db.session.rollback()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -204,7 +204,7 @@ class TestLoginLockoutAPI:
             "username": username, "password": password,
         })
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["access_token"] is not None
+        assert resp.json()["data"]["access_token"] is not None
 
     def test_login_returns_failure_count(self, client, no_rate_limit):
         """登录失败时返回失败次数"""
@@ -214,11 +214,15 @@ class TestLoginLockoutAPI:
             "username": username, "password": "wrong_password",
         })
         assert resp.status_code == 401
-        data = resp.get_json()
+        data = resp.json()
         assert data["errors"]["failures"] >= 1
 
-    def test_login_locked_returns_423(self, client, no_rate_limit):
+    def test_login_locked_returns_423(self, client, no_rate_limit, monkeypatch):
         """连续 5 次失败后返回 423"""
+        import app.services.password_policy as pp
+        # conftest 全局禁用了锁定；本用例显式恢复真实锁定行为
+        monkeypatch.setattr(pp, 'MAX_LOGIN_FAILURES', 5)
+        monkeypatch.setattr(pp, 'LOCKOUT_DURATION', 900)
         username, _ = _register_user(client)
 
         # 连续失败 5 次
@@ -232,12 +236,16 @@ class TestLoginLockoutAPI:
             "username": username, "password": "wrong_password",
         })
         assert resp.status_code == 423
-        data = resp.get_json()
+        data = resp.json()
         assert data["errors"]["locked"] is True
         assert data["errors"]["remaining_seconds"] > 0
 
-    def test_login_locked_with_correct_password_returns_423(self, client, no_rate_limit):
+    def test_login_locked_with_correct_password_returns_423(self, client, no_rate_limit, monkeypatch):
         """锁定后即使密码正确也返回 423"""
+        import app.services.password_policy as pp
+        # conftest 全局禁用了锁定；本用例显式恢复真实锁定行为
+        monkeypatch.setattr(pp, 'MAX_LOGIN_FAILURES', 5)
+        monkeypatch.setattr(pp, 'LOCKOUT_DURATION', 900)
         username, password = _register_user(client)
 
         # 连续失败 5 次
@@ -270,24 +278,22 @@ class TestPasswordChangedAt:
     def test_user_model_has_password_changed_at(self, app):
         from app.extensions import db
         from app.models.user import User
-        with app.app_context():
-            user = User(username=f"pc_{uuid.uuid4().hex[:6]}", email="pc@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            assert hasattr(user, 'password_changed_at')
-            # 新用户默认为 None
-            assert user.password_changed_at is None
-            db.session.rollback()
+        user = User(username=f"pc_{uuid.uuid4().hex[:6]}", email="pc@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        assert hasattr(user, 'password_changed_at')
+        # 新用户默认为 None
+        assert user.password_changed_at is None
+        db.session.rollback()
 
     def test_password_changed_at_can_be_set(self, app):
         from app.extensions import db
         from app.models.user import User
         from datetime import datetime
-        with app.app_context():
-            user = User(username=f"pc_{uuid.uuid4().hex[:6]}", email="pc2@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            now = datetime.utcnow()
-            user.password_changed_at = now
-            assert user.password_changed_at == now
-            db.session.rollback()
+        user = User(username=f"pc_{uuid.uuid4().hex[:6]}", email="pc2@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        now = datetime.utcnow()
+        user.password_changed_at = now
+        assert user.password_changed_at == now
+        db.session.rollback()

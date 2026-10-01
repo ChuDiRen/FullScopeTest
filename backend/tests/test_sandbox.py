@@ -14,7 +14,6 @@ from app.utils.sandbox import (
     check_script_safety,
     execute_script,
     _compute_script_hash,
-    BLOCKED_IMPORTS,
 )
 
 
@@ -22,15 +21,28 @@ class TestCheckScriptSafety:
     """AST 安全检查测试"""
 
     def test_safe_script_passes(self):
-        """正常脚本应通过检查"""
+        """普通安全脚本（json/time）应通过检查"""
         script = """
-import requests
-response = requests.get("https://example.com")
-print(response.status_code)
+import json
+import time
+
+data = {"key": "value"}
+print(json.dumps(data))
+time.sleep(0)
 """
         safe, msg = check_script_safety(script)
         assert safe is True
         assert msg == ""
+
+    def test_network_libs_require_opt_in(self):
+        """requests 默认拦截，allow_network_libs=True 才放行（仅限 Locust 压测画像）"""
+        script = "import requests"
+        safe, msg = check_script_safety(script)
+        assert safe is False
+        assert "requests" in msg
+
+        safe, msg = check_script_safety(script, allow_network_libs=True)
+        assert safe is True
 
     def test_block_os_import(self):
         """import os 应被拦截"""
@@ -86,11 +98,12 @@ print(response.status_code)
         safe, msg = check_script_safety(script)
         assert safe is False
 
-    def test_allow_subprocess_run(self):
-        """from subprocess import run 应被允许"""
+    def test_block_subprocess_run(self):
+        """from subprocess import run 也应被拦截（任意命令执行，无白名单）"""
         script = "from subprocess import run"
         safe, msg = check_script_safety(script)
-        assert safe is True
+        assert safe is False
+        assert "subprocess" in msg
 
     def test_block_subprocess_shell(self):
         """from subprocess import call 应被拦截"""
@@ -213,9 +226,10 @@ class TestExecuteScript:
 
     def test_execute_script_cleans_temp_files(self):
         """执行完成后临时文件应被清理"""
-        # 通过检查返回值间接验证（临时文件清理是内部行为）
+        # 通过检查返回值间接验证（临时文件清理是内部行为）；
+        # 脚本仅用白名单模块（pathlib 在 AST 黑名单内，不能用于执行测试）
         result = execute_script(
-            script_content="import pathlib; print(pathlib.Path.cwd())",
+            script_content="import json; print(json.dumps({'cleanup': True}))",
             timeout=10,
         )
         assert result['success'] is True

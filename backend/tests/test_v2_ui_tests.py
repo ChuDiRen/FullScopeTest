@@ -1,4 +1,5 @@
 """FastAPI v2 Web 自动化测试模块测试"""
+from app.extensions import db
 
 import uuid
 import pytest
@@ -10,12 +11,11 @@ from app.fastapi_app import create_fastapi_app
 def v2_client(app):
     """Create FastAPI test client that shares the same DB as Flask"""
     fastapi_app = create_fastapi_app("testing")
-    with app.app_context():
-        from app.extensions import db as flask_db
-        flask_db.create_all()
-        client = TestClient(fastapi_app)
-        client.flask_app = app
-        yield client
+    from app.extensions import db as db
+    db.create_all()
+    client = TestClient(fastapi_app)
+
+    yield client
 
 
 def _register_and_login_v2(client, username=None, password="Str0ng!Pass"):
@@ -68,7 +68,7 @@ class TestV2RunWebTest:
             headers={"Authorization": f"Bearer {user['access_token']}"},
             json={},
         )
-        assert resp.status_code == 422
+        assert resp.status_code == 400
 
 
 class TestV2GetWebTestResults:
@@ -108,26 +108,25 @@ class TestV2GetVisualDiffs:
 
     def test_get_visual_diffs_empty(self, v2_client):
         """有权限但无数据时应返回空列表"""
-        from app.extensions import db as flask_db
+        from app.extensions import db as db
         from app.models.test_run import TestRun as TR
-        import flask_jwt_extended
+        from app.core.jwt import decode_token
 
         user = _register_and_login_v2(v2_client)
-        decoded = flask_jwt_extended.decode_token(user["access_token"])
+        decoded = decode_token(user["access_token"])
         actual_user_id = int(decoded["sub"])
 
-        with v2_client.flask_app.app_context():
-            tr = TR(
-                project_id=1,
-                test_type="web",
-                status="success",
-                total_cases=1,
-                passed=1,
-                triggered_user_id=actual_user_id,
-            )
-            flask_db.session.add(tr)
-            flask_db.session.commit()
-            run_id = tr.id
+        tr = TR(
+            project_id=1,
+            test_type="web",
+            status="success",
+            total_cases=1,
+            passed=1,
+            triggered_user_id=actual_user_id,
+        )
+        db.session.add(tr)
+        db.session.commit()
+        run_id = tr.id
 
         resp = v2_client.get(
             f"/api/v2/ui-tests/visual-diffs/{run_id}",

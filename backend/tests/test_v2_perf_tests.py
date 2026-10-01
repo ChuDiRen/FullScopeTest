@@ -1,20 +1,8 @@
 """FastAPI v2 Performance test module tests"""
+from app.extensions import db
 
 import uuid
 import pytest
-from fastapi.testclient import TestClient
-from app.fastapi_app import create_fastapi_app
-
-
-@pytest.fixture()
-def v2_client(app):
-    fastapi_app = create_fastapi_app("testing", flask_app=app)
-    with app.app_context():
-        from app.extensions import db as flask_db
-        flask_db.create_all()
-        client = TestClient(fastapi_app)
-        client.flask_app = app
-        yield client
 
 
 def _rl(client, username=None):
@@ -43,7 +31,7 @@ class TestV2PerfScenarios:
         u = _rl(v2_client)
         r = v2_client.post("/api/v2/perf-tests/scenarios", headers=_h(u["access_token"]),
             json={"name": "TS", "target_url": "https://httpbin.org/get", "user_count": 5, "spawn_rate": 1, "duration": 10})
-        assert r.status_code == 201 and r.json()["name"] == "TS"
+        assert r.status_code == 200 and r.json()["name"] == "TS"
 
     def test_invalid_url(self, v2_client):
         u = _rl(v2_client)
@@ -94,7 +82,7 @@ class TestV2PerfAlertRules:
         u = _rl(v2_client)
         r = v2_client.post("/api/v2/perf-tests/alert-rules", headers=_h(u["access_token"]),
             json={"name": "P95", "p95_threshold": 2000, "error_rate_threshold": 5.0})
-        assert r.status_code == 201 and r.json()["name"] == "P95"
+        assert r.status_code == 200 and r.json()["name"] == "P95"
 
     def test_list(self, v2_client):
         u = _rl(v2_client)

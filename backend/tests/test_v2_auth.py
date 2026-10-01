@@ -1,18 +1,7 @@
 """FastAPI v2 Auth tests"""
 import uuid
 import pytest
-from fastapi.testclient import TestClient
 from app.fastapi_app import create_fastapi_app
-
-
-@pytest.fixture()
-def v2_client(app):
-    """Create FastAPI test client that shares the same DB as Flask"""
-    # Create FastAPI app and share Flask's database session
-    fastapi_app = create_fastapi_app("testing", flask_app=app)
-
-    client = TestClient(fastapi_app)
-    return client
 
 
 def test_v2_register_login_me_flow(v2_client):
@@ -103,11 +92,12 @@ def test_v2_refresh_token(v2_client):
         "/api/v2/auth/login",
         json={"username": username, "password": password},
     )
-    access_token = login_resp.json()["access_token"]
+    # refresh 端点强制 refresh token 类型，access token 会被 401 拒绝
+    refresh_token = login_resp.json()["refresh_token"]
 
     refresh_resp = v2_client.post(
         "/api/v2/auth/refresh",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers={"Authorization": f"Bearer {refresh_token}"},
     )
     assert refresh_resp.status_code == 200
     assert "access_token" in refresh_resp.json()

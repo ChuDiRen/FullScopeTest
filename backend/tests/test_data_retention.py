@@ -3,6 +3,7 @@
 
 覆盖：保留策略配置、清理逻辑、截图清理、手动触发
 """
+from app.extensions import db
 
 import os
 import tempfile
@@ -49,8 +50,7 @@ class TestRawTestRunCleanup:
 
     def test_cleanup_returns_stats_dict(self, app):
         from app.services.data_retention_service import cleanup_raw_test_runs
-        with app.app_context():
-            result = cleanup_raw_test_runs()
+        result = cleanup_raw_test_runs()
         assert "deleted_runs" in result
         assert "cutoff_date" in result
         assert isinstance(result["deleted_runs"], int)
@@ -63,34 +63,33 @@ class TestRawTestRunCleanup:
         from app.models.user import User
         from app.services.data_retention_service import cleanup_raw_test_runs
 
-        with app.app_context():
-            user = User(username="retention_user", email="ret@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            project = Project(name="RetProj", owner_id=user.id)
-            db.session.add(project)
-            db.session.flush()
-            recent_run = TestRun(
-                project_id=project.id,
-                test_type="api",
-                status="completed",
-                created_at=datetime.utcnow(),
-            )
-            db.session.add(recent_run)
-            db.session.commit()
-            run_id = recent_run.id
+        user = User(username="retention_user", email="ret@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        project = Project(name="RetProj", owner_id=user.id)
+        db.session.add(project)
+        db.session.flush()
+        recent_run = TestRun(
+            project_id=project.id,
+            test_type="api",
+            status="completed",
+            created_at=datetime.utcnow(),
+        )
+        db.session.add(recent_run)
+        db.session.commit()
+        run_id = recent_run.id
 
-            result = cleanup_raw_test_runs()
-            assert result["deleted_runs"] == 0
+        result = cleanup_raw_test_runs()
+        assert result["deleted_runs"] == 0
 
-            still_exists = db.session.get(TestRun, run_id)
-            assert still_exists is not None
+        still_exists = db.session.get(TestRun, run_id)
+        assert still_exists is not None
 
-            # 清理测试数据
-            db.session.delete(recent_run)
-            db.session.delete(project)
-            db.session.delete(user)
-            db.session.commit()
+        # 清理测试数据
+        db.session.delete(recent_run)
+        db.session.delete(project)
+        db.session.delete(user)
+        db.session.commit()
 
 
 class TestScreenshotCleanup:
@@ -135,9 +134,8 @@ class TestFullCleanup:
 
     def test_run_full_cleanup_returns_all_stats(self, app):
         from app.services.data_retention_service import run_full_cleanup
-        with app.app_context():
-            with tempfile.TemporaryDirectory() as tmpdir:
-                result = run_full_cleanup(storage_path=tmpdir)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = run_full_cleanup(storage_path=tmpdir)
         assert "raw_runs" in result
         assert "reports" in result
         assert "screenshots" in result

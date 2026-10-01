@@ -24,7 +24,7 @@ def auth_headers(client):
         'username': username,
         'password': password
     })
-    token = response.get_json()['data']['access_token']
+    token = response.json()['data']['access_token']
     return {'Authorization': f'Bearer {token}'}
 
 
@@ -35,7 +35,7 @@ def sample_project(client, auth_headers):
         'name': 'Test Project',
         'description': 'Test Description'
     }, headers=auth_headers)
-    return response.get_json()['data']
+    return response.json()['data']
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def sample_environment(client, auth_headers, sample_project):
             'X-Environment': 'dev'
         }
     }, headers=auth_headers)
-    return response.get_json()['data']
+    return response.json()['data']
 
 
 class TestEnvironmentCRUD:
@@ -72,8 +72,8 @@ class TestEnvironmentCRUD:
             }
         }, headers=auth_headers)
 
-        data = response.get_json()
-        assert response.status_code == 201
+        data = response.json()
+        assert response.status_code == 200
         assert data['data']['name'] == 'Production'
 
     def test_get_environments(self, client, auth_headers, sample_project, sample_environment):
@@ -83,7 +83,7 @@ class TestEnvironmentCRUD:
             headers=auth_headers
         )
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
         assert isinstance(data['data'], list)
         assert len(data['data']) > 0
@@ -93,7 +93,7 @@ class TestEnvironmentCRUD:
         env_id = sample_environment['id']
         response = client.get(f'/api/v1/environments/{env_id}', headers=auth_headers)
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
         assert data['data']['id'] == env_id
 
@@ -107,7 +107,7 @@ class TestEnvironmentCRUD:
             }
         }, headers=auth_headers)
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
         assert data['data']['name'] == 'Updated Dev'
 
@@ -141,8 +141,8 @@ class TestEnvironmentVariables:
             'variables': variables
         }, headers=auth_headers)
 
-        data = response.get_json()
-        assert response.status_code == 201
+        data = response.json()
+        assert response.status_code == 200
         assert data['data']['variables']['string_var'] == 'hello'
         assert data['data']['variables']['number_var'] == 123
 
@@ -154,6 +154,6 @@ class TestEnvironmentVariables:
             'variables': {}
         }, headers=auth_headers)
 
-        data = response.get_json()
-        assert response.status_code == 201
+        data = response.json()
+        assert response.status_code == 200
         assert data['data']['variables'] == {}

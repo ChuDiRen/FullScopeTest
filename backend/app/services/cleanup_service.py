@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from ..extensions import db
 from ..core.logging import get_logger
 from ..utils.exceptions import NotFoundError
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -92,7 +93,7 @@ class CleanupService:
         """
         from ..models.api_test_case import ApiTestCase
 
-        cases = ApiTestCase.query.filter_by(collection_id=collection_id).all()
+        cases = db.session.scalars(select(ApiTestCase).filter_by(collection_id=collection_id)).all()
         results = []
         success_count = 0
 

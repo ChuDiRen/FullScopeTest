@@ -17,6 +17,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from ...extensions import db
 from ...models.api_test_case import ApiTestCase
 from ...core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -193,15 +194,15 @@ def find_duplicates(
     """
     # 1. 获取用例
     if case_type == 'api':
-        cases = ApiTestCase.query.filter_by(
+        cases = db.session.scalars(select(ApiTestCase).filter_by(
             project_id=project_id,
             is_enabled=True,
-        ).order_by(ApiTestCase.id).limit(limit).all()
+        ).order_by(ApiTestCase.id).limit(limit)).all()
     else:
         from ...models.web_test_script import WebTestScript
-        cases = WebTestScript.query.filter_by(
+        cases = db.session.scalars(select(WebTestScript).filter_by(
             project_id=project_id,
-        ).order_by(WebTestScript.id).limit(limit).all()
+        ).order_by(WebTestScript.id).limit(limit)).all()
 
     if len(cases) < 2:
         return {

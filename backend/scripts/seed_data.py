@@ -2,7 +2,7 @@
 import sys, os, random, hashlib
 from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app import create_app
+from app.core.runtime import init_runtime
 from app.extensions import db
 from app.models.user import User
 from app.models.project import Project
@@ -30,19 +30,21 @@ from app.models.api_token import ApiToken
 from app.models.test_plan import TestPlan, TestPlanRun
 from app.models.issue_link import IssueLink
 from app.models.comment import Comment
+from sqlalchemy import select
+from sqlalchemy import func
 
 random.seed(42)
-app = create_app("production")
+init_runtime()
 
 def rp(days=90):
     return datetime.now(timezone.utc) - timedelta(days=random.randint(0,days), hours=random.randint(0,23), minutes=random.randint(0,59))
 
 def seed():
-    with app.app_context():
-        uc = User.query.count()
+    with __import__('contextlib').nullcontext():
+        uc = db.session.scalar(select(func.count()).select_from(select(User).subquery()))
         if uc > 5:
             print(f"Users: {uc} (skip)")
-            users = User.query.all()
+            users = db.session.scalars(select(User)).all()
         else:
             users = []
             for u, e, r in [("admin","admin@fullscopetest.com","admin"),("alice","alice@example.com","admin"),("bob","bob@example.com","member"),("charlie","charlie@example.com","member"),("diana","diana@example.com","member"),("eve","eve@example.com","viewer"),("frank","frank@example.com","member"),("grace","grace@example.com","member"),("henry","henry@example.com","viewer"),("iris","iris@example.com","member")]:
@@ -53,8 +55,8 @@ def seed():
             print(f"Created {len(users)} users")
         admin = users[0]
 
-        if Organization.query.count() > 0:
-            orgs = Organization.query.all()
+        if db.session.scalar(select(func.count()).select_from(select(Organization).subquery()))> 0:
+            orgs = db.session.scalars(select(Organization)).all()
         else:
             orgs = []
             for n, s, d in [("FullScope Team","fullscope-team","Core dev team"),("QA Engineering","qa-engineering","QA department"),("Backend Dev","backend-dev","Backend team"),("Infra Team","infra-team","Infrastructure team")]:
@@ -68,8 +70,8 @@ def seed():
             db.session.flush()
             print(f"Created {len(orgs)} orgs")
 
-        if Project.query.count() > 3:
-            projects = Project.query.all()
+        if db.session.scalar(select(func.count()).select_from(select(Project).subquery()))> 3:
+            projects = db.session.scalars(select(Project)).all()
         else:
             projects = []
             for i, (n, d) in enumerate([("E-Commerce API","E-commerce core API testing"),("FinTech Trading","High concurrency trading tests"),("Social Network","Social platform API tests"),("IoT Platform","IoT device management tests"),("Healthcare System","Medical system security tests"),("Education Platform","Online education tests"),("Logistics System","Logistics scheduling tests"),("CMS System","Content management tests"),("Payment Gateway","Payment integration tests"),("AI Inference","LLM API performance baseline")]):
@@ -79,13 +81,13 @@ def seed():
             db.session.flush()
             print(f"Created {len(projects)} projects")
 
-        if Environment.query.count() <= 5:
+        if db.session.scalar(select(func.count()).select_from(select(Environment).subquery()))<= 5:
             for proj in projects:
                 for en, eu, ed in [("Development","http://dev.example.com",True),("Testing","http://test.example.com",False),("Staging","https://staging.example.com",False),("Production","https://api.example.com",False)]:
                     db.session.add(Environment(project_id=proj.id, name=en, base_url=eu, variables={"API_KEY":"key_"+str(proj.id)}, headers={"Content-Type":"application/json"}, is_default=ed))
             db.session.flush()
 
-        if ApiTestCollection.query.count() <= 5:
+        if db.session.scalar(select(func.count()).select_from(select(ApiTestCollection).subquery()))<= 5:
             colls = []
             for proj in projects:
                 for n, d in [("User Mgmt","User CRUD"),("Product Mgmt","Product CRUD"),("Order System","Order flow"),("Payment","Payment integration"),("Notification","Push notifications"),("File Upload","File handling"),("RBAC","Permission mgmt"),("Reports","Analytics"),("Search","Full-text search"),("Settings","Config mgmt")]:
@@ -104,7 +106,7 @@ def seed():
             db.session.flush()
             print(f"API: {len(colls)} colls, {cc} cases")
 
-        if WebTestCollection.query.count() <= 3:
+        if db.session.scalar(select(func.count()).select_from(select(WebTestCollection).subquery()))<= 3:
             wcs = []
             for proj in projects[:5]:
                 for cn in ["Core Features","Regression","Smoke Tests"]:
@@ -119,7 +121,7 @@ def seed():
             db.session.flush()
             print("Web scripts created")
 
-        if AppTestCollection.query.count() <= 1:
+        if db.session.scalar(select(func.count()).select_from(select(AppTestCollection).subquery()))<= 1:
             acs = []
             for proj in projects[:3]:
                 ac = AppTestCollection(project_id=proj.id, user_id=admin.id, name=proj.name+" APP")
@@ -131,7 +133,7 @@ def seed():
                     db.session.add(AppTestScript(name=proj.name+"-"+pl, project_id=proj.id, collection_id=random.choice(acs).id, user_id=admin.id, platform=pl, app_package=pk, automation_name=ae, script_content="# "+pl+" test", status=random.choice(["passed","failed","pending"]), last_run_at=rp(7), is_enabled=True, created_at=rp(20)))
             db.session.flush()
 
-        if PerfTestScenario.query.count() <= 5:
+        if db.session.scalar(select(func.count()).select_from(select(PerfTestScenario).subquery()))<= 5:
             scs = []
             for proj in projects:
                 for pn, pu, pm, pc, psr, pd in [("Homepage Load","https://example.com/","GET",100,10,300),("Product List","https://example.com/api/products","GET",200,20,600),("Login Stress","https://example.com/api/auth/login","POST",50,5,120),("Order Flow","https://example.com/api/orders","POST",100,10,300),("Search Load","https://example.com/api/search","GET",150,15,300),("Payment Callback","https://example.com/api/payments/notify","POST",30,3,180)][:random.randint(3,6)]:
@@ -154,14 +156,14 @@ def seed():
                 for rn, th in [("P95 Alert",{"p95_threshold":500}),("P99 Alert",{"p99_threshold":1000}),("Error Rate",{"error_rate_threshold":1.0}),("Min RPS",{"rps_min_threshold":100})]:
                     db.session.add(PerformanceAlertRule(name=rn, scenario_id=s.id, notify_webhook="https://hooks.example.com/alert", enabled=True, trigger_count=random.randint(0,10), last_triggered_at=rp(14), **th))
             db.session.flush()
-            all_rules = PerformanceAlertRule.query.all()
+            all_rules = db.session.scalars(select(PerformanceAlertRule)).all()
             for rule in all_rules:
                 for _ in range(random.randint(0, 5)):
                     db.session.add(PerformanceAlertLog(rule_id=rule.id, result_id=random.choice(rs).id, alert_type="absolute", metric_name="P95", threshold_value=500, actual_value=round(random.uniform(500,2000),2), message="P95 exceeded", notification_sent=random.random()>0.2, created_at=rp(14)))
             db.session.flush()
             print(f"Perf: {len(scs)} scenarios, {len(rs)} results")
 
-        if TestRun.query.count() <= 50:
+        if db.session.scalar(select(func.count()).select_from(select(TestRun).subquery()))<= 50:
             runs = []
             for proj in projects:
                 for _ in range(random.randint(8, 20)):
@@ -180,7 +182,7 @@ def seed():
             db.session.flush()
             print(f"Runs: {len(runs)}")
 
-        if QualityGate.query.count() <= 5:
+        if db.session.scalar(select(func.count()).select_from(select(QualityGate).subquery()))<= 5:
             gates = []
             for proj in projects:
                 for gn, gr, gp, gv in [("API Smoke Gate",95.0,500,None),("E2E Core Gate",90.0,1000,5.0),("Perf Baseline Gate",99.0,300,None),("Regression Gate",85.0,800,None),("Release Gate",95.0,500,2.0)]:
@@ -188,55 +190,55 @@ def seed():
                     db.session.add(g)
                     gates.append(g)
             db.session.flush()
-            all_runs = TestRun.query.limit(20).all()
+            all_runs = db.session.scalars(select(TestRun).limit(20)).all()
             for g in gates:
                 for r in random.sample(all_runs, min(5, len(all_runs))):
                     db.session.add(QualityGateEvaluation(quality_gate_id=g.id, test_run_id=r.id, passed=random.random()>0.2, evaluation_details={"pass_rate":round(r.passed/r.total_cases*100,1) if r.total_cases>0 else 0}, created_at=r.created_at))
             db.session.flush()
             print(f"Gates: {len(gates)}")
 
-        if ScheduledTask.query.count() <= 5:
+        if db.session.scalar(select(func.count()).select_from(select(ScheduledTask).subquery()))<= 5:
             for proj in projects[:5]:
                 for cn, cr in [("Daily Regression","0 2 * * *"),("Hourly Smoke","0 * * * *"),("Perf Test","0 6 * * *"),("Weekly Full","0 3 * * 1"),("Health Check","*/30 * * * *")]:
                     db.session.add(ScheduledTask(project_id=proj.id, name=proj.name+"-"+cn, cron_expression=cr, target_type="api_collection", target_id=random.randint(1,100), is_active=True, created_at=rp(30)))
             db.session.flush()
 
-        if TriggerRule.query.count() <= 5:
+        if db.session.scalar(select(func.count()).select_from(select(TriggerRule).subquery()))<= 5:
             for proj in projects[:5]:
                 for tn, te, tv in [("Git Push","git_push","push"),("PR Create","github_pr","pull_request"),("Tag Release","git_tag","tag"),("Schedule","schedule","schedule"),("Manual","manual","manual")]:
                     db.session.add(TriggerRule(project_id=proj.id, user_id=admin.id, name=proj.name+"-"+tn, event_type=te, event_name=tv, target_type="api_collection", target_id=random.randint(1,50), is_active=True, created_at=rp(20)))
             db.session.flush()
 
-        if AuditLog.query.count() <= 50:
+        if db.session.scalar(select(func.count()).select_from(select(AuditLog).subquery()))<= 50:
             for _ in range(100):
                 db.session.add(AuditLog(user_id=random.choice(users[:5]).id, organization_id=random.choice(orgs).id if orgs else None, action=random.choice(["create","update","delete","login","logout"]), resource_type=random.choice(["project","test_case","test_run"]), resource_id=random.randint(1,100), ip_address="192.168.1."+str(random.randint(1,254)), user_agent="Chrome/120", created_at=rp(60)))
             db.session.flush()
 
-        if NotificationConfig.query.count() <= 3:
+        if db.session.scalar(select(func.count()).select_from(select(NotificationConfig).subquery()))<= 3:
             for u in users[:5]:
                 for cn, cc in [("DingTalk","dingtalk"),("Feishu","feishu"),("Slack","slack")]:
                     db.session.add(NotificationConfig(user_id=u.id, name=u.username+"-"+cn, channel=cc, webhook_url="https://hooks.example.com/test", events=["test_completed"], is_active=True))
             db.session.flush()
 
-        if AIInvocationLog.query.count() <= 30:
+        if db.session.scalar(select(func.count()).select_from(select(AIInvocationLog).subquery()))<= 30:
             for _ in range(80):
                 tt, m = random.choice([("gen_case","deepseek-chat"),("analyze","deepseek-chat"),("visual","qwen3.6-plus")])
                 db.session.add(AIInvocationLog(user_id=random.choice(users[:5]).id, task_type=tt, model_name=m, input_tokens=random.randint(100,5000), output_tokens=random.randint(50,2000), duration_ms=random.randint(500,15000), status="success" if random.random()>0.1 else "error", created_at=rp(30)))
             db.session.flush()
 
-        if PromptVersion.query.count() <= 3:
+        if db.session.scalar(select(func.count()).select_from(select(PromptVersion).subquery()))<= 3:
             for pn in ["case_gen","result_analyze","assert_suggest","script_gen"]:
                 for v in range(1, 4):
                     db.session.add(PromptVersion(prompt_name=pn, version=v, content="Prompt v"+str(v), is_active=(v==3), created_by=admin.id, created_at=rp(30)))
             db.session.flush()
 
-        if ApiToken.query.count() <= 3:
+        if db.session.scalar(select(func.count()).select_from(select(ApiToken).subquery()))<= 3:
             for u in users[:5]:
                 for tn in ["CI/CD","Script","3rdParty"]:
                     db.session.add(ApiToken(user_id=u.id, name=u.username+"-"+tn, token_hash=hashlib.sha256((u.username+tn+str(random.random())).encode()).hexdigest(), permissions=["read","write"], is_active=True, expires_at=datetime.now(timezone.utc)+timedelta(days=90), last_used_at=rp(3), created_at=rp(30)))
             db.session.flush()
 
-        if TestPlan.query.count() <= 3:
+        if db.session.scalar(select(func.count()).select_from(select(TestPlan).subquery()))<= 3:
             plans = []
             for proj in projects[:5]:
                 for pn, ps in [("v2.5 Release","active"),("Daily Smoke","active"),("Perf Baseline","active"),("Security Audit","draft"),("Payment Test","active")]:
@@ -253,22 +255,22 @@ def seed():
             db.session.flush()
             print(f"Plans: {len(plans)}")
 
-        if TestDocument.query.count() <= 10:
+        if db.session.scalar(select(func.count()).select_from(select(TestDocument).subquery()))<= 10:
             for proj in projects:
                 for dn, dc in [("API Spec","# API Test Specification\n\n## Naming\n- Use Chinese descriptions"),("Perf Plan","# Performance Test Plan\n\n## Goals\n- P95 < 500ms\n- Error rate < 1%"),("Automation Guide","# Automation Guide\n\n## Stack\n- API: pytest\n- E2E: Playwright"),("Env Config","# Environment Config\n\n## Dev\n- URL: dev.example.com"),("Release Checklist","# Release Checklist\n\n- [ ] Smoke passed\n- [ ] Perf baseline OK")]:
                     db.session.add(TestDocument(project_id=proj.id, user_id=admin.id, title=proj.name+"-"+dn, content=dc, doc_type="markdown", created_at=rp(30)))
             db.session.flush()
 
-        if IssueLink.query.count() <= 10:
-            for r in TestRun.query.limit(30).all():
+        if db.session.scalar(select(func.count()).select_from(select(IssueLink).subquery()))<= 10:
+            for r in db.session.scalars(select(TestRun).limit(30)).all():
                 tracker = random.choice(["jira","feishu","github"])
                 key_prefix = random.choice(["TEST","QA","DEV","BUG"])
                 issue_key = f"{key_prefix}-{random.randint(100,999)}"
                 db.session.add(IssueLink(test_run_id=r.id, project_id=r.project_id, tracker=tracker, issue_key=issue_key, issue_url=f"https://{tracker}.example.com/browse/{issue_key}", issue_title=random.choice(["API 500 error","Perf degradation 20%","Login timeout","Search inaccurate","Payment callback failed"]), status=random.choice(["open","closed","in_progress"]), created_by="manual", user_id=admin.id, created_at=rp(20)))
             db.session.flush()
 
-        if Comment.query.count() <= 10:
-            for r in TestRun.query.limit(20).all():
+        if db.session.scalar(select(func.count()).select_from(Comment)) <= 10:
+            for r in db.session.scalars(select(TestRun).limit(20)):
                 for _ in range(random.randint(1, 3)):
                     db.session.add(Comment(resource_type="test_run", resource_id=r.id, user_id=random.choice(users[:5]).id, content=random.choice(["Response time high, optimize query","Fixed concurrency issue","Pass rate dropped, check env","Add boundary test cases","Baseline updated","Added idempotency check"]), created_at=rp(10)))
             db.session.flush()
@@ -276,7 +278,7 @@ def seed():
         db.session.commit()
         print("\nDone!")
         for n, m in [("users",User),("projects",Project),("api_cases",ApiTestCase),("web_scripts",WebTestScript),("perf",PerfTestScenario),("runs",TestRun),("gates",QualityGate),("plans",TestPlan),("audit",AuditLog)]:
-            print(f"  {n}: {m.query.count()}")
+            print(f"  {n}: {db.session.scalar(select(func.count()).select_from(m))}")
 
 if __name__ == "__main__":
     seed()

@@ -19,6 +19,7 @@ from ...extensions import db
 from ...models.api_test_case import ApiTestCase
 from ...core.logging import get_logger
 from .embedding_service import get_embedding_service, _cosine_similarity, _tfidf_vector
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -62,7 +63,7 @@ class RAGService:
             return []
 
         # 构建查询
-        cases_query = ApiTestCase.query
+        cases_query = select(ApiTestCase)
         if project_id:
             cases_query = cases_query.filter_by(project_id=project_id)
         if method:
@@ -74,7 +75,7 @@ class RAGService:
                     ApiTestCase.tags.like(f'%{tag}%')
                 )
 
-        cases = cases_query.order_by(ApiTestCase.created_at.desc()).limit(200).all()
+        cases = db.session.scalars(cases_query.order_by(ApiTestCase.created_at.desc()).limit(200)).all()
         if not cases:
             return []
 

@@ -5,30 +5,32 @@
 每个用户独立保存自己的 Dashboard 配置。
 """
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class DashboardWidget(db.Model):
+class DashboardWidget(Base):
     """仪表盘组件配置表"""
 
     __tablename__ = 'dashboard_widgets'
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='用户 ID')
-    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=False, comment='组织 ID')
-    widget_type = db.Column(db.String(50), nullable=False, comment='组件类型')
-    title = db.Column(db.String(100), comment='组件标题')
-    config = db.Column(db.JSON, default=dict, comment='组件配置')
-    position_x = db.Column(db.Integer, default=0, comment='网格 X 坐标')
-    position_y = db.Column(db.Integer, default=0, comment='网格 Y 坐标')
-    width = db.Column(db.Integer, default=1, comment='宽度（网格单位）')
-    height = db.Column(db.Integer, default=1, comment='高度（网格单位）')
-    is_visible = db.Column(db.Boolean, default=True, comment='是否可见')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='用户 ID')
+    organization_id = Column(Integer, ForeignKey('organizations.id'), nullable=False, comment='组织 ID')
+    widget_type = Column(String(50), nullable=False, comment='组件类型')
+    title = Column(String(100), comment='组件标题')
+    config = Column(JSON, default=dict, comment='组件配置')
+    position_x = Column(Integer, default=0, comment='网格 X 坐标')
+    position_y = Column(Integer, default=0, comment='网格 Y 坐标')
+    width = Column(Integer, default=1, comment='宽度（网格单位）')
+    height = Column(Integer, default=1, comment='高度（网格单位）')
+    is_visible = Column(Boolean, default=True, comment='是否可见')
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联
-    user = db.relationship('User', backref='dashboard_widgets')
+    user = relationship('User', backref='dashboard_widgets')
 
     def to_dict(self):
         return {

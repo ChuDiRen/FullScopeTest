@@ -14,6 +14,7 @@ from ..extensions import db
 from ..models.github_integration import GitHubIntegration
 from ..models.user import User
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -207,10 +208,10 @@ def create_or_update_integration(
     github_user_id = github_user_data['id']
 
     # 查找现有集成
-    integration = GitHubIntegration.query.filter_by(
+    integration = db.session.scalar(select(GitHubIntegration).filter_by(
         user_id=user_id,
         github_user_id=github_user_id,
-    ).first()
+    ))
 
     # 计算 token 过期时间
     token_expires_at = None
@@ -276,7 +277,7 @@ def create_or_update_integration(
 
 def get_integration_by_user(user_id: int) -> Optional[GitHubIntegration]:
     """获取用户的 GitHub 集成信息"""
-    return GitHubIntegration.query.filter_by(user_id=user_id, is_active=True).first()
+    return db.session.scalar(select(GitHubIntegration).filter_by(user_id=user_id, is_active=True))
 
 
 def get_access_token(integration: GitHubIntegration) -> Optional[str]:
@@ -301,10 +302,10 @@ def revoke_integration(integration_id: int, user_id: int) -> bool:
     Returns:
         是否成功
     """
-    integration = GitHubIntegration.query.filter_by(
+    integration = db.session.scalar(select(GitHubIntegration).filter_by(
         id=integration_id,
         user_id=user_id,
-    ).first()
+    ))
 
     if not integration:
         return False

@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional
 from ..extensions import db
 from ..models.api_test_case import ApiTestCase
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -33,11 +34,11 @@ class TagManagerService:
         Returns:
             List[Dict]: [{tag, count, percentage}]
         """
-        query = ApiTestCase.query
+        query = select(ApiTestCase)
         if project_id:
             query = query.filter_by(project_id=project_id)
 
-        cases = query.all()
+        cases = db.session.scalars(query).all()
         total = len(cases)
         tag_counts = {}
 
@@ -64,11 +65,11 @@ class TagManagerService:
         Returns:
             Dict: {total, by_priority: {1: count, 2: count, ...}}
         """
-        query = ApiTestCase.query
+        query = select(ApiTestCase)
         if project_id:
             query = query.filter_by(project_id=project_id)
 
-        cases = query.all()
+        cases = db.session.scalars(query).all()
         by_priority = {}
         for case in cases:
             p = case.priority or 2
@@ -99,11 +100,11 @@ class TagManagerService:
         Returns:
             List[Dict]: 匹配的用例列表
         """
-        query = ApiTestCase.query
+        query = select(ApiTestCase)
         if project_id:
             query = query.filter_by(project_id=project_id)
 
-        cases = query.all()
+        cases = db.session.scalars(query).all()
         matched = []
 
         for case in cases:
@@ -132,12 +133,12 @@ class TagManagerService:
         Returns:
             List[Dict]: 匹配的用例列表
         """
-        query = ApiTestCase.query
+        query = select(ApiTestCase)
         if project_id:
             query = query.filter_by(project_id=project_id)
 
         query = query.filter(ApiTestCase.priority.in_(priorities))
-        return [c.to_dict() for c in query.all()]
+        return [c.to_dict() for c in db.session.scalars(query).all()]
 
 
 _instance = None

@@ -16,11 +16,12 @@ from typing import Optional
 from urllib.parse import urlencode
 
 import requests
-from werkzeug.security import generate_password_hash
 
+from ..core.passwords import generate_password_hash
 from ..extensions import db
 from ..models.user import User
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -310,7 +311,7 @@ def find_or_create_sso_user(sso_info: dict, provider: str) -> User:
     username = sso_info.get('username', '')
 
     # 1. 按 SSO 标识查找
-    user = User.query.filter_by(sso_provider=provider, sso_id=sso_id).first()
+    user = db.session.scalar(select(User).filter_by(sso_provider=provider, sso_id=sso_id))
     if user:
         user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
         db.session.commit()
@@ -318,7 +319,7 @@ def find_or_create_sso_user(sso_info: dict, provider: str) -> User:
 
     # 2. 按邮箱关联已有账号
     if email:
-        user = User.query.filter_by(email=email).first()
+        user = db.session.scalar(select(User).filter_by(email=email))
         if user:
             user.sso_provider = provider
             user.sso_id = sso_id
@@ -333,7 +334,7 @@ def find_or_create_sso_user(sso_info: dict, provider: str) -> User:
     base_username = username or email.split('@')[0] if email else f'sso_{sso_id[:8]}'
     final_username = base_username
     counter = 1
-    while User.query.filter_by(username=final_username).first():
+    while db.session.scalar(select(User).filter_by(username=final_username)):
         final_username = f'{base_username}_{counter}'
         counter += 1
 

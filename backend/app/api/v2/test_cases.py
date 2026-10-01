@@ -1,21 +1,28 @@
 """
-FastAPI 测试用例管理模块
+FastAPI 测试用例管理模块（v2 表面）
 
-提供测试用例的 CRUD 路由
+安全约定（修复历史审计问题）：
+- 全部路由强制 get_current_user 鉴权（旧实现完全未鉴权，任何人可读写他人用例）
+- 单对象读取/修改/删除均校验属主（user_id），防止 IDOR
+- project_id 通过 query 参数显式传入
 """
 
-from datetime import datetime
-from typing import Optional, List
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ...extensions import db
 from ...models.api_test_case import ApiTestCase, ApiTestCollection
 from ...core.logging import get_logger
+from .deps import get_current_user
+from ...models.user import User
+from sqlalchemy import select
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 
-router = APIRouter(tags=["test-cases"])
+router = APIRouter(tags=["test-cases"], dependencies=[Depends(get_current_user)])
 
 
 # ====== Pydantic Schemas ======
@@ -86,19 +93,16 @@ async def list_collections(
     project_id: int = Query(..., description="Project ID"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    user: User = Depends(get_current_user),
 ):
-    """获取 API 测试集合列表"""
-    from ...utils import get_current_user_id
-
-    user_id = get_current_user_id()
-
-    query = ApiTestCollection.query.filter_by(
+    """获取 API 测试集合列表（按属主过滤）"""
+    query = select(ApiTestCollection).filter_by(
         project_id=project_id,
-        user_id=user_id,
+        user_id=user.id,
     )
 
-    total = query.count()
-    collections = query.offset((page - 1) * limit).limit(limit).all()
+    total = db.session.scalar(select(func.count()).select_from(query.subquery()))
+    collections = db.session.scalars(query.offset((page - 1) * limit).limit(limit)).all()
 
     return PaginatedResponse(
         items=[c.to_dict() for c in collections],
@@ -108,19 +112,19 @@ async def list_collections(
     )
 
 
-@router.post("/collections", status_code=201)
-async def create_collection(data: CollectionCreate):
+@router.post("/collections", status_code=200)
+async def create_collection(
+    data: CollectionCreate,
+    project_id: Optional[int] = Query(None),
+    user: User = Depends(get_current_user),
+):
     """创建 API 测试集合"""
-    from ...utils import get_current_user_id
-
-    user_id = get_current_user_id()
-
     collection = ApiTestCollection(
         name=data.name,
         description=data.description,
         parent_id=data.parent_id,
-        project_id=request.args.get('project_id', type=int),
-        user_id=user_id,
+        project_id=project_id,
+        user_id=user.id,
     )
 
     db.session.add(collection)
@@ -130,18 +134,20 @@ async def create_collection(data: CollectionCreate):
 
 
 @router.get("/collections/{collection_id}")
-async def get_collection(collection_id: int):
-    """获取 API 测试集合详情"""
-    collection = ApiTestCollection.query.get(collection_id)
+async def get_collection(collection_id: int, user: User = Depends(get_current_user)):
+    """获取 API 测试集合详情（仅属主可见）"""
+    collection = db.session.scalar(select(ApiTestCollection).filter_by(id=collection_id, user_id=user.id))
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
     return collection.to_dict()
 
 
 @router.put("/collections/{collection_id}")
-async def update_collection(collection_id: int, data: CollectionUpdate):
-    """更新 API 测试集合"""
-    collection = ApiTestCollection.query.get(collection_id)
+async def update_collection(
+    collection_id: int, data: CollectionUpdate, user: User = Depends(get_current_user)
+):
+    """更新 API 测试集合（仅属主可改）"""
+    collection = db.session.scalar(select(ApiTestCollection).filter_by(id=collection_id, user_id=user.id))
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
 
@@ -154,9 +160,9 @@ async def update_collection(collection_id: int, data: CollectionUpdate):
 
 
 @router.delete("/collections/{collection_id}", status_code=204)
-async def delete_collection(collection_id: int):
-    """删除 API 测试集合"""
-    collection = ApiTestCollection.query.get(collection_id)
+async def delete_collection(collection_id: int, user: User = Depends(get_current_user)):
+    """删除 API 测试集合（仅属主可删）"""
+    collection = db.session.scalar(select(ApiTestCollection).filter_by(id=collection_id, user_id=user.id))
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
 
@@ -172,22 +178,19 @@ async def list_cases(
     collection_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    user: User = Depends(get_current_user),
 ):
-    """获取 API 测试用例列表"""
-    from ...utils import get_current_user_id
-
-    user_id = get_current_user_id()
-
-    query = ApiTestCase.query.filter_by(
+    """获取 API 测试用例列表（按属主过滤）"""
+    query = select(ApiTestCase).filter_by(
         project_id=project_id,
-        user_id=user_id,
+        user_id=user.id,
     )
 
     if collection_id:
         query = query.filter_by(collection_id=collection_id)
 
-    total = query.count()
-    cases = query.offset((page - 1) * limit).limit(limit).all()
+    total = db.session.scalar(select(func.count()).select_from(query.subquery()))
+    cases = db.session.scalars(query.offset((page - 1) * limit).limit(limit)).all()
 
     return PaginatedResponse(
         items=[c.to_dict() for c in cases],
@@ -197,13 +200,13 @@ async def list_cases(
     )
 
 
-@router.post("/cases", status_code=201)
-async def create_case(data: TestCaseCreate):
+@router.post("/cases", status_code=200)
+async def create_case(
+    data: TestCaseCreate,
+    project_id: Optional[int] = Query(None),
+    user: User = Depends(get_current_user),
+):
     """创建 API 测试用例"""
-    from ...utils import get_current_user_id
-
-    user_id = get_current_user_id()
-
     case = ApiTestCase(
         name=data.name,
         method=data.method,
@@ -222,8 +225,8 @@ async def create_case(data: TestCaseCreate):
         priority=data.priority,
         tags=data.tags,
         is_enabled=data.is_enabled,
-        project_id=request.args.get('project_id', type=int),
-        user_id=user_id,
+        project_id=project_id,
+        user_id=user.id,
     )
 
     db.session.add(case)
@@ -233,18 +236,18 @@ async def create_case(data: TestCaseCreate):
 
 
 @router.get("/cases/{case_id}")
-async def get_case(case_id: int):
-    """获取 API 测试用例详情"""
-    case = ApiTestCase.query.get(case_id)
+async def get_case(case_id: int, user: User = Depends(get_current_user)):
+    """获取 API 测试用例详情（仅属主可见）"""
+    case = db.session.scalar(select(ApiTestCase).filter_by(id=case_id, user_id=user.id))
     if not case:
         raise HTTPException(status_code=404, detail="Test case not found")
     return case.to_dict()
 
 
 @router.put("/cases/{case_id}")
-async def update_case(case_id: int, data: TestCaseUpdate):
-    """更新 API 测试用例"""
-    case = ApiTestCase.query.get(case_id)
+async def update_case(case_id: int, data: TestCaseUpdate, user: User = Depends(get_current_user)):
+    """更新 API 测试用例（仅属主可改）"""
+    case = db.session.scalar(select(ApiTestCase).filter_by(id=case_id, user_id=user.id))
     if not case:
         raise HTTPException(status_code=404, detail="Test case not found")
 
@@ -257,9 +260,9 @@ async def update_case(case_id: int, data: TestCaseUpdate):
 
 
 @router.delete("/cases/{case_id}", status_code=204)
-async def delete_case(case_id: int):
-    """删除 API 测试用例"""
-    case = ApiTestCase.query.get(case_id)
+async def delete_case(case_id: int, user: User = Depends(get_current_user)):
+    """删除 API 测试用例（仅属主可删）"""
+    case = db.session.scalar(select(ApiTestCase).filter_by(id=case_id, user_id=user.id))
     if not case:
         raise HTTPException(status_code=404, detail="Test case not found")
 

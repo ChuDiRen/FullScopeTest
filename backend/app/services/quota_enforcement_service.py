@@ -10,6 +10,7 @@ from ..extensions import db
 from ..models.quota import Quota
 from ..core.logging import get_logger
 from ..utils.singleton import singleton_function
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -52,9 +53,9 @@ class QuotaService:
         Raises:
             QuotaExceededError: 配额不足时抛出
         """
-        quota = Quota.query.filter_by(
+        quota = db.session.scalar(select(Quota).filter_by(
             organization_id=org_id, resource_type=resource_type,
-        ).first()
+        ))
 
         if quota is None:
             # 无配额记录，使用默认计划
@@ -92,9 +93,9 @@ class QuotaService:
         self.check_quota(org_id, resource_type, amount)
 
         # 更新配额
-        quota = Quota.query.filter_by(
+        quota = db.session.scalar(select(Quota).filter_by(
             organization_id=org_id, resource_type=resource_type,
-        ).first()
+        ))
 
         if quota:
             quota.used += amount
@@ -105,7 +106,7 @@ class QuotaService:
 
     def get_quota_usage(self, org_id: int) -> Dict[str, Any]:
         """获取组织的所有配额使用情况"""
-        quotas = Quota.query.filter_by(organization_id=org_id).all()
+        quotas = db.session.scalars(select(Quota).filter_by(organization_id=org_id)).all()
         result = {}
         for q in quotas:
             result[q.resource_type] = {
@@ -118,9 +119,9 @@ class QuotaService:
 
     def reset_monthly_quota(self, org_id: int, resource_type: str):
         """重置月度配额"""
-        quota = Quota.query.filter_by(
+        quota = db.session.scalar(select(Quota).filter_by(
             organization_id=org_id, resource_type=resource_type,
-        ).first()
+        ))
         if quota:
             quota.used = 0
             db.session.commit()

@@ -5,33 +5,35 @@
 """
 
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class Project(db.Model):
+class Project(Base):
     """项目表"""
     
     __tablename__ = 'projects'
     
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, comment='项目名称')
-    description = db.Column(db.Text, comment='项目描述')
-    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='所有者 ID')
-    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True, comment='组织 ID')
-    is_pinned = db.Column(db.Boolean, default=False, comment='是否置顶')
-    pinned_at = db.Column(db.DateTime, nullable=True, comment='置顶时间')
-    settings = db.Column(db.JSON, default=dict, comment='项目设置')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, comment='项目名称')
+    description = Column(Text, comment='项目描述')
+    owner_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='所有者 ID')
+    organization_id = Column(Integer, ForeignKey('organizations.id'), nullable=True, comment='组织 ID')
+    is_pinned = Column(Boolean, default=False, comment='是否置顶')
+    pinned_at = Column(DateTime, nullable=True, comment='置顶时间')
+    settings = Column(JSON, default=dict, comment='项目设置')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
     
     # 关联
-    environments = db.relationship('Environment', backref='project', lazy='dynamic', cascade='all, delete-orphan')
-    api_collections = db.relationship('ApiTestCollection', backref='project', lazy='dynamic', cascade='all, delete-orphan')
-    web_collections = db.relationship('WebTestCollection', backref='project', lazy='dynamic', cascade='all, delete-orphan')
-    web_scripts = db.relationship('WebTestScript', backref='project', lazy='dynamic', cascade='all, delete-orphan')
-    perf_scenarios = db.relationship('PerfTestScenario', backref='project', lazy='dynamic', cascade='all, delete-orphan')
-    test_runs = db.relationship('TestRun', backref='project', lazy='dynamic', cascade='all, delete-orphan')
-    documents = db.relationship('TestDocument', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    environments = relationship('Environment', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    api_collections = relationship('ApiTestCollection', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    web_collections = relationship('WebTestCollection', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    web_scripts = relationship('WebTestScript', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    perf_scenarios = relationship('PerfTestScenario', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    test_runs = relationship('TestRun', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    documents = relationship('TestDocument', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     
     def to_dict(self):
         """转换为字典"""

@@ -83,7 +83,7 @@ class PluginRegistry:
         初始化所有已注册的插件
 
         Args:
-            app: Flask 应用实例
+            app: 应用命名空间（零 Flask 运行时传入 SimpleNamespace(config=get_config())）
         """
         for plugin in self.get_enabled():
             try:

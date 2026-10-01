@@ -1,22 +1,31 @@
 """
-Flask CLI 管理命令
+管理命令 CLI（零 Flask）
 
-提供数据库初始化等管理命令
+提供数据库初始化等管理命令。原 FlaskGroup 已替换为纯 click 分组，
+运行时通过 app.core.runtime.init_runtime 初始化（幂等）。
 """
 
+import os
+import sys
+from pathlib import Path
+
+# 保证 `import app` 可用（脚本可从任意 cwd 运行）
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import click
-from flask.cli import FlaskGroup
-from app import create_app
+
+from app.core.runtime import init_runtime
+from app.core.passwords import generate_password_hash
 from app.extensions import db
-from app.models import User
-from werkzeug.security import generate_password_hash
 
 
-def create_cli_app():
-    return create_app()
+def _ensure_runtime():
+    """初始化运行时并注册全部模型（幂等）"""
+    init_runtime()
+    import app.models  # noqa: F401
 
 
-@click.group(cls=FlaskGroup, create_app=create_cli_app)
+@click.group()
 def cli():
     """FullScopeTest 管理命令"""
     pass
@@ -25,6 +34,7 @@ def cli():
 @cli.command()
 def init_db():
     """初始化数据库表"""
+    _ensure_runtime()
     db.create_all()
     click.echo('✅ 数据库表创建成功！')
 
@@ -35,15 +45,18 @@ def init_db():
 @click.option('--password', prompt='密码', hide_input=True, confirmation_prompt=True, help='管理员密码')
 def create_admin(username, email, password):
     """创建管理员账号"""
+    _ensure_runtime()
+    from app.models import User
+
     # 检查是否已存在
     if User.query.filter_by(username=username).first():
         click.echo('❌ 用户名已存在！')
         return
-    
+
     if User.query.filter_by(email=email).first():
         click.echo('❌ 邮箱已被使用！')
         return
-    
+
     # 创建用户
     user = User(
         username=username,
@@ -52,7 +65,7 @@ def create_admin(username, email, password):
     )
     db.session.add(user)
     db.session.commit()
-    
+
     click.echo(f'✅ 管理员账号 {username} 创建成功！')
 
 
@@ -60,6 +73,7 @@ def create_admin(username, email, password):
 def drop_db():
     """删除所有数据库表（危险操作）"""
     if click.confirm('⚠️ 确定要删除所有数据库表吗？此操作不可逆！'):
+        _ensure_runtime()
         db.drop_all()
         click.echo('✅ 所有数据库表已删除！')
 
@@ -67,6 +81,7 @@ def drop_db():
 @cli.command()
 def seed():
     """初始化默认数据（Prompt 版本等）"""
+    _ensure_runtime()
     from sqlalchemy import inspect as sa_inspect
     from app.models.prompt_version import PromptVersion
     from app.services.ai.script_generator import (

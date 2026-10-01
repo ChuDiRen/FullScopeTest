@@ -23,7 +23,7 @@ def _register_and_login(client, username=None, password="Str0ng!Pass"):
         "/api/v1/auth/login",
         json={"username": username, "password": password},
     )
-    data = login_resp.get_json()["data"]
+    data = login_resp.json()["data"]
     return {
         "username": username,
         "email": email,
@@ -44,7 +44,7 @@ class TestTokenRefresh:
             headers={"Authorization": f"Bearer {user['refresh_token']}"},
         )
         assert resp.status_code == 200
-        payload = resp.get_json()
+        payload = resp.json()
         assert payload["code"] == 200
         assert "access_token" in payload["data"]
 
@@ -56,7 +56,8 @@ class TestTokenRefresh:
             "/api/v1/auth/refresh",
             headers={"Authorization": f"Bearer {user['access_token']}"},
         )
-        assert resp.status_code == 422
+        # 强制 refresh token 类型：access token 一律 401
+        assert resp.status_code == 401
 
     def test_refresh_without_token_fails(self, client):
         """不带 token 刷新应该失败"""
@@ -170,7 +171,7 @@ class TestPasswordStrength:
                 "password": "Str0ng!Pass",
             },
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 200
 
 
 class TestLoginErrors:
@@ -224,7 +225,7 @@ class TestUserProfile:
             json={"username": new_username},
         )
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["username"] == new_username
+        assert resp.json()["data"]["username"] == new_username
 
     def test_update_email(self, client):
         """修改邮箱"""
@@ -237,7 +238,7 @@ class TestUserProfile:
             json={"email": new_email},
         )
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["email"] == new_email
+        assert resp.json()["data"]["email"] == new_email
 
     def test_update_duplicate_username(self, client):
         """使用已存在的用户名应该失败"""

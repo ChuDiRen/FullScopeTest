@@ -20,6 +20,8 @@ from ...utils.validators import is_valid_url, is_valid_http_method
 from ...tasks import run_perf_test_task
 from ...utils.ai_script_generator import generate_test_script
 from .auth import get_current_user
+from sqlalchemy import select
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["perf-tests"])
@@ -161,13 +163,13 @@ def _validate_perf_numbers(user_count, spawn_rate, duration):
 
 @router.get("/scenarios")
 async def get_scenarios(project_id: Optional[int] = Query(None), user: User = Depends(get_current_user)):
-    query = PerfTestScenario.query.filter_by(user_id=user.id)
+    query = select(PerfTestScenario).filter_by(user_id=user.id)
     if project_id:
         query = query.filter_by(project_id=project_id)
-    return [s.to_dict() for s in query.order_by(PerfTestScenario.created_at.desc()).all()]
+    return [s.to_dict() for s in db.session.scalars(query.order_by(PerfTestScenario.created_at.desc())).all()]
 
 
-@router.post("/scenarios", status_code=201)
+@router.post("/scenarios", status_code=200)
 async def create_scenario(data: ScenarioCreate, user: User = Depends(get_current_user)):
     if not is_valid_url(data.target_url):
         raise HTTPException(400, "target_url must be valid")
@@ -199,7 +201,7 @@ async def create_scenario(data: ScenarioCreate, user: User = Depends(get_current
 
 @router.get("/scenarios/{scenario_id}")
 async def get_scenario(scenario_id: int, user: User = Depends(get_current_user)):
-    s = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user.id).first()
+    s = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user.id))
     if not s:
         raise HTTPException(404, "场景不存在")
     return s.to_dict()
@@ -207,7 +209,7 @@ async def get_scenario(scenario_id: int, user: User = Depends(get_current_user))
 
 @router.put("/scenarios/{scenario_id}")
 async def update_scenario(scenario_id: int, data: ScenarioUpdate, user: User = Depends(get_current_user)):
-    s = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user.id).first()
+    s = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user.id))
     if not s:
         raise HTTPException(404, "Scenario not found")
     for k, v in data.model_dump(exclude_unset=True).items():
@@ -218,7 +220,7 @@ async def update_scenario(scenario_id: int, data: ScenarioUpdate, user: User = D
 
 @router.delete("/scenarios/{scenario_id}")
 async def delete_scenario(scenario_id: int, user: User = Depends(get_current_user)):
-    s = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user.id).first()
+    s = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user.id))
     if not s:
         raise HTTPException(404, "场景不存在")
     if s.status == "running":
@@ -231,7 +233,7 @@ async def delete_scenario(scenario_id: int, user: User = Depends(get_current_use
 
 @router.post("/scenarios/{scenario_id}/run")
 async def run_scenario(scenario_id: int, data: ScenarioRunRequest = ScenarioRunRequest(), user: User = Depends(get_current_user)):
-    s = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user.id).first()
+    s = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user.id))
     if not s:
         raise HTTPException(404, "Scenario not found")
     if s.status == "running":
@@ -261,7 +263,7 @@ async def run_scenario(scenario_id: int, data: ScenarioRunRequest = ScenarioRunR
 
 @router.post("/scenarios/{scenario_id}/stop")
 async def stop_scenario(scenario_id: int, user: User = Depends(get_current_user)):
-    s = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user.id).first()
+    s = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user.id))
     if not s:
         raise HTTPException(404, "场景不存在")
     if s.status != "running":
@@ -277,7 +279,7 @@ async def stop_scenario(scenario_id: int, user: User = Depends(get_current_user)
 
 @router.get("/scenarios/{scenario_id}/status")
 async def get_scenario_status(scenario_id: int, user: User = Depends(get_current_user)):
-    s = PerfTestScenario.query.filter_by(id=scenario_id, user_id=user.id).first()
+    s = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user.id))
     if not s:
         raise HTTPException(404, "场景不存在")
     return {
@@ -290,7 +292,7 @@ async def get_scenario_status(scenario_id: int, user: User = Depends(get_current
 
 @router.get("/running")
 async def get_running_tests(user: User = Depends(get_current_user)):
-    rs = PerfTestScenario.query.filter_by(user_id=user.id, status="running").all()
+    rs = db.session.scalars(select(PerfTestScenario).filter_by(user_id=user.id, status="running")).all()
     return [{
         "id": s.id, "scenario_id": s.id, "name": s.name, "user_count": s.user_count,
         "duration": s.duration, "elapsed": 0, "status": s.status,
@@ -305,28 +307,28 @@ async def get_performance_results(
     status: Optional[str] = Query(None), page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100), user: User = Depends(get_current_user),
 ):
-    query = PerformanceTestResult.query.join(PerfTestScenario).filter(PerfTestScenario.user_id == user.id)
+    query = select(PerformanceTestResult).join(PerfTestScenario).filter(PerfTestScenario.user_id == user.id)
     if project_id:
         query = query.filter(PerformanceTestResult.project_id == project_id)
     if scenario_id:
         query = query.filter(PerformanceTestResult.scenario_id == scenario_id)
     if status:
         query = query.filter(PerformanceTestResult.status == status)
-    total = query.count()
-    items = query.order_by(PerformanceTestResult.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    total = db.session.scalar(select(func.count()).select_from(query.subquery()))
+    items = db.session.scalars(query.order_by(PerformanceTestResult.created_at.desc()).offset((page - 1) * per_page).limit(per_page)).all()
     return {"items": [r.to_dict() for r in items], "total": total, "page": page, "per_page": per_page}
 
 
 @router.get("/results/{result_id}/metrics")
 async def get_performance_result_metrics(result_id: int, limit: Optional[int] = Query(None), user: User = Depends(get_current_user)):
-    result = PerformanceTestResult.query.join(PerfTestScenario).filter(
-        PerformanceTestResult.id == result_id, PerfTestScenario.user_id == user.id).first()
+    result = db.session.scalar(select(PerformanceTestResult).join(PerfTestScenario).filter(
+        PerformanceTestResult.id == result_id, PerfTestScenario.user_id == user.id))
     if not result:
         raise HTTPException(404, "测试结果不存在")
-    q = PerformanceMetricSample.query.filter_by(test_result_id=result_id).order_by(PerformanceMetricSample.elapsed_seconds.asc())
+    q = select(PerformanceMetricSample).filter_by(test_result_id=result_id).order_by(PerformanceMetricSample.elapsed_seconds.asc())
     if limit:
         q = q.limit(limit)
-    samples = q.all()
+    samples = db.session.scalars(q).all()
     return {"result": result.to_dict(), "metrics": [s.to_dict() for s in samples], "total_samples": len(samples)}
 
 
@@ -340,7 +342,7 @@ async def compare_performance_runs(run_ids: str = Query(..., description="Comma-
         raise HTTPException(400, "至少需要 2 个 ID")
     if len(ids) > 10:
         raise HTTPException(400, "最多 10 个 ID")
-    results = PerformanceTestResult.query.filter(PerformanceTestResult.id.in_(ids)).all()
+    results = db.session.scalars(select(PerformanceTestResult).filter(PerformanceTestResult.id.in_(ids))).all()
     if len(results) != len(ids):
         raise HTTPException(404, "部分 ID 未找到")
     results_sorted = sorted(results, key=lambda r: r.created_at or datetime.min)
@@ -377,13 +379,13 @@ async def compare_performance_runs(run_ids: str = Query(..., description="Comma-
 
 @router.get("/alert-rules")
 async def get_alert_rules(scenario_id: Optional[int] = Query(None), user: User = Depends(get_current_user)):
-    q = PerformanceAlertRule.query
+    q = select(PerformanceAlertRule)
     if scenario_id:
         q = q.filter_by(scenario_id=scenario_id)
-    return [r.to_dict() for r in q.order_by(PerformanceAlertRule.created_at.desc()).all()]
+    return [r.to_dict() for r in db.session.scalars(q.order_by(PerformanceAlertRule.created_at.desc())).all()]
 
 
-@router.post("/alert-rules", status_code=201)
+@router.post("/alert-rules", status_code=200)
 async def create_alert_rule(data: AlertRuleCreate, user: User = Depends(get_current_user)):
     rule = PerformanceAlertRule(
         name=data.name, description=data.description or "", scenario_id=data.scenario_id,
@@ -401,7 +403,7 @@ async def create_alert_rule(data: AlertRuleCreate, user: User = Depends(get_curr
 
 @router.get("/alert-rules/{rule_id}")
 async def get_alert_rule(rule_id: int, user: User = Depends(get_current_user)):
-    rule = PerformanceAlertRule.query.get(rule_id)
+    rule = db.session.get(PerformanceAlertRule, rule_id)
     if not rule:
         raise HTTPException(404, "告警规则不存在")
     return rule.to_dict()
@@ -409,7 +411,7 @@ async def get_alert_rule(rule_id: int, user: User = Depends(get_current_user)):
 
 @router.put("/alert-rules/{rule_id}")
 async def update_alert_rule(rule_id: int, data: AlertRuleUpdate, user: User = Depends(get_current_user)):
-    rule = PerformanceAlertRule.query.get(rule_id)
+    rule = db.session.get(PerformanceAlertRule, rule_id)
     if not rule:
         raise HTTPException(404, "告警规则不存在")
     for k, v in data.model_dump(exclude_unset=True).items():
@@ -420,7 +422,7 @@ async def update_alert_rule(rule_id: int, data: AlertRuleUpdate, user: User = De
 
 @router.delete("/alert-rules/{rule_id}")
 async def delete_alert_rule(rule_id: int, user: User = Depends(get_current_user)):
-    rule = PerformanceAlertRule.query.get(rule_id)
+    rule = db.session.get(PerformanceAlertRule, rule_id)
     if not rule:
         raise HTTPException(404, "告警规则不存在")
     db.session.delete(rule)
@@ -430,7 +432,7 @@ async def delete_alert_rule(rule_id: int, user: User = Depends(get_current_user)
 @router.post("/alert-rules/{rule_id}/evaluate")
 async def evaluate_alert_rule(rule_id: int, data: AlertEvaluateRequest, user: User = Depends(get_current_user)):
     from ...services.performance_alert_service import alert_service
-    rule = PerformanceAlertRule.query.get(rule_id)
+    rule = db.session.get(PerformanceAlertRule, rule_id)
     if not rule:
         raise HTTPException(404, "告警规则不存在")
     alerts = alert_service.evaluate_rules(data.test_result_id)
@@ -443,13 +445,13 @@ async def get_alert_logs(
     page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100),
     user: User = Depends(get_current_user),
 ):
-    q = PerformanceAlertLog.query
+    q = select(PerformanceAlertLog)
     if rule_id:
         q = q.filter_by(rule_id=rule_id)
     if severity:
         q = q.filter_by(severity=severity)
-    total = q.count()
-    items = q.order_by(PerformanceAlertLog.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    total = db.session.scalar(select(func.count()).select_from(q.subquery()))
+    items = db.session.scalars(q.order_by(PerformanceAlertLog.created_at.desc()).offset((page - 1) * per_page).limit(per_page)).all()
     return {"items": [l.to_dict() for l in items], "total": total, "page": page, "per_page": per_page}
 
 
@@ -463,7 +465,7 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[int]:
     if not token:
         return None
     try:
-        from flask_jwt_extended import decode_token
+        from ...core.jwt import decode_token
         decoded = decode_token(token)
         return int(decoded.get('sub', 0))
     except Exception:
@@ -480,7 +482,7 @@ async def websocket_perf_test_logs(websocket: WebSocket, scenario_id: int):
         return
 
     await websocket.accept()
-    scenario = PerfTestScenario.query.get(scenario_id)
+    scenario = db.session.get(PerfTestScenario, scenario_id)
     if not scenario or scenario.user_id != user_id:
         await websocket.send_json({"type": "error", "message": "场景不存在"})
         await websocket.close()

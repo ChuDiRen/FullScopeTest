@@ -5,57 +5,59 @@
 """
 
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String
+from sqlalchemy.orm import backref, relationship
+from ..database import Base
 
 
-class PerformanceTestResult(db.Model):
+class PerformanceTestResult(Base):
     """性能测试结果表 - 存储每次测试运行的汇总数据"""
 
     __tablename__ = 'performance_test_results'
     __table_args__ = (
-        db.Index('idx_perf_results_scenario_id', 'scenario_id'),
-        db.Index('idx_perf_results_project_id', 'project_id'),
-        db.Index('idx_perf_results_created_at', 'created_at'),
+        Index('idx_perf_results_scenario_id', 'scenario_id'),
+        Index('idx_perf_results_project_id', 'project_id'),
+        Index('idx_perf_results_created_at', 'created_at'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    scenario_id = db.Column(db.Integer, db.ForeignKey('perf_test_scenarios.id'), nullable=False, comment='关联的性能测试场景 ID')
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True, comment='项目 ID')
+    id = Column(Integer, primary_key=True)
+    scenario_id = Column(Integer, ForeignKey('perf_test_scenarios.id'), nullable=False, comment='关联的性能测试场景 ID')
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True, comment='项目 ID')
 
     # 测试运行配置快照
-    user_count = db.Column(db.Integer, nullable=False, comment='并发用户数')
-    spawn_rate = db.Column(db.Integer, nullable=False, comment='用户生成速率')
-    duration = db.Column(db.Integer, nullable=False, comment='持续时间（秒）')
-    target_url = db.Column(db.String(500), comment='目标 URL')
+    user_count = Column(Integer, nullable=False, comment='并发用户数')
+    spawn_rate = Column(Integer, nullable=False, comment='用户生成速率')
+    duration = Column(Integer, nullable=False, comment='持续时间（秒）')
+    target_url = Column(String(500), comment='目标 URL')
 
     # 运行状态
-    status = db.Column(db.String(20), default='running', comment='状态: running/completed/failed/stopped')
-    started_at = db.Column(db.DateTime, default=datetime.utcnow, comment='开始时间')
-    finished_at = db.Column(db.DateTime, comment='结束时间')
+    status = Column(String(20), default='running', comment='状态: running/completed/failed/stopped')
+    started_at = Column(DateTime, default=datetime.utcnow, comment='开始时间')
+    finished_at = Column(DateTime, comment='结束时间')
 
     # 统计摘要（任务结束后计算）
-    total_requests = db.Column(db.Integer, default=0, comment='总请求数')
-    total_failures = db.Column(db.Integer, default=0, comment='失败请求数')
-    error_rate = db.Column(db.Float, default=0.0, comment='错误率 (%)')
-    rps = db.Column(db.Float, default=0.0, comment='最大 RPS')
-    avg_response_time = db.Column(db.Float, comment='平均响应时间 (ms)')
-    min_response_time = db.Column(db.Float, comment='最小响应时间 (ms)')
-    max_response_time = db.Column(db.Float, comment='最大响应时间 (ms)')
-    p50_response_time = db.Column(db.Float, comment='P50 响应时间 (ms)')
-    p75_response_time = db.Column(db.Float, comment='P75 响应时间 (ms)')
-    p95_response_time = db.Column(db.Float, comment='P95 响应时间 (ms)')
-    p99_response_time = db.Column(db.Float, comment='P99 响应时间 (ms)')
+    total_requests = Column(Integer, default=0, comment='总请求数')
+    total_failures = Column(Integer, default=0, comment='失败请求数')
+    error_rate = Column(Float, default=0.0, comment='错误率 (%)')
+    rps = Column(Float, default=0.0, comment='最大 RPS')
+    avg_response_time = Column(Float, comment='平均响应时间 (ms)')
+    min_response_time = Column(Float, comment='最小响应时间 (ms)')
+    max_response_time = Column(Float, comment='最大响应时间 (ms)')
+    p50_response_time = Column(Float, comment='P50 响应时间 (ms)')
+    p75_response_time = Column(Float, comment='P75 响应时间 (ms)')
+    p95_response_time = Column(Float, comment='P95 响应时间 (ms)')
+    p99_response_time = Column(Float, comment='P99 响应时间 (ms)')
 
     # 原始结果（完整 Locust 输出等）
-    raw_result = db.Column(db.JSON, comment='原始结果 JSON')
+    raw_result = Column(JSON, comment='原始结果 JSON')
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
     # 关联关系
-    scenario = db.relationship('PerfTestScenario', backref=db.backref('test_results', cascade='all, delete-orphan'))
-    project = db.relationship('Project', backref='perf_test_results')
-    metric_samples = db.relationship('PerformanceMetricSample', backref='test_result', cascade='all, delete-orphan')
+    scenario = relationship('PerfTestScenario', backref=backref('test_results', cascade='all, delete-orphan'))
+    project = relationship('Project', backref='perf_test_results')
+    metric_samples = relationship('PerformanceMetricSample', backref='test_result', cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
@@ -88,35 +90,35 @@ class PerformanceTestResult(db.Model):
         return f'<PerformanceTestResult {self.id} scenario={self.scenario_id}>'
 
 
-class PerformanceMetricSample(db.Model):
+class PerformanceMetricSample(Base):
     """性能测试指标采样表 - 存储时间序列数据（每秒的 RPS、响应时间、错误率、并发用户数）"""
 
     __tablename__ = 'performance_metric_samples'
     __table_args__ = (
-        db.Index('idx_perf_samples_result_id', 'test_result_id'),
-        db.Index('idx_perf_samples_timestamp', 'timestamp'),
+        Index('idx_perf_samples_result_id', 'test_result_id'),
+        Index('idx_perf_samples_timestamp', 'timestamp'),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    test_result_id = db.Column(db.Integer, db.ForeignKey('performance_test_results.id'), nullable=False, comment='关联的测试结果 ID')
+    id = Column(Integer, primary_key=True)
+    test_result_id = Column(Integer, ForeignKey('performance_test_results.id'), nullable=False, comment='关联的测试结果 ID')
 
     # 时间点
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, comment='采样时间点')
-    elapsed_seconds = db.Column(db.Integer, nullable=False, comment='自测试开始后的秒数')
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, comment='采样时间点')
+    elapsed_seconds = Column(Integer, nullable=False, comment='自测试开始后的秒数')
 
     # 指标数据
-    rps = db.Column(db.Float, default=0.0, comment='当前 RPS')
-    active_users = db.Column(db.Integer, default=0, comment='当前活跃用户数')
-    avg_response_time = db.Column(db.Float, comment='平均响应时间 (ms)')
-    min_response_time = db.Column(db.Float, comment='最小响应时间 (ms)')
-    max_response_time = db.Column(db.Float, comment='最大响应时间 (ms)')
-    p95_response_time = db.Column(db.Float, comment='P95 响应时间 (ms)')
-    p99_response_time = db.Column(db.Float, comment='P99 响应时间 (ms)')
-    request_count = db.Column(db.Integer, default=0, comment='累计请求数')
-    failure_count = db.Column(db.Integer, default=0, comment='累计失败数')
-    error_rate = db.Column(db.Float, default=0.0, comment='当前错误率 (%)')
+    rps = Column(Float, default=0.0, comment='当前 RPS')
+    active_users = Column(Integer, default=0, comment='当前活跃用户数')
+    avg_response_time = Column(Float, comment='平均响应时间 (ms)')
+    min_response_time = Column(Float, comment='最小响应时间 (ms)')
+    max_response_time = Column(Float, comment='最大响应时间 (ms)')
+    p95_response_time = Column(Float, comment='P95 响应时间 (ms)')
+    p99_response_time = Column(Float, comment='P99 响应时间 (ms)')
+    request_count = Column(Integer, default=0, comment='累计请求数')
+    failure_count = Column(Integer, default=0, comment='累计失败数')
+    error_rate = Column(Float, default=0.0, comment='当前错误率 (%)')
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
 
     def to_dict(self):
         return {

@@ -4,9 +4,23 @@ OSS Upload Utility
 Provides a simple interface to upload files to Aliyun OSS.
 """
 import os
+import re
 import uuid
-from werkzeug.utils import secure_filename
-from flask import current_app
+
+from ..core.runtime import get_config
+
+_FILENAME_STRIP_RE = re.compile(r"[^A-Za-z0-9_.-]")
+
+
+def _secure_filename(filename: str) -> str:
+    """替代原 werkzeug.utils.secure_filename：
+    去路径分隔符，仅保留字母数字与 .-_，剔除首尾的点和下划线。"""
+    if not filename:
+        return ""
+    # 统一斜杠并取最后一段（同时处理 Windows 反斜杠与盘符路径）
+    filename = filename.replace("\\", "/").split("/")[-1]
+    filename = _FILENAME_STRIP_RE.sub("", filename).strip("._")
+    return filename or "file"
 
 
 def upload_to_oss(file_obj, folder='avatars'):
@@ -14,18 +28,18 @@ def upload_to_oss(file_obj, folder='avatars'):
     Upload a file-like object to Aliyun OSS.
 
     Args:
-        file_obj: The file object from Flask request
-            (e.g., request.files['file'])
+        file_obj: The file-like object holding the upload
+            (e.g., the parsed upload from the HTTP layer)
         folder: The target folder in OSS bucket
 
     Returns:
         tuple: (success, url_or_error_message)
     """
-    endpoint = current_app.config.get('OSS_ENDPOINT')
-    access_key_id = current_app.config.get('OSS_ACCESS_KEY_ID')
-    access_key_secret = current_app.config.get('OSS_ACCESS_KEY_SECRET')
-    bucket_name = current_app.config.get('OSS_BUCKET_NAME')
-    domain = current_app.config.get('OSS_DOMAIN')
+    endpoint = get_config().get('OSS_ENDPOINT')
+    access_key_id = get_config().get('OSS_ACCESS_KEY_ID')
+    access_key_secret = get_config().get('OSS_ACCESS_KEY_SECRET')
+    bucket_name = get_config().get('OSS_BUCKET_NAME')
+    domain = get_config().get('OSS_DOMAIN')
 
     if not all([endpoint, access_key_id, access_key_secret, bucket_name]):
         return (

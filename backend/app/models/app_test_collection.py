@@ -5,25 +5,27 @@ APP 测试用例集模型
 """
 
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class AppTestCollection(db.Model):
+class AppTestCollection(Base):
     """APP 测试用例集表"""
 
     __tablename__ = 'app_test_collections'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, comment='用例集名称')
-    description = db.Column(db.Text, comment='描述')
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), comment='所属项目')
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='创建者')
-    sort_order = db.Column(db.Integer, default=0, comment='排序顺序')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, comment='用例集名称')
+    description = Column(Text, comment='描述')
+    project_id = Column(Integer, ForeignKey('projects.id'), comment='所属项目')
+    user_id = Column(Integer, ForeignKey('users.id'), comment='创建者')
+    sort_order = Column(Integer, default=0, comment='排序顺序')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
     # 关联
-    scripts = db.relationship('AppTestScript', backref='collection', lazy='dynamic', cascade='all, delete-orphan')
+    scripts = relationship('AppTestScript', backref='collection', lazy='dynamic', cascade='all, delete-orphan')
 
     def to_dict(self):
         return {

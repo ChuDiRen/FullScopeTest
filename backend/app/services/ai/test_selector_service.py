@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional, Set
 from ...extensions import db
 from ...models.api_test_case import ApiTestCase
 from ...core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -101,14 +102,14 @@ class TestSelectorService:
         tags: Optional[List[str]],
     ) -> List[Dict[str, Any]]:
         """查找匹配的测试用例"""
-        query = ApiTestCase.query
+        query = select(ApiTestCase)
         if project_id:
             query = query.filter_by(project_id=project_id)
         if tags:
             for tag in tags:
                 query = query.filter(ApiTestCase.tags.like(f"%{tag}%"))
 
-        all_cases = query.order_by(ApiTestCase.created_at.desc()).limit(500).all()
+        all_cases = db.session.scalars(query.order_by(ApiTestCase.created_at.desc()).limit(500)).all()
         matched = []
         match_all = "__all__" in affected_paths
 
@@ -146,10 +147,11 @@ class TestSelectorService:
                 item["history_bonus"] = "最近失败，优先执行"
             elif case.get("last_status") == "passed":
                 score += 0.5
-            priority = (case.get("priority") or "").lower()
-            if priority in ("p0", "critical"):
+            # 模型 priority 为整数枚举：1-高 2-中 3-低
+            priority = case.get("priority")
+            if priority == 1:
                 score += 1.5
-            elif priority in ("p1", "high"):
+            elif priority == 2:
                 score += 1.0
             item["score"] = score
         return cases

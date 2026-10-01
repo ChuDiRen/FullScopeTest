@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 from .base import BaseService
 from ..extensions import db
+from sqlalchemy import select
 
 
 class ReportSchedulerService(BaseService):
@@ -38,10 +39,10 @@ class ReportSchedulerService(BaseService):
         from ..models.report_schedule import ReportSchedule
 
         now = datetime.now(timezone.utc).replace(tzinfo=None)
-        due = ReportSchedule.query.filter(
+        due = db.session.scalars(select(ReportSchedule).filter(
             ReportSchedule.is_active == True,
             ReportSchedule.next_run_at <= now,
-        ).all()
+        )).all()
 
         executed = 0
         for schedule in due:

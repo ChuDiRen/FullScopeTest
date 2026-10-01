@@ -20,7 +20,7 @@ def init_sentry(app=None):
     初始化 Sentry
 
     Args:
-        app: Flask app（可选）
+        app: 预留参数（零 Flask 运行时不再需要应用对象，忽略）
     """
     if not SENTRY_DSN:
         logger.info("Sentry DSN not configured, error tracking disabled")
@@ -28,7 +28,7 @@ def init_sentry(app=None):
 
     try:
         import sentry_sdk
-        from sentry_sdk.integrations.flask import FlaskIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
         from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
         sentry_sdk.init(
@@ -36,7 +36,7 @@ def init_sentry(app=None):
             environment=SENTRY_ENVIRONMENT,
             traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
             integrations=[
-                FlaskIntegration(),
+                LoggingIntegration(level="INFO", event_level="ERROR"),
                 SqlalchemyIntegration(),
             ],
             before_send=_filter_sensitive_data,

@@ -6,13 +6,16 @@ AI 配置 Service
 
 import os
 import re
-from flask import current_app
 
 from .base import BaseService
 from ..core.logging import get_logger
+from ..core.runtime import get_config
 
 
 logger = get_logger(__name__)
+
+# 后端根目录（原 Flask current_app.root_path 的上级，即 .env 所在目录）
+_BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 AI_CONFIG_ENV_MAP = {
@@ -42,12 +45,12 @@ class AiConfigService(BaseService):
     def get_config(self):
         """获取当前 AI 配置"""
         config = {
-            "base_url": current_app.config.get("AI_ASSISTANT_BASE_URL", ""),
-            "model": current_app.config.get("AI_ASSISTANT_MODEL", ""),
-            "api_key": current_app.config.get("AI_ASSISTANT_API_KEY", ""),
-            "vision_base_url": current_app.config.get("AI_VISION_BASE_URL", ""),
-            "vision_model": current_app.config.get("AI_VISION_MODEL", ""),
-            "vision_api_key": current_app.config.get("AI_VISION_API_KEY", "")
+            "base_url": get_config().get("AI_ASSISTANT_BASE_URL", ""),
+            "model": get_config().get("AI_ASSISTANT_MODEL", ""),
+            "api_key": get_config().get("AI_ASSISTANT_API_KEY", ""),
+            "vision_base_url": get_config().get("AI_VISION_BASE_URL", ""),
+            "vision_model": get_config().get("AI_VISION_MODEL", ""),
+            "vision_api_key": get_config().get("AI_VISION_API_KEY", "")
         }
         config["api_key"] = _mask_secret(config["api_key"])
         config["vision_api_key"] = _mask_secret(config["vision_api_key"])
@@ -62,25 +65,25 @@ class AiConfigService(BaseService):
 
         required_fields = ["AI_ASSISTANT_BASE_URL", "AI_ASSISTANT_MODEL", "AI_ASSISTANT_API_KEY"]
         for required_field in required_fields:
-            value = payload.get(required_field) or current_app.config.get(required_field, "")
+            value = payload.get(required_field) or get_config().get(required_field, "")
             if not str(value).strip():
                 return {"success": False, "error": f"{required_field} is required"}
 
         vision_defaults = {
-            "AI_VISION_BASE_URL": payload.get("AI_ASSISTANT_BASE_URL") or current_app.config.get("AI_ASSISTANT_BASE_URL", ""),
-            "AI_VISION_MODEL": payload.get("AI_ASSISTANT_MODEL") or current_app.config.get("AI_ASSISTANT_MODEL", ""),
-            "AI_VISION_API_KEY": payload.get("AI_ASSISTANT_API_KEY") or current_app.config.get("AI_ASSISTANT_API_KEY", ""),
+            "AI_VISION_BASE_URL": payload.get("AI_ASSISTANT_BASE_URL") or get_config().get("AI_ASSISTANT_BASE_URL", ""),
+            "AI_VISION_MODEL": payload.get("AI_ASSISTANT_MODEL") or get_config().get("AI_ASSISTANT_MODEL", ""),
+            "AI_VISION_API_KEY": payload.get("AI_ASSISTANT_API_KEY") or get_config().get("AI_ASSISTANT_API_KEY", ""),
         }
         for key, default_value in vision_defaults.items():
             if key not in payload:
                 payload[key] = _sanitize_env_value(default_value)
 
-        env_path = os.path.join(os.path.dirname(current_app.root_path), ".env")
+        env_path = os.path.join(_BACKEND_ROOT, ".env")
         try:
             self._upsert_env_file(env_path, payload)
             for key, value in payload.items():
                 os.environ[key] = value
-                current_app.config[key] = value
+                get_config()[key] = value
         except Exception as exc:
             logger.error("save ai config failed", error=str(exc), exc_info=True)
             return {"success": False, "error": f"保存 AI 配置失败: {str(exc)}"}
@@ -88,12 +91,12 @@ class AiConfigService(BaseService):
         return {
             "success": True,
             "data": {
-                "base_url": current_app.config.get("AI_ASSISTANT_BASE_URL", ""),
-                "model": current_app.config.get("AI_ASSISTANT_MODEL", ""),
-                "api_key": _mask_secret(current_app.config.get("AI_ASSISTANT_API_KEY", "")),
-                "vision_base_url": current_app.config.get("AI_VISION_BASE_URL", ""),
-                "vision_model": current_app.config.get("AI_VISION_MODEL", ""),
-                "vision_api_key": _mask_secret(current_app.config.get("AI_VISION_API_KEY", "")),
+                "base_url": get_config().get("AI_ASSISTANT_BASE_URL", ""),
+                "model": get_config().get("AI_ASSISTANT_MODEL", ""),
+                "api_key": _mask_secret(get_config().get("AI_ASSISTANT_API_KEY", "")),
+                "vision_base_url": get_config().get("AI_VISION_BASE_URL", ""),
+                "vision_model": get_config().get("AI_VISION_MODEL", ""),
+                "vision_api_key": _mask_secret(get_config().get("AI_VISION_API_KEY", "")),
             }
         }
 

@@ -24,7 +24,7 @@ def auth_headers(client):
         'username': username,
         'password': password
     })
-    token = response.get_json()['data']['access_token']
+    token = response.json()['data']['access_token']
     return {'Authorization': f'Bearer {token}'}
 
 
@@ -35,7 +35,7 @@ def sample_project(client, auth_headers):
         'name': 'Test Project',
         'description': 'Test Description'
     }, headers=auth_headers)
-    return response.get_json()['data']
+    return response.json()['data']
 
 
 class TestReportRetrieval:
@@ -48,7 +48,7 @@ class TestReportRetrieval:
             headers=auth_headers
         )
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
         assert 'data' in data
 
@@ -59,7 +59,7 @@ class TestReportRetrieval:
             headers=auth_headers
         )
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
 
     def test_get_report_by_id(self, client, auth_headers):
@@ -84,7 +84,7 @@ class TestReportFiltering:
             headers=auth_headers
         )
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200
 
     def test_filter_by_status(self, client, auth_headers, sample_project):
@@ -94,5 +94,5 @@ class TestReportFiltering:
             headers=auth_headers
         )
 
-        data = response.get_json()
+        data = response.json()
         assert response.status_code == 200

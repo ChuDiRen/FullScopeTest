@@ -39,6 +39,7 @@ from ...utils.script_context import (
     calculate_case_passed,
 )
 from .auth import get_current_user
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -204,7 +205,7 @@ async def execute_request_v2(
     # 获取环境变量
     env_vars: Dict[str, Any] = {}
     if data.env_id:
-        env = Environment.query.filter_by(id=data.env_id).first()
+        env = db.session.scalar(select(Environment).filter_by(id=data.env_id))
         if env:
             env_vars = env.variables or {}
             env_headers = env.headers or {}
@@ -272,7 +273,7 @@ async def execute_request_v2(
 
     # 数据库 case_id 兜底 Mock
     if data.case_id and not data.mock_enabled:
-        case = ApiTestCase.query.get(data.case_id)
+        case = db.session.get(ApiTestCase, data.case_id)
         if case and case.mock_enabled:
             mock_body = case.mock_response_body
             if mock_body:
@@ -361,13 +362,13 @@ async def run_case_v2(
     user: User = Depends(get_current_user),
 ):
     """执行单个测试用例（支持前置脚本和后置断言）"""
-    case = ApiTestCase.query.filter_by(id=case_id, user_id=user.id).first()
+    case = db.session.scalar(select(ApiTestCase).filter_by(id=case_id, user_id=user.id))
     if not case:
         raise HTTPException(status_code=404, detail="用例不存在")
 
     env_vars: Dict[str, Any] = {}
     if env_id:
-        env = Environment.query.filter_by(id=env_id).first()
+        env = db.session.scalar(select(Environment).filter_by(id=env_id))
         if env:
             env_vars = env.variables or {}
 
@@ -502,11 +503,11 @@ async def run_collection_v2(
     user: User = Depends(get_current_user),
 ):
     """批量执行集合中的所有用例，并生成测试报告"""
-    collection = ApiTestCollection.query.filter_by(id=collection_id, user_id=user.id).first()
+    collection = db.session.scalar(select(ApiTestCollection).filter_by(id=collection_id, user_id=user.id))
     if not collection:
         raise HTTPException(status_code=404, detail="集合不存在")
 
-    cases = ApiTestCase.query.filter_by(collection_id=collection_id, is_enabled=True).all()
+    cases = db.session.scalars(select(ApiTestCase).filter_by(collection_id=collection_id, is_enabled=True)).all()
     if not cases:
         raise HTTPException(status_code=400, detail="集合中没有可执行的用例")
 
@@ -874,13 +875,13 @@ async def get_test_run_results_v2(
     user: User = Depends(get_current_user),
 ):
     """获取测试执行结果详情"""
-    test_run = TestRun.query.get(run_id)
+    test_run = db.session.get(TestRun, run_id)
     if not test_run:
         raise HTTPException(status_code=404, detail="测试运行不存在")
 
     report_data = None
     if test_run.report_id:
-        report = TestReport.query.get(test_run.report_id)
+        report = db.session.get(TestReport, test_run.report_id)
         if report:
             report_data = report.to_dict()
 
@@ -914,7 +915,7 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[int]:
     if not token:
         return None
     try:
-        from flask_jwt_extended import decode_token
+        from ...core.jwt import decode_token
         decoded = decode_token(token)
         return int(decoded.get('sub', 0))
     except Exception:

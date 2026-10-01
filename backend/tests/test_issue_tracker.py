@@ -4,6 +4,8 @@
 覆盖：Jira/飞书 Issue 创建、统一接口、关联查询、状态刷新、
      自动创建、错误处理、重试机制
 """
+from sqlalchemy import delete
+from app.extensions import db
 import uuid
 from unittest.mock import patch, MagicMock
 
@@ -143,28 +145,26 @@ class TestCreateIssueUnified:
         }
         from app.extensions import db
         from app.services.issue_tracker_service import create_issue
-        with app.app_context():
-            result = create_issue(
-                tracker='jira',
-                summary='Test Bug',
-                description='Desc',
-                created_by='manual',
-            )
-            assert result['success'] is True
-            assert result['issue_link']['tracker'] == 'jira'
-            assert result['issue_link']['issue_key'] == 'TEST-100'
+        result = create_issue(
+            tracker='jira',
+            summary='Test Bug',
+            description='Desc',
+            created_by='manual',
+        )
+        assert result['success'] is True
+        assert result['issue_link']['tracker'] == 'jira'
+        assert result['issue_link']['issue_key'] == 'TEST-100'
 
-            # 清理
-            from app.models.issue_link import IssueLink
-            IssueLink.query.filter_by(issue_key='TEST-100').delete()
-            db.session.commit()
+        # 清理
+        from app.models.issue_link import IssueLink
+        db.session.execute(delete(IssueLink).filter_by(issue_key='TEST-100'))
+        db.session.commit()
 
     def test_create_issue_unsupported_tracker(self, app):
         from app.services.issue_tracker_service import create_issue
-        with app.app_context():
-            result = create_issue(tracker='unknown', summary='T', description='D')
-            assert result['success'] is False
-            assert '不支持' in result['error']
+        result = create_issue(tracker='unknown', summary='T', description='D')
+        assert result['success'] is False
+        assert '不支持' in result['error']
 
 
 class TestGetIssueLinks:
@@ -172,28 +172,26 @@ class TestGetIssueLinks:
 
     def test_get_issue_links_empty(self, app):
         from app.services.issue_tracker_service import get_issue_links
-        with app.app_context():
-            links = get_issue_links(test_run_id=99999)
-            assert links == []
+        links = get_issue_links(test_run_id=99999)
+        assert links == []
 
     def test_get_issue_links_with_data(self, app):
         from app.extensions import db
         from app.models.issue_link import IssueLink
         from app.services.issue_tracker_service import get_issue_links
-        with app.app_context():
-            link = IssueLink(
-                tracker='jira', issue_key='TEST-200',
-                issue_title='Test', test_run_id=99999,
-            )
-            db.session.add(link)
-            db.session.commit()
+        link = IssueLink(
+            tracker='jira', issue_key='TEST-200',
+            issue_title='Test', test_run_id=99999,
+        )
+        db.session.add(link)
+        db.session.commit()
 
-            links = get_issue_links(test_run_id=99999)
-            assert len(links) >= 1
-            assert links[0]['issue_key'] == 'TEST-200'
+        links = get_issue_links(test_run_id=99999)
+        assert len(links) >= 1
+        assert links[0]['issue_key'] == 'TEST-200'
 
-            db.session.delete(link)
-            db.session.commit()
+        db.session.delete(link)
+        db.session.commit()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -208,9 +206,8 @@ class TestAutoCreateIssue:
     })
     def test_auto_create_no_tracker_configured(self, app):
         from app.services.issue_tracker_service import auto_create_issue_on_failure
-        with app.app_context():
-            result = auto_create_issue_on_failure(1)
-            assert result is None
+        result = auto_create_issue_on_failure(1)
+        assert result is None
 
     @patch('app.services.issue_tracker_service.create_jira_issue')
     def test_auto_create_on_failure(self, mock_jira, app):
@@ -224,33 +221,32 @@ class TestAutoCreateIssue:
             'success': True, 'issue_key': 'AUTO-1', 'issue_url': 'https://jira/AUTO-1',
         }
 
-        with app.app_context():
-            user = User(username=f"it_{uuid.uuid4().hex[:6]}", email="it@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="ITProj", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
-            run = TestRun(
-                project_id=proj.id, test_type='api',
-                test_object_name='Login Test', status='failed',
-                failed=3, error_message='AssertionError',
-            )
-            db.session.add(run)
-            db.session.flush()
+        user = User(username=f"it_{uuid.uuid4().hex[:6]}", email="it@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="ITProj", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
+        run = TestRun(
+            project_id=proj.id, test_type='api',
+            test_object_name='Login Test', status='failed',
+            failed=3, error_message='AssertionError',
+        )
+        db.session.add(run)
+        db.session.flush()
 
-            result = auto_create_issue_on_failure(run.id, tracker='jira')
-            assert result is not None
-            assert result['success'] is True
-            assert result['issue_link']['created_by'] == 'auto'
+        result = auto_create_issue_on_failure(run.id, tracker='jira')
+        assert result is not None
+        assert result['success'] is True
+        assert result['issue_link']['created_by'] == 'auto'
 
-            # 清理
-            from app.models.issue_link import IssueLink
-            IssueLink.query.filter_by(test_run_id=run.id).delete()
-            db.session.delete(run)
-            db.session.delete(proj)
-            db.session.delete(user)
-            db.session.commit()
+        # 清理
+        from app.models.issue_link import IssueLink
+        db.session.execute(delete(IssueLink).filter_by(test_run_id=run.id))
+        db.session.delete(run)
+        db.session.delete(proj)
+        db.session.delete(user)
+        db.session.commit()
 
 
 # ══════════════════════════════════════════════════════════════════════════════

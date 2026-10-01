@@ -9,6 +9,8 @@ AI 服务基类测试
 - 降级策略
 - 错误分类
 """
+from sqlalchemy import delete, select
+from app.extensions import db
 
 import os
 import pytest
@@ -87,17 +89,16 @@ class TestChatCompletion:
             'usage': {'prompt_tokens': 10, 'completion_tokens': 5, 'total_tokens': 15},
         }
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key', model='gpt-4')
-            with patch('app.services.ai.base.requests.post', return_value=mock_response) as mock_post:
-                result = svc.chat_completion(
-                    [{'role': 'user', 'content': 'hi'}],
-                    feature='test_feature',
-                )
+        svc = AIServiceBase(api_key='test-key', model='gpt-4')
+        with patch('app.services.ai.base.requests.post', return_value=mock_response) as mock_post:
+            result = svc.chat_completion(
+                [{'role': 'user', 'content': 'hi'}],
+                feature='test_feature',
+            )
 
-                assert result['role'] == 'assistant'
-                assert result['content'] == 'Hello!'
-                mock_post.assert_called_once()
+            assert result['role'] == 'assistant'
+            assert result['content'] == 'Hello!'
+            mock_post.assert_called_once()
 
     def test_records_invocation_log_on_success(self, app):
         """测试成功调用时记录 AIInvocationLog"""
@@ -112,29 +113,28 @@ class TestChatCompletion:
             'usage': {'prompt_tokens': 20, 'completion_tokens': 10, 'total_tokens': 30},
         }
 
-        with app.app_context():
-            # 清理可能的残留数据
-            AIInvocationLog.query.filter_by(feature='script_gen').delete()
-            db.session.commit()
+        # 清理可能的残留数据
+        db.session.execute(delete(AIInvocationLog).filter_by(feature='script_gen'))
+        db.session.commit()
 
-            svc = AIServiceBase(api_key='test-key', model='gpt-4')
-            with patch('app.services.ai.base.requests.post', return_value=mock_response):
-                svc.chat_completion(
-                    [{'role': 'user', 'content': 'test'}],
-                    feature='script_gen',
-                    user_id=1,
-                )
+        svc = AIServiceBase(api_key='test-key', model='gpt-4')
+        with patch('app.services.ai.base.requests.post', return_value=mock_response):
+            svc.chat_completion(
+                [{'role': 'user', 'content': 'test'}],
+                feature='script_gen',
+                user_id=1,
+            )
 
-            log = AIInvocationLog.query.filter_by(feature='script_gen').first()
-            assert log is not None
-            assert log.success is True
-            assert log.model_name == 'gpt-4'
-            assert log.prompt_tokens == 20
-            assert log.completion_tokens == 10
-            assert log.total_tokens == 30
-            assert log.user_id == 1
-            assert log.latency_ms is not None
-            assert log.latency_ms >= 0
+        log = db.session.scalar(select(AIInvocationLog).filter_by(feature='script_gen'))
+        assert log is not None
+        assert log.success is True
+        assert log.model_name == 'gpt-4'
+        assert log.prompt_tokens == 20
+        assert log.completion_tokens == 10
+        assert log.total_tokens == 30
+        assert log.user_id == 1
+        assert log.latency_ms is not None
+        assert log.latency_ms >= 0
 
     def test_records_invocation_log_on_failure(self, app):
         """测试失败调用时记录 AIInvocationLog"""
@@ -146,25 +146,24 @@ class TestChatCompletion:
         mock_response.status_code = 500
         mock_response.text = 'Internal Server Error'
 
-        with app.app_context():
-            # 清理可能的残留数据
-            AIInvocationLog.query.filter_by(feature='copilot').delete()
-            db.session.commit()
+        # 清理可能的残留数据
+        db.session.execute(delete(AIInvocationLog).filter_by(feature='copilot'))
+        db.session.commit()
 
-            svc = AIServiceBase(api_key='test-key', max_retries=1)
-            with patch('app.services.ai.base.requests.post', return_value=mock_response):
-                with patch('app.services.ai.base.time.sleep'):
-                    with pytest.raises(RuntimeError):
-                        svc.chat_completion(
-                            [{'role': 'user', 'content': 'test'}],
-                            feature='copilot',
-                        )
+        svc = AIServiceBase(api_key='test-key', max_retries=1)
+        with patch('app.services.ai.base.requests.post', return_value=mock_response):
+            with patch('app.services.ai.base.time.sleep'):
+                with pytest.raises(RuntimeError):
+                    svc.chat_completion(
+                        [{'role': 'user', 'content': 'test'}],
+                        feature='copilot',
+                    )
 
-            log = AIInvocationLog.query.filter_by(feature='copilot').first()
-            assert log is not None
-            assert log.success is False
-            assert log.error_type == 'server_error'
-            assert '500' in (log.error_message or '')
+        log = db.session.scalar(select(AIInvocationLog).filter_by(feature='copilot'))
+        assert log is not None
+        assert log.success is False
+        assert log.error_type == 'server_error'
+        assert '500' in (log.error_message or '')
 
 
 class TestRetryMechanism:
@@ -185,18 +184,17 @@ class TestRetryMechanism:
             'usage': {},
         }
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key', max_retries=3)
-            with patch('app.services.ai.base.requests.post', side_effect=[rate_limit_response, success_response]) as mock_post:
-                with patch('app.services.ai.base.time.sleep') as mock_sleep:
-                    result = svc.chat_completion(
-                        [{'role': 'user', 'content': 'test'}],
-                        feature='test',
-                    )
+        svc = AIServiceBase(api_key='test-key', max_retries=3)
+        with patch('app.services.ai.base.requests.post', side_effect=[rate_limit_response, success_response]) as mock_post:
+            with patch('app.services.ai.base.time.sleep') as mock_sleep:
+                result = svc.chat_completion(
+                    [{'role': 'user', 'content': 'test'}],
+                    feature='test',
+                )
 
-                    assert result['content'] == 'OK'
-                    assert mock_post.call_count == 2
-                    assert mock_sleep.call_count == 1  # Slept once before retry
+                assert result['content'] == 'OK'
+                assert mock_post.call_count == 2
+                assert mock_sleep.call_count == 1  # Slept once before retry
 
     def test_retries_on_500(self, app):
         """测试 500 服务端错误时重试"""
@@ -213,15 +211,14 @@ class TestRetryMechanism:
             'usage': {},
         }
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key', max_retries=2)
-            with patch('app.services.ai.base.requests.post', side_effect=[error_response, success_response]):
-                with patch('app.services.ai.base.time.sleep'):
-                    result = svc.chat_completion(
-                        [{'role': 'user', 'content': 'test'}],
-                        feature='test',
-                    )
-                    assert result['content'] == 'recovered'
+        svc = AIServiceBase(api_key='test-key', max_retries=2)
+        with patch('app.services.ai.base.requests.post', side_effect=[error_response, success_response]):
+            with patch('app.services.ai.base.time.sleep'):
+                result = svc.chat_completion(
+                    [{'role': 'user', 'content': 'test'}],
+                    feature='test',
+                )
+                assert result['content'] == 'recovered'
 
     def test_no_retry_on_400(self, app):
         """测试 400 客户端错误不重试"""
@@ -231,18 +228,17 @@ class TestRetryMechanism:
         error_response.status_code = 400
         error_response.text = 'Bad Request'
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key', max_retries=3)
-            with patch('app.services.ai.base.requests.post', return_value=error_response) as mock_post:
-                with patch('app.services.ai.base.time.sleep') as mock_sleep:
-                    # 无 fallback 时抛出 RuntimeError
-                    with pytest.raises(RuntimeError):
-                        svc.chat_completion(
-                            [{'role': 'user', 'content': 'test'}],
-                            feature='test',
-                        )
-                    assert mock_post.call_count == 1
-                    mock_sleep.assert_not_called()
+        svc = AIServiceBase(api_key='test-key', max_retries=3)
+        with patch('app.services.ai.base.requests.post', return_value=error_response) as mock_post:
+            with patch('app.services.ai.base.time.sleep') as mock_sleep:
+                # 无 fallback 时抛出 RuntimeError
+                with pytest.raises(RuntimeError):
+                    svc.chat_completion(
+                        [{'role': 'user', 'content': 'test'}],
+                        feature='test',
+                    )
+                assert mock_post.call_count == 1
+                mock_sleep.assert_not_called()
 
     def test_exhausted_retries(self, app):
         """测试重试耗尽后降级"""
@@ -252,16 +248,15 @@ class TestRetryMechanism:
         error_response.status_code = 500
         error_response.text = 'Server Error'
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key', max_retries=2)
-            with patch('app.services.ai.base.requests.post', return_value=error_response):
-                with patch('app.services.ai.base.time.sleep'):
-                    result = svc.chat_completion(
-                        [{'role': 'user', 'content': 'test'}],
-                        feature='test',
-                        fallback_response='Sorry, AI is unavailable.',
-                    )
-                    assert result['content'] == 'Sorry, AI is unavailable.'
+        svc = AIServiceBase(api_key='test-key', max_retries=2)
+        with patch('app.services.ai.base.requests.post', return_value=error_response):
+            with patch('app.services.ai.base.time.sleep'):
+                result = svc.chat_completion(
+                    [{'role': 'user', 'content': 'test'}],
+                    feature='test',
+                    fallback_response='Sorry, AI is unavailable.',
+                )
+                assert result['content'] == 'Sorry, AI is unavailable.'
 
 
 class TestFallbackStrategy:
@@ -275,17 +270,16 @@ class TestFallbackStrategy:
         error_response.status_code = 500
         error_response.text = 'Error'
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key', max_retries=1)
-            with patch('app.services.ai.base.requests.post', return_value=error_response):
-                with patch('app.services.ai.base.time.sleep'):
-                    result = svc.chat_completion(
-                        [{'role': 'user', 'content': 'test'}],
-                        feature='test',
-                        fallback_response='fallback data',
-                    )
-                    assert result['content'] == 'fallback data'
-                    assert result['role'] == 'assistant'
+        svc = AIServiceBase(api_key='test-key', max_retries=1)
+        with patch('app.services.ai.base.requests.post', return_value=error_response):
+            with patch('app.services.ai.base.time.sleep'):
+                result = svc.chat_completion(
+                    [{'role': 'user', 'content': 'test'}],
+                    feature='test',
+                    fallback_response='fallback data',
+                )
+                assert result['content'] == 'fallback data'
+                assert result['role'] == 'assistant'
 
     def test_no_fallback_raises_exception(self, app):
         """测试无 fallback_response 时抛出异常"""
@@ -295,45 +289,42 @@ class TestFallbackStrategy:
         error_response.status_code = 500
         error_response.text = 'Error'
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key', max_retries=1)
-            with patch('app.services.ai.base.requests.post', return_value=error_response):
-                with patch('app.services.ai.base.time.sleep'):
-                    with pytest.raises(RuntimeError):
-                        svc.chat_completion(
-                            [{'role': 'user', 'content': 'test'}],
-                            feature='test',
-                        )
+        svc = AIServiceBase(api_key='test-key', max_retries=1)
+        with patch('app.services.ai.base.requests.post', return_value=error_response):
+            with patch('app.services.ai.base.time.sleep'):
+                with pytest.raises(RuntimeError):
+                    svc.chat_completion(
+                        [{'role': 'user', 'content': 'test'}],
+                        feature='test',
+                    )
 
     def test_fallback_on_timeout(self, app):
         """测试超时时返回 fallback"""
         from app.services.ai.base import AIServiceBase
         import requests as req_lib
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key', max_retries=1, timeout=1)
-            with patch('app.services.ai.base.requests.post', side_effect=req_lib.exceptions.Timeout()):
-                with patch('app.services.ai.base.time.sleep'):
-                    result = svc.chat_completion(
-                        [{'role': 'user', 'content': 'test'}],
-                        feature='test',
-                        fallback_response='timeout fallback',
-                    )
-                    assert result['content'] == 'timeout fallback'
+        svc = AIServiceBase(api_key='test-key', max_retries=1, timeout=1)
+        with patch('app.services.ai.base.requests.post', side_effect=req_lib.exceptions.Timeout()):
+            with patch('app.services.ai.base.time.sleep'):
+                result = svc.chat_completion(
+                    [{'role': 'user', 'content': 'test'}],
+                    feature='test',
+                    fallback_response='timeout fallback',
+                )
+                assert result['content'] == 'timeout fallback'
 
     def test_fallback_on_no_api_key(self, app):
         """测试无 API Key 时返回 fallback"""
         from app.services.ai.base import AIServiceBase
 
-        with app.app_context():
-            with patch.dict(os.environ, {'AI_ASSISTANT_API_KEY': ''}, clear=False):
-                svc = AIServiceBase(api_key='')
-                result = svc.chat_completion(
-                    [{'role': 'user', 'content': 'test'}],
-                    feature='test',
-                    fallback_response='no key fallback',
-                )
-                assert result['content'] == 'no key fallback'
+        with patch.dict(os.environ, {'AI_ASSISTANT_API_KEY': ''}, clear=False):
+            svc = AIServiceBase(api_key='')
+            result = svc.chat_completion(
+                [{'role': 'user', 'content': 'test'}],
+                feature='test',
+                fallback_response='no key fallback',
+            )
+            assert result['content'] == 'no key fallback'
 
 
 class TestSimpleChat:
@@ -350,22 +341,21 @@ class TestSimpleChat:
             'usage': {},
         }
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key')
-            with patch('app.services.ai.base.requests.post', return_value=mock_response) as mock_post:
-                result = svc.simple_chat(
-                    [{'role': 'user', 'content': 'hello'}],
-                    feature='test',
-                    system_prompt='You are a test assistant.',
-                )
+        svc = AIServiceBase(api_key='test-key')
+        with patch('app.services.ai.base.requests.post', return_value=mock_response) as mock_post:
+            result = svc.simple_chat(
+                [{'role': 'user', 'content': 'hello'}],
+                feature='test',
+                system_prompt='You are a test assistant.',
+            )
 
-                # 验证 system prompt 被注入
-                call_args = mock_post.call_args
-                messages_sent = call_args[1]['json']['messages']
-                assert messages_sent[0]['role'] == 'system'
-                assert messages_sent[0]['content'] == 'You are a test assistant.'
-                assert messages_sent[1]['role'] == 'user'
-                assert messages_sent[1]['content'] == 'hello'
+            # 验证 system prompt 被注入
+            call_args = mock_post.call_args
+            messages_sent = call_args[1]['json']['messages']
+            assert messages_sent[0]['role'] == 'system'
+            assert messages_sent[0]['content'] == 'You are a test assistant.'
+            assert messages_sent[1]['role'] == 'user'
+            assert messages_sent[1]['content'] == 'hello'
 
     def test_simple_chat_without_system_prompt(self, app):
         """测试不传 system prompt 时不注入"""
@@ -378,18 +368,17 @@ class TestSimpleChat:
             'usage': {},
         }
 
-        with app.app_context():
-            svc = AIServiceBase(api_key='test-key')
-            with patch('app.services.ai.base.requests.post', return_value=mock_response) as mock_post:
-                svc.simple_chat(
-                    [{'role': 'user', 'content': 'hello'}],
-                    feature='test',
-                )
+        svc = AIServiceBase(api_key='test-key')
+        with patch('app.services.ai.base.requests.post', return_value=mock_response) as mock_post:
+            svc.simple_chat(
+                [{'role': 'user', 'content': 'hello'}],
+                feature='test',
+            )
 
-                call_args = mock_post.call_args
-                messages_sent = call_args[1]['json']['messages']
-                assert len(messages_sent) == 1
-                assert messages_sent[0]['role'] == 'user'
+            call_args = mock_post.call_args
+            messages_sent = call_args[1]['json']['messages']
+            assert len(messages_sent) == 1
+            assert messages_sent[0]['role'] == 'user'
 
 
 class TestHelperMethods:
@@ -474,8 +463,7 @@ class TestAIServiceSubclass:
             'usage': {},
         }
 
-        with app.app_context():
-            svc = TestService(api_key='test-key')
-            with patch('app.services.ai.base.requests.post', return_value=mock_response):
-                result = svc.do_chat('hello')
-                assert result['content'] == 'subclassed!'
+        svc = TestService(api_key='test-key')
+        with patch('app.services.ai.base.requests.post', return_value=mock_response):
+            result = svc.do_chat('hello')
+            assert result['content'] == 'subclassed!'

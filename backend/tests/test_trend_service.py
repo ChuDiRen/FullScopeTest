@@ -3,6 +3,8 @@
 
 覆盖：趋势 API、Dashboard 统计、时间粒度、边界条件
 """
+from sqlalchemy import delete
+from app.extensions import db
 import uuid
 from datetime import datetime, timedelta
 
@@ -14,14 +16,14 @@ def _auth_headers(client, username=None):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 def _create_project(client, headers, name=None):
     name = name or f"Proj_{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/v1/projects", headers=headers, json={"name": name})
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _create_test_run(client, headers, project_id, test_type='api', status='success',
@@ -33,13 +35,13 @@ def _create_test_run(client, headers, project_id, test_type='api', status='succe
         "test_object_name": f"Test {test_type}",
         "total_cases": total,
     })
-    data = resp.get_json()
+    data = resp.json()
     # API 创建的记录默认 status='pending'，需要通过 DB 更新
     if data.get("data") and data["data"].get("id"):
         from app.extensions import db
         from app.models.test_run import TestRun
         run_id = data["data"]["id"]
-        run = TestRun.query.get(run_id)
+        run = db.session.get(TestRun, run_id)
         if run:
             run.status = status
             run.passed = passed
@@ -60,7 +62,7 @@ class TestTrendAPI:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/reports/trend?days=7", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data == []
 
     def test_get_trend_with_data(self, client, no_rate_limit):
@@ -74,7 +76,7 @@ class TestTrendAPI:
 
         resp = client.get(f"/api/v1/reports/trend?project_id={project['id']}&days=30", headers=headers)
         assert resp.status_code == 200
-        resp_data = resp.get_json()
+        resp_data = resp.json()
         assert resp_data["code"] == 200
         data = resp_data["data"]
         # 可能为空（如果没有成功/失败的记录），但应为列表
@@ -119,7 +121,7 @@ class TestDashboardAPI:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/reports/trend/stats?days=7", headers=headers)
         assert resp.status_code == 200
-        resp_data = resp.get_json()
+        resp_data = resp.json()
         assert resp_data["code"] == 200
         data = resp_data["data"]
         # 验证返回结构
@@ -131,7 +133,7 @@ class TestDashboardAPI:
         project = _create_project(client, headers)
         resp = client.get(f"/api/v1/reports/trend/stats?project_id={project['id']}&days=30", headers=headers)
         assert resp.status_code == 200
-        resp_data = resp.get_json()
+        resp_data = resp.json()
         assert resp_data["code"] == 200
 
 
@@ -144,10 +146,9 @@ class TestTrendServiceUnit:
 
     def test_get_pass_rate_trend_empty(self, app):
         from app.services.trend_service import get_pass_rate_trend
-        with app.app_context():
-            # 使用不存在的 project_id 以确保隔离
-            result = get_pass_rate_trend(project_id=999999, days=7)
-            assert result == []
+        # 使用不存在的 project_id 以确保隔离
+        result = get_pass_rate_trend(project_id=999999, days=7)
+        assert result == []
 
     def test_get_pass_rate_trend_with_runs(self, app):
         from app.extensions import db
@@ -155,37 +156,35 @@ class TestTrendServiceUnit:
         from app.models.project import Project
         from app.models.test_run import TestRun
         from app.services.trend_service import get_pass_rate_trend
-        with app.app_context():
-            user = User(username=f"trend_{uuid.uuid4().hex[:6]}", email="t@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="TrendProj", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
-            run = TestRun(
-                project_id=proj.id, test_type='api', status='success',
-                total_cases=10, passed=10, failed=0,
-            )
-            db.session.add(run)
-            db.session.commit()
+        user = User(username=f"trend_{uuid.uuid4().hex[:6]}", email="t@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="TrendProj", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
+        run = TestRun(
+            project_id=proj.id, test_type='api', status='success',
+            total_cases=10, passed=10, failed=0,
+        )
+        db.session.add(run)
+        db.session.commit()
 
-            result = get_pass_rate_trend(proj.id, 30, 'week')
-            assert len(result) >= 1
-            assert 'date' in result[0]
-            assert 'api' in result[0]
-            # 清理
-            db.session.delete(run)
-            db.session.delete(proj)
-            db.session.delete(user)
-            db.session.commit()
+        result = get_pass_rate_trend(proj.id, 30, 'week')
+        assert len(result) >= 1
+        assert 'date' in result[0]
+        assert 'api' in result[0]
+        # 清理
+        db.session.delete(run)
+        db.session.delete(proj)
+        db.session.delete(user)
+        db.session.commit()
 
     def test_get_dashboard_stats_empty(self, app):
         from app.services.trend_service import get_dashboard_stats
-        with app.app_context():
-            # 使用不存在的 project_id 以确保隔离
-            result = get_dashboard_stats(project_id=999999, days=7)
-            assert result['total_runs'] == 0
-            assert result['pass_rate'] == 0
+        # 使用不存在的 project_id 以确保隔离
+        result = get_dashboard_stats(project_id=999999, days=7)
+        assert result['total_runs'] == 0
+        assert result['pass_rate'] == 0
 
     def test_get_dashboard_stats_with_runs(self, app):
         from app.extensions import db
@@ -193,33 +192,32 @@ class TestTrendServiceUnit:
         from app.models.project import Project
         from app.models.test_run import TestRun
         from app.services.trend_service import get_dashboard_stats
-        with app.app_context():
-            user = User(username=f"trend_{uuid.uuid4().hex[:6]}", email="t2@test.com", password_hash="h")
-            db.session.add(user)
-            db.session.flush()
-            proj = Project(name="TrendProj2", owner_id=user.id)
-            db.session.add(proj)
-            db.session.flush()
-            for tt, status, total, passed, failed in [
-                ('api', 'success', 10, 10, 0),
-                ('web', 'failed', 5, 2, 3),
-            ]:
-                run = TestRun(
-                    project_id=proj.id, test_type=tt, status=status,
-                    total_cases=total, passed=passed, failed=failed,
-                )
-                db.session.add(run)
-            db.session.commit()
+        user = User(username=f"trend_{uuid.uuid4().hex[:6]}", email="t2@test.com", password_hash="h")
+        db.session.add(user)
+        db.session.flush()
+        proj = Project(name="TrendProj2", owner_id=user.id)
+        db.session.add(proj)
+        db.session.flush()
+        for tt, status, total, passed, failed in [
+            ('api', 'success', 10, 10, 0),
+            ('web', 'failed', 5, 2, 3),
+        ]:
+            run = TestRun(
+                project_id=proj.id, test_type=tt, status=status,
+                total_cases=total, passed=passed, failed=failed,
+            )
+            db.session.add(run)
+        db.session.commit()
 
-            result = get_dashboard_stats(proj.id, 30)
-            assert result['total_runs'] >= 2
-            assert 'api' in result['by_type']
-            assert 'web' in result['by_type']
-            # 清理
-            TestRun.query.filter_by(project_id=proj.id).delete()
-            db.session.delete(proj)
-            db.session.delete(user)
-            db.session.commit()
+        result = get_dashboard_stats(proj.id, 30)
+        assert result['total_runs'] >= 2
+        assert 'api' in result['by_type']
+        assert 'web' in result['by_type']
+        # 清理
+        db.session.execute(delete(TestRun).filter_by(project_id=proj.id))
+        db.session.delete(proj)
+        db.session.delete(user)
+        db.session.commit()
 
 
 class TestBucketKey:

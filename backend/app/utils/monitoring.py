@@ -8,8 +8,10 @@ import time
 import logging
 import functools
 from typing import Optional, Callable, Any
-from flask import request, g, current_app
 from ..core.logging import get_logger
+from ..core.runtime import get_config
+from ..core.request_local import get_request_info
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 
@@ -52,18 +54,15 @@ class ErrorTracker:
             'context': context or {},
         }
 
-        # 添加请求上下文
-        if request:
+        # 添加请求上下文（零 Flask：由 request_local 槽提供，无请求时为空）
+        request_info = get_request_info() or {}
+        if request_info:
             error_info['request'] = {
-                'method': request.method,
-                'url': request.url,
-                'endpoint': request.endpoint,
-                'user_agent': str(request.user_agent),
+                'method': request_info.get('method'),
+                'url': request_info.get('url') or request_info.get('path'),
+                'endpoint': request_info.get('endpoint'),
+                'user_agent': request_info.get('user_agent'),
             }
-
-        # 添加用户上下文
-        if hasattr(g, 'current_user_id'):
-            error_info['user_id'] = g.current_user_id
 
         logger.error("Exception captured", error_type=error_info.get('error_type'), error_message=error_info.get('error_message'), exc_info=True)
 
@@ -136,15 +135,18 @@ class MetricsCollector:
 metrics = MetricsCollector()
 
 
-def init_monitoring(app):
-    """初始化监控系统"""
+def init_monitoring(app=None):
+    """初始化监控系统（零 Flask：仅初始化 Sentry；请求计时指标由 ASGI 中间件负责）
+
+    Args:
+        app: 预留参数（原 Flask 应用对象，零 Flask 运行时忽略）
+    """
 
     # 初始化 Sentry（如果配置了）
-    sentry_dsn = app.config.get('SENTRY_DSN')
+    sentry_dsn = get_config().get('SENTRY_DSN')
     if sentry_dsn:
         try:
             import sentry_sdk
-            from sentry_sdk.integrations.flask import FlaskIntegration
             from sentry_sdk.integrations.logging import LoggingIntegration
 
             sentry_logging = LoggingIntegration(
@@ -154,9 +156,9 @@ def init_monitoring(app):
 
             sentry_sdk.init(
                 dsn=sentry_dsn,
-                integrations=[FlaskIntegration(), sentry_logging],
-                traces_sample_rate=app.config.get('SENTRY_TRACES_SAMPLE_RATE', 0.1),
-                environment=app.config.get('FLASK_ENV', 'development'),
+                integrations=[sentry_logging],
+                traces_sample_rate=get_config().get('SENTRY_TRACES_SAMPLE_RATE', 0.1),
+                environment=get_config().get('APP_ENV', get_config().get('CONFIG_NAME', 'development')),
             )
             logger.info("Sentry monitoring initialized")
         except ImportError:
@@ -164,25 +166,7 @@ def init_monitoring(app):
         except Exception as e:
             logger.error("Failed to initialize Sentry", error=str(e))
 
-    # 注册请求钩子
-    @app.before_request
-    def before_request_monitoring():
-        g.request_start_time = time.time()
-
-    @app.after_request
-    def after_request_monitoring(response):
-        if hasattr(g, 'request_start_time'):
-            duration = time.time() - g.request_start_time
-            metrics.timing('request.duration', duration, {
-                'method': request.method,
-                'endpoint': request.endpoint or 'unknown',
-                'status': response.status_code,
-            })
-
-            # 记录慢请求
-            if duration > 1.0:
-                logger.warning("Slow request", method=request.method, path=request.path, duration=round(duration, 3))
-
-        return response
+    # 原 Flask before_request/after_request 钩子已随 Flask 移除；
+    # 请求耗时指标（metrics.timing('request.duration', ...)）由 ASGI 中间件层负责。
 
     logger.info("Monitoring system initialized")

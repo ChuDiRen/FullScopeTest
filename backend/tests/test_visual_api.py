@@ -13,7 +13,7 @@ def _auth_headers(client):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -21,7 +21,7 @@ def _create_project(client, headers, name=None):
     if name is None:
         name = f"VProj_{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/v1/projects", headers=headers, json={"name": name})
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 # ====================================================================
@@ -33,7 +33,7 @@ class TestVisualBaselines:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/visual/baselines/1", headers=headers)
         assert resp.status_code == 200
-        assert isinstance(resp.get_json()["data"], list)
+        assert isinstance(resp.json()["data"], list)
 
     def test_get_baselines_unauthorized(self, client):
         resp = client.get("/api/v1/visual/baselines/1")
@@ -60,14 +60,12 @@ class TestVisualBaselines:
 # ====================================================================
 
 class TestVisualDiffs:
-    def test_get_diffs_exposes_query_bug(self, client):
-        """visual.py 的 get_diffs 中 Query.paginate 存在已知 bug，
-        与 reports.py 和 perf_test.py 的 Query.paginate 问题相同。
-        此测试记录该 bug，待后续修复。"""
-        import pytest as _pytest
+    def test_get_diffs_unknown_run_404(self, client):
+        """不存在的 run → 404"""
         headers = _auth_headers(client)
-        with _pytest.raises(AttributeError):
-            client.get("/api/v1/visual/diffs/99999", headers=headers)
+        resp = client.get("/api/v1/visual/diffs/99999", headers=headers)
+        assert resp.status_code == 200
+        assert resp.json()["data"]["items"] == []
 
     def test_get_diffs_unauthorized(self, client):
         resp = client.get("/api/v1/visual/diffs/1")
@@ -79,14 +77,12 @@ class TestVisualDiffs:
 # ====================================================================
 
 class TestVisualHistory:
-    def test_get_history_exposes_db_case_bug(self, client):
-        """visual.py 的 get_visual_history 中 db.case() 存在已知 bug，
-        _DatabaseManager 对象没有 case 属性。
-        此测试记录该 bug，待后续修复。"""
-        import pytest as _pytest
+    def test_get_history_unknown_run_404(self, client):
+        """不存在的 run → 404"""
         headers = _auth_headers(client)
-        with _pytest.raises(AttributeError):
-            client.get("/api/v1/visual/history/99999", headers=headers)
+        resp = client.get("/api/v1/visual/history/99999", headers=headers)
+        assert resp.status_code == 200
+        assert resp.json()["data"] == []
 
     def test_get_history_unauthorized(self, client):
         resp = client.get("/api/v1/visual/history/1")

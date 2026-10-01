@@ -10,29 +10,31 @@
 - Footer 文案
 """
 from datetime import datetime
-from ..extensions import db
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 
-class BrandingConfig(db.Model):
+class BrandingConfig(Base):
     """品牌配置表"""
     __tablename__ = 'branding_configs'
 
-    id = db.Column(db.Integer, primary_key=True)
-    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True, comment='组织 ID（NULL 为全局默认）')
-    platform_name = db.Column(db.String(100), default='FullScopeTest', comment='平台名称')
-    logo_url = db.Column(db.String(500), comment='Logo URL')
-    favicon_url = db.Column(db.String(500), comment='Favicon URL')
-    primary_color = db.Column(db.String(20), default='#5FA59B', comment='主色调')
-    login_background_url = db.Column(db.String(500), comment='登录页背景图 URL')
-    footer_text = db.Column(db.String(200), comment='Footer 文案')
-    custom_css = db.Column(db.Text, comment='自定义 CSS')
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey('organizations.id'), nullable=True, comment='组织 ID（NULL 为全局默认）')
+    platform_name = Column(String(100), default='FullScopeTest', comment='平台名称')
+    logo_url = Column(String(500), comment='Logo URL')
+    favicon_url = Column(String(500), comment='Favicon URL')
+    primary_color = Column(String(20), default='#5FA59B', comment='主色调')
+    login_background_url = Column(String(500), comment='登录页背景图 URL')
+    footer_text = Column(String(200), comment='Footer 文案')
+    custom_css = Column(Text, comment='自定义 CSS')
 
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联
-    organization = db.relationship('Organization', backref='branding_config')
+    organization = relationship('Organization', backref='branding_config')
 
     def to_dict(self):
         return {

@@ -21,35 +21,34 @@ from app.tasks import run_web_test_task, _process_visual_diffs
 
 
 def _seed_user_and_script(app, with_project=True):
-    with app.app_context():
-        suffix = uuid.uuid4().hex[:8]
-        user = User(
-            username=f'web_case_user_{suffix}',
-            email=f'web_case_user_{suffix}@example.com',
-            password_hash='hashed-password',
-        )
-        db.session.add(user)
+    suffix = uuid.uuid4().hex[:8]
+    user = User(
+        username=f'web_case_user_{suffix}',
+        email=f'web_case_user_{suffix}@example.com',
+        password_hash='hashed-password',
+    )
+    db.session.add(user)
+    db.session.flush()
+
+    project_id = None
+    if with_project:
+        project = Project(name='Web Project', owner_id=user.id)
+        db.session.add(project)
         db.session.flush()
+        project_id = project.id
 
-        project_id = None
-        if with_project:
-            project = Project(name='Web Project', owner_id=user.id)
-            db.session.add(project)
-            db.session.flush()
-            project_id = project.id
-
-        script = WebTestScript(
-            name='visual diff test',
-            description='visual diff case',
-            script_content='print("ok")',
-            project_id=project_id,
-            user_id=user.id,
-            browser='chromium',
-            timeout=30000,
-        )
-        db.session.add(script)
-        db.session.commit()
-        return user.id, script.id
+    script = WebTestScript(
+        name='visual diff test',
+        description='visual diff case',
+        script_content='print("ok")',
+        project_id=project_id,
+        user_id=user.id,
+        browser='chromium',
+        timeout=30000,
+    )
+    db.session.add(script)
+    db.session.commit()
+    return user.id, script.id
 
 
 class TestProcessVisualDiffs:
@@ -94,29 +93,28 @@ class TestProcessVisualDiffs:
         import uuid as uuid_mod
         from PIL import Image
 
-        with app.app_context():
-            # 创建测试截图
-            with tempfile.TemporaryDirectory() as tmpdir:
-                img_path = os.path.join(tmpdir, "test.png")
-                img = Image.new("RGB", (100, 100), (128, 128, 128))
-                img.save(img_path)
+        # 创建测试截图
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img_path = os.path.join(tmpdir, "test.png")
+            img = Image.new("RGB", (100, 100), (128, 128, 128))
+            img.save(img_path)
 
-                vision_results = {
-                    "steps": [
-                        {"name": "step1", "screenshot_path": "test.png"}
-                    ]
-                }
+            vision_results = {
+                "steps": [
+                    {"name": "step1", "screenshot_path": "test.png"}
+                ]
+            }
 
-                result = _process_visual_diffs(
-                    test_run_id=999,
-                    test_case_id=999,
-                    vision_results=vision_results,
-                    screenshot_base_path=tmpdir,
-                )
+            result = _process_visual_diffs(
+                test_run_id=999,
+                test_case_id=999,
+                vision_results=vision_results,
+                screenshot_base_path=tmpdir,
+            )
 
-                # 应该返回结果（可能是 error 状态，因为基准截图不存在）
-                assert len(result) == 1
-                assert result[0]["step_name"] == "step1"
+            # 应该返回结果（可能是 error 状态，因为基准截图不存在）
+            assert len(result) == 1
+            assert result[0]["step_name"] == "step1"
 
 
 class TestVisualDiffInWebTestTask:
@@ -126,9 +124,9 @@ class TestVisualDiffInWebTestTask:
         """验证 vision_results 和 visual_diff_summaries 包含在返回结果中"""
         user_id, script_id = _seed_user_and_script(app, with_project=True)
 
-        monkeypatch.setattr('app.tasks._get_flask_app', lambda: app)
+
         monkeypatch.setattr(
-            'app.tasks.subprocess.run',
+            'app.tasks.common.subprocess.run',
             lambda *args, **kwargs: subprocess.CompletedProcess(
                 args=args[0], returncode=0, stdout='done', stderr='',
             ),
@@ -140,19 +138,18 @@ class TestVisualDiffInWebTestTask:
         assert result['success'] is True
         assert 'vision_results' not in result  # not in direct result
         # But vision_data should be in last_result
-        with app.app_context():
-            script = db.session.get(WebTestScript, script_id)
-            assert script.last_result is not None
-            # vision_results may be None since no vision_results.json was created
-            assert 'vision_results' in script.last_result or script.last_result.get('vision_results') is None
+        script = db.session.get(WebTestScript, script_id)
+        assert script.last_result is not None
+        # vision_results may be None since no vision_results.json was created
+        assert 'vision_results' in script.last_result or script.last_result.get('vision_results') is None
 
     def test_vision_processing_error_does_not_interrupt_task(self, app, monkeypatch):
         """验证视觉对比处理失败时不中断测试执行"""
         user_id, script_id = _seed_user_and_script(app, with_project=True)
 
-        monkeypatch.setattr('app.tasks._get_flask_app', lambda: app)
+
         monkeypatch.setattr(
-            'app.tasks.subprocess.run',
+            'app.tasks.common.subprocess.run',
             lambda *args, **kwargs: subprocess.CompletedProcess(
                 args=args[0], returncode=0, stdout='done', stderr='',
             ),
@@ -174,9 +171,9 @@ class TestVisualDiffInWebTestTask:
         """验证无 vision_results.json 时 task 仍正常完成"""
         user_id, script_id = _seed_user_and_script(app, with_project=True)
 
-        monkeypatch.setattr('app.tasks._get_flask_app', lambda: app)
+
         monkeypatch.setattr(
-            'app.tasks.subprocess.run',
+            'app.tasks.common.subprocess.run',
             lambda *args, **kwargs: subprocess.CompletedProcess(
                 args=args[0], returncode=0, stdout='done', stderr='',
             ),
@@ -186,7 +183,6 @@ class TestVisualDiffInWebTestTask:
         result = run_web_test_task.run(script_id, user_id)
 
         assert result['success'] is True
-        with app.app_context():
-            script = db.session.get(WebTestScript, script_id)
-            assert script.last_result.get('vision_results') is None
-            assert script.last_result.get('visual_diff_summaries') == []
+        script = db.session.get(WebTestScript, script_id)
+        assert script.last_result.get('vision_results') is None
+        assert script.last_result.get('visual_diff_summaries') == []

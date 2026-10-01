@@ -4,16 +4,17 @@
 提供记录审计日志的便捷方法
 """
 
-from flask import request
 from ..extensions import db
 from ..models.audit_log import AuditLog
 from ..utils import get_current_user_id
 from ..core.logging import get_logger
+from ..core.runtime import ctx
+from ..core.request_local import get_request_info
 
 logger = get_logger(__name__)
 
 
-def log_action(action, resource_type, resource_id=None, changes=None, old_values=None, new_values=None):
+def log_action(action, resource_type, resource_id=None, changes=None, old_values=None, new_values=None, user_id=None):
     """
     记录审计日志
 
@@ -26,28 +27,33 @@ def log_action(action, resource_type, resource_id=None, changes=None, old_values
         new_values: 新值
     """
     try:
-        user_id = None
-        try:
-            user_id = get_current_user_id()
-        except Exception:
-            pass
+        if user_id is None:
+            try:
+                user_id = get_current_user_id()
+            except Exception:
+                pass
 
         organization_id = None
         try:
-            from flask import g
-            organization_id = getattr(g, 'organization_id', None)
+            organization_id = ctx.get_organization_id()
+        except Exception:
+            pass
+
+        request_info = None
+        try:
+            request_info = get_request_info() or {}
         except Exception:
             pass
 
         ip_address = None
         try:
-            ip_address = request.remote_addr
+            ip_address = request_info.get('client_ip')
         except Exception:
             pass
 
         user_agent = None
         try:
-            user_agent = request.headers.get('User-Agent')
+            user_agent = request_info.get('user_agent')
         except Exception:
             pass
 

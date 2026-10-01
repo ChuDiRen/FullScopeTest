@@ -9,7 +9,9 @@ import os
 from datetime import datetime, timezone
 
 from app.utils.sandbox import execute_script
-from .common import _get_flask_app
+from .common import runtime_context, get_backend_root
+from sqlalchemy import select
+from ..extensions import db
 
 logger = get_logger(__name__)
 
@@ -26,12 +28,12 @@ logger = get_logger(__name__)
 def run_app_test_task(self, script_id, user_id):
     """异步执行 APP 测试脚本（Appium）"""
     task_start_time = time.time()
-    with _get_flask_app().app_context():
+    with runtime_context():
         from app.models.app_test_script import AppTestScript
 
         script = None
         try:
-            script = AppTestScript.query.filter_by(id=script_id, user_id=user_id).first()
+            script = db.session.scalar(select(AppTestScript).filter_by(id=script_id, user_id=user_id))
             if not script:
                 record_task_failure('run_app_test', time.time() - task_start_time)
                 return {'success': False, 'error': 'Script not found'}
@@ -43,7 +45,7 @@ def run_app_test_task(self, script_id, user_id):
             self.update_state(state='PROGRESS', meta={'status': 'Running Appium test...'})
 
             # 准备工作目录
-            work_dir = os.path.join(os.path.dirname(_get_flask_app().root_path), 'data', 'app_tests', str(script_id))
+            work_dir = os.path.join(os.path.dirname(get_backend_root()), 'data', 'app_tests', str(script_id))
             os.makedirs(work_dir, exist_ok=True)
 
             # 通过沙箱执行脚本（AST 检查 + 子进程隔离 + 审计日志）

@@ -1,9 +1,9 @@
-from app import create_app
+from app.core.runtime import init_runtime
 from app.extensions import db
 from sqlalchemy import text
 
-app = create_app('development')
-with app.app_context():
+init_runtime()
+with __import__('contextlib').nullcontext():
     try:
         # Add mock fields to api_test_cases
         db.session.execute(text("ALTER TABLE api_test_cases ADD COLUMN mock_enabled BOOLEAN DEFAULT FALSE"))

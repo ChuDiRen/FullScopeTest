@@ -69,6 +69,20 @@ rate_limit_counter = Counter(
     ["user_type", "endpoint"],
 )
 
+# ──────────────────────────────────────────────
+# 应用信息指标
+# ──────────────────────────────────────────────
+
+app_info = Gauge(
+    "app_info",
+    "Application information (version)",
+    ["version", "env"],
+)
+app_info.labels(
+    version=os.environ.get("APP_VERSION", "1.0.0"),
+    env=os.environ.get("APP_ENV", "development"),
+).set(1)
+
 
 def record_task_success(task_name: str, duration: float) -> None:
     """记录成功的 Celery 任务执行"""
@@ -82,34 +96,6 @@ def record_task_failure(task_name: str, duration: float) -> None:
     task_execution_duration.labels(task_name=task_name).observe(duration)
 
 
-def init_metrics(app):
-    """
-    初始化 Prometheus metrics 集成到 Flask 应用
-
-    - 注册 before_request / after_request hook 来自动采集 API 指标
-    - 暴露 /metrics 端点（prometheus-flask-exporter 自动完成）
-    - 生产环境下 /metrics 端点需要 METRICS_TOKEN 认证
-    """
-    from prometheus_flask_exporter import PrometheusMetrics
-
-    # /metrics 端点认证中间件
-    @app.before_request
-    def _protect_metrics():
-        from flask import request
-        if request.path == '/metrics' and METRICS_TOKEN:
-            auth_header = request.headers.get('Authorization', '')
-            token = request.args.get('token', '')
-            if auth_header == f'Bearer {METRICS_TOKEN}' or token == METRICS_TOKEN:
-                return None
-            from flask import jsonify
-            return jsonify({'error': 'Unauthorized', 'message': 'Invalid or missing metrics token'}), 401
-
-    metrics = PrometheusMetrics(app, group_by="url_rule")
-
-    # 额外暴露应用级常量标签
-    metrics.info("app_info", "FullScopeTest application info", version="1.0.0")
-
-    logger.info("Prometheus metrics initialized", endpoint="/metrics",
-                authenticated=bool(METRICS_TOKEN))
-
-    return metrics
+# /metrics ASGI 端点由 app/fastapi_app.py 的 register_metrics() 挂载
+# （prometheus_client.make_asgi_app + METRICS_TOKEN 门禁），
+# 原 prometheus-flask-exporter 集成已随 Flask 一起移除。

@@ -3,6 +3,7 @@
 
 提供统一的单例装饰器，避免各服务手动实现不一致。
 """
+from sqlalchemy import func
 
 from functools import wraps
 from typing import TypeVar, Type

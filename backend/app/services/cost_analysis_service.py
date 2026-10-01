@@ -10,6 +10,7 @@ from ..extensions import db
 from ..models.test_run import TestRun
 from ..models.ai_invocation_log import AIInvocationLog
 from ..core.logging import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -34,17 +35,17 @@ class CostAnalysisService:
         since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
         # 测试执行成本
-        run_query = TestRun.query.filter(TestRun.created_at >= since)
+        run_query = select(TestRun).filter(TestRun.created_at >= since)
         if project_id:
             run_query = run_query.filter_by(project_id=project_id)
-        runs = run_query.all()
+        runs = db.session.scalars(run_query).all()
 
         total_duration_hours = sum((r.duration or 0) for r in runs) / 3600
         execution_cost = total_duration_hours * DEFAULT_HOURLY_RATE
 
         # AI Token 成本
-        ai_query = AIInvocationLog.query.filter(AIInvocationLog.created_at >= since)
-        ai_logs = ai_query.all()
+        ai_query = select(AIInvocationLog).filter(AIInvocationLog.created_at >= since)
+        ai_logs = db.session.scalars(ai_query).all()
         ai_cost = sum((l.cost_estimate or 0) for l in ai_logs)
         ai_tokens = sum((l.total_tokens or 0) for l in ai_logs)
 

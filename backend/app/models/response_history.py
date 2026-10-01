@@ -5,36 +5,38 @@
 """
 
 from datetime import datetime, timezone
-from ..extensions import db
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy.orm import backref, relationship
+from ..database import Base
 
 
-class ResponseHistory(db.Model):
+class ResponseHistory(Base):
     """响应历史记录表"""
 
     __tablename__ = "response_histories"
     __table_args__ = (
-        db.Index("idx_response_hist_case_id", "case_id"),
-        db.Index("idx_response_hist_created", "created_at"),
+        Index("idx_response_hist_case_id", "case_id"),
+        Index("idx_response_hist_created", "created_at"),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey("api_test_cases.id"), nullable=True, comment="关联用例 ID")
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, comment="用户 ID")
-    url = db.Column(db.String(500), nullable=False, comment="请求 URL")
-    method = db.Column(db.String(10), nullable=False, default="GET", comment="HTTP 方法")
-    status_code = db.Column(db.Integer, comment="响应状态码")
-    response_time = db.Column(db.Float, comment="响应时间（毫秒）")
-    response_size = db.Column(db.String(20), comment="响应大小")
-    request_headers = db.Column(db.JSON, comment="请求头快照")
-    request_body = db.Column(db.JSON, comment="请求体快照")
-    response_headers = db.Column(db.JSON, comment="响应头快照")
-    response_body = db.Column(db.JSON, comment="响应体快照")
-    error = db.Column(db.Text, comment="错误信息")
-    environment_id = db.Column(db.Integer, db.ForeignKey("environments.id"), nullable=True, comment="使用的环境")
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), comment="创建时间")
+    id = Column(Integer, primary_key=True)
+    case_id = Column(Integer, ForeignKey("api_test_cases.id"), nullable=True, comment="关联用例 ID")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="用户 ID")
+    url = Column(String(500), nullable=False, comment="请求 URL")
+    method = Column(String(10), nullable=False, default="GET", comment="HTTP 方法")
+    status_code = Column(Integer, comment="响应状态码")
+    response_time = Column(Float, comment="响应时间（毫秒）")
+    response_size = Column(String(20), comment="响应大小")
+    request_headers = Column(JSON, comment="请求头快照")
+    request_body = Column(JSON, comment="请求体快照")
+    response_headers = Column(JSON, comment="响应头快照")
+    response_body = Column(JSON, comment="响应体快照")
+    error = Column(Text, comment="错误信息")
+    environment_id = Column(Integer, ForeignKey("environments.id"), nullable=True, comment="使用的环境")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), comment="创建时间")
 
     # 关联
-    case = db.relationship("ApiTestCase", backref=db.backref("response_histories", lazy="dynamic"))
+    case = relationship("ApiTestCase", backref=backref("response_histories", lazy="dynamic"))
 
     def to_dict(self):
         return {

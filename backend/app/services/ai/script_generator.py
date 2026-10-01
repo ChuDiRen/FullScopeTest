@@ -15,6 +15,7 @@ from ...extensions import db
 from ...models.prompt_version import PromptVersion
 from ...core.logging import get_logger
 from .base import AIServiceBase
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -86,7 +87,7 @@ class ScriptGeneratorService(AIServiceBase):
 
         # 选择 Prompt 版本
         if prompt_version_id:
-            pv = PromptVersion.query.get(prompt_version_id)
+            pv = db.session.get(PromptVersion, prompt_version_id)
             if not pv or pv.feature != feature:
                 raise ValueError(f'Prompt version {prompt_version_id} not found for feature {feature}')
             if not pv.is_active:
@@ -131,10 +132,10 @@ class ScriptGeneratorService(AIServiceBase):
         按 traffic_weight 加权随机选择一个激活的 PromptVersion。
         支持 A/B 测试：多个版本同时激活，按权重分配流量。
         """
-        active_versions = PromptVersion.query.filter_by(
+        active_versions = db.session.scalars(select(PromptVersion).filter_by(
             feature=feature,
             is_active=True,
-        ).all()
+        )).all()
 
         if not active_versions:
             return None
@@ -202,7 +203,7 @@ def ensure_default_prompt_versions():
     在应用启动时调用，为 web 和 perf 生成各创建一个默认版本。
     """
     for feature, system_prompt in DEFAULT_PROMPTS.items():
-        existing = PromptVersion.query.filter_by(feature=feature, version=1).first()
+        existing = db.session.scalar(select(PromptVersion).filter_by(feature=feature, version=1))
         if not existing:
             pv = PromptVersion(
                 feature=feature,

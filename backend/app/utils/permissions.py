@@ -1,14 +1,24 @@
 """
 权限控制模块
 
-提供角色和权限检查的装饰器和工具函数
+提供角色和权限检查的装饰器和工具函数（零 Flask）。
+
+身份来源：原 flask_jwt_extended 依赖全局 request 的 Authorization 头；
+零 Flask 下由 ASGI 鉴权层把已验证的 JWT identity（sub，字符串用户 ID）
+写入 request_local 槽的 ``jwt_identity`` 键，此处只做读取。
 """
 
 from functools import wraps
-from flask import jsonify
-from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+from ..core.request_local import get_request_info
 from ..models.user import User, ROLE_PERMISSIONS
 from .response import error_response
+from sqlalchemy import select
+from ..extensions import db
+
+
+def get_jwt_identity():
+    """获取当前已验证的 JWT identity（未认证返回 None）"""
+    return (get_request_info() or {}).get('jwt_identity')
 
 
 def get_current_user() -> User:
@@ -16,7 +26,7 @@ def get_current_user() -> User:
     identity = get_jwt_identity()
     if not identity:
         return None
-    return User.query.get(int(identity))
+    return db.session.get(User, int(identity))
 
 
 def require_role(*roles):
@@ -31,7 +41,6 @@ def require_role(*roles):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            verify_jwt_in_request()
             user = get_current_user()
 
             if not user:
@@ -60,7 +69,6 @@ def require_permission(*permissions):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            verify_jwt_in_request()
             user = get_current_user()
 
             if not user:
@@ -90,7 +98,6 @@ def require_admin(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        verify_jwt_in_request()
         user = get_current_user()
 
         if not user:
@@ -120,12 +127,12 @@ def check_project_permission(user_id: int, project_id: int) -> bool:
     from ..models.project import Project
 
     # 管理员可以访问所有项目
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if user and user.is_admin():
         return True
 
     # 检查项目所有权
-    project = Project.query.get(project_id)
+    project = db.session.get(Project, project_id)
     if not project:
         return False
 

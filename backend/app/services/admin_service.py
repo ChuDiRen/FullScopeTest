@@ -13,6 +13,8 @@ from ..models.organization import Organization, OrganizationMember
 from ..models.project import Project
 from ..models.test_run import TestRun
 from ..core.logging import get_logger
+from sqlalchemy import select
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 
@@ -22,14 +24,14 @@ class AdminService:
 
     def get_platform_overview(self) -> Dict[str, Any]:
         """获取平台概览"""
-        total_users = User.query.count()
-        active_users = User.query.filter_by(is_active=True).count()
-        total_orgs = Organization.query.count()
-        total_projects = Project.query.count()
+        total_users = db.session.scalar(select(func.count()).select_from(select(User).subquery()))
+        active_users = db.session.scalar(select(func.count()).select_from(select(User).filter_by(is_active=True).subquery()))
+        total_orgs = db.session.scalar(select(func.count()).select_from(select(Organization).subquery()))
+        total_projects = db.session.scalar(select(func.count()).select_from(select(Project).subquery()))
 
         # 最近 24 小时的执行量
         since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=24)
-        daily_runs = TestRun.query.filter(TestRun.created_at >= since).count()
+        daily_runs = db.session.scalar(select(func.count()).select_from(select(TestRun).filter(TestRun.created_at >= since).subquery()))
 
         return {
             "total_users": total_users,
@@ -41,13 +43,13 @@ class AdminService:
 
     def get_tenant_list(self) -> list:
         """获取租户列表"""
-        orgs = Organization.query.all()
+        orgs = db.session.scalars(select(Organization)).all()
         result = []
         for org in orgs:
-            member_count = OrganizationMember.query.filter_by(
+            member_count = db.session.scalar(select(func.count()).select_from(select(OrganizationMember).filter_by(
                 organization_id=org.id, is_active=True,
-            ).count()
-            project_count = Project.query.filter_by(organization_id=org.id).count()
+            ).subquery()))
+            project_count = db.session.scalar(select(func.count()).select_from(select(Project).filter_by(organization_id=org.id).subquery()))
             result.append({
                 "id": org.id, "name": org.name,
                 "member_count": member_count,
@@ -58,7 +60,7 @@ class AdminService:
 
     def get_system_health(self) -> Dict[str, Any]:
         """获取系统健康状态"""
-        from ..core.health import _check_database, _check_redis
+        from ..api.v2.v1.health import _check_database, _check_redis
         return {
             "database": _check_database(),
             "redis": _check_redis(),

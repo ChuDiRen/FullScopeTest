@@ -18,6 +18,7 @@
 import os
 import sys
 import argparse
+from app.extensions import db
 
 # 确保 backend 目录在 Python path 中
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def metadata_sorted_tables(db):
     """获取按依赖排序的表名列表"""
-    from app.models import *  # noqa: F401,F403 — 确保所有模型导入
+    import app.models  # noqa: F401 — 确保所有模型导入
     return [t.name for t in db.metadata.sorted_tables]
 
 
@@ -119,11 +120,11 @@ def reset_database(seed=False, force=False):
 
     流程：删除数据库 → 创建数据库 → 运行迁移 → 填充种子数据
     """
-    from app import create_app
+    from app.core.runtime import init_runtime
 
-    app = create_app('development')
+    init_runtime()
 
-    with app.app_context():
+    with __import__('contextlib').nullcontext():
         from app.extensions import db
         from app.core.logging import get_logger
         from sqlalchemy import inspect, text

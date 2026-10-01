@@ -13,7 +13,7 @@ def _auth_headers(client):
     email = f"{username}@example.com"
     client.post("/api/v1/auth/register", json={"username": username, "email": email, "password": password})
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    token = resp.get_json()["data"]["access_token"]
+    token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -21,7 +21,7 @@ def _create_project(client, headers, name=None):
     if name is None:
         name = f"Proj_{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/v1/projects", headers=headers, json={"name": name})
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 # ====================================================================
@@ -48,8 +48,8 @@ class TestTestRunCRUD:
             "test_object_name": "User Login Test",
             "total_cases": 5,
         })
-        assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        assert resp.status_code == 200
+        data = resp.json()["data"]
         assert data["project_id"] == project["id"]
         assert data["status"] == "pending"
 
@@ -77,7 +77,7 @@ class TestTestRunCRUD:
         })
         resp = client.get(f"/api/v1/test-runs?project_id={project['id']}", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert "data" in data
 
     def test_get_test_runs_filter_by_type(self, client):
@@ -104,10 +104,10 @@ class TestTestRunCRUD:
         create_resp = client.post("/api/v1/test-runs", headers=headers, json={
             "project_id": project["id"], "test_type": "api",
         })
-        run_id = create_resp.get_json()["data"]["id"]
+        run_id = create_resp.json()["data"]["id"]
         resp = client.get(f"/api/v1/test-runs/{run_id}", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["id"] == run_id
+        assert resp.json()["data"]["id"] == run_id
 
     def test_get_test_run_detail_not_found(self, client):
         headers = _auth_headers(client)
@@ -128,15 +128,13 @@ class TestTestRunCRUD:
 # ====================================================================
 
 class TestReportList:
-    def test_get_reports_list_exposes_query_bug(self, client):
-        """reports.py:579 的 Query.paginate 存在已知 bug，
-        .join() 后返回标准 SQLAlchemy Query 而非 Flask-SQLAlchemy BaseQuery。
-        此测试记录该 bug，待后续修复。"""
-        import pytest as _pytest
+    def test_get_reports_list_by_project(self, client):
+        """按项目过滤报告列表（paginate bug 已修复）"""
         headers = _auth_headers(client)
         project = _create_project(client, headers)
-        with _pytest.raises(AttributeError):
-            client.get(f"/api/v1/test-reports?project_id={project['id']}", headers=headers)
+        resp = client.get(f"/api/v1/test-reports?project_id={project['id']}", headers=headers)
+        assert resp.status_code == 200
+        assert "items" in resp.json()["data"]
 
     def test_get_report_not_found(self, client):
         headers = _auth_headers(client)
@@ -157,7 +155,7 @@ class TestReportDashboard:
         headers = _auth_headers(client)
         resp = client.get("/api/v1/reports/dashboard", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert "data" in data
 
     def test_get_statistics(self, client):
@@ -193,22 +191,15 @@ class TestReportExport:
 # ====================================================================
 
 class TestReportIDOR:
-    def test_get_test_run_lacks_ownership_check(self, client):
-        """报告 test-run 详情接口缺少所有权校验（已知 IDOR 风险）。
-
-        get_test_run 使用 report_service.get_test_run(run_id)，
-        未校验 user_id 是否为 project.owner_id，导致任何认证用户都可查看。
-        此测试记录该安全问题，待后续修复（P1-2 补充测试时发现）。
-        """
+    def test_get_test_run_enforces_ownership_check(self, client):
+        """报告 test-run 详情接口必须校验所有权：用户 B 访问用户 A 的执行记录 → 404"""
         headers_a = _auth_headers(client)
         project_a = _create_project(client, headers_a, "ProjectA")
         create_resp = client.post("/api/v1/test-runs", headers=headers_a, json={
             "project_id": project_a["id"], "test_type": "api",
         })
-        run_id = create_resp.get_json()["data"]["id"]
+        run_id = create_resp.json()["data"]["id"]
 
         headers_b = _auth_headers(client)
         resp = client.get(f"/api/v1/test-runs/{run_id}", headers=headers_b)
-        # 当前实现未校验所有权，返回 200（IDOR 风险）
-        # 修复后应返回 404
-        assert resp.status_code == 200  # 记录当前行为，待修复
+        assert resp.status_code == 404  # 属主过滤生效，越权 404

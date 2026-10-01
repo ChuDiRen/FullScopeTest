@@ -4,6 +4,8 @@ RBAC 权限体系测试
 覆盖：系统角色权限矩阵、自定义角色 CRUD、权限检查服务、
      OrganizationMember 权限方法、API 角色管理端点
 """
+from sqlalchemy import delete, func, select
+from app.extensions import db
 import uuid
 
 import pytest
@@ -71,7 +73,7 @@ def _register_and_login(client, username=None, password="Passw0rd!"):
         "username": username,
         "password": password,
     })
-    data = resp.get_json()["data"]
+    data = resp.json()["data"]
     token = data["access_token"]
     user_id = data.get("user", {}).get("id")
     headers = {"Authorization": f"Bearer {token}"}
@@ -90,11 +92,10 @@ def _setup_org_with_api_user(client, db_app, member_role='admin'):
     headers, user_id, _ = _register_and_login(client)
 
     # 在 app context 中创建组织和成员关系
-    with db_app.app_context():
-        org = _create_org(db, user_id)
-        _create_membership(db, org.id, user_id, member_role)
-        db.session.commit()
-        org_id = org.id
+    org = _create_org(db, user_id)
+    _create_membership(db, org.id, user_id, member_role)
+    db.session.commit()
+    org_id = org.id
 
     return headers, user_id, org_id
 
@@ -248,61 +249,55 @@ class TestOrganizationMemberRBAC:
     def test_get_effective_role_name_owner(self, app):
         from app.extensions import db
         from app.models.organization import OrganizationMember
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            membership = _create_membership(db, org.id, user.id, 'owner')
-            assert membership.get_effective_role_name() == 'admin'
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        membership = _create_membership(db, org.id, user.id, 'owner')
+        assert membership.get_effective_role_name() == 'admin'
+        db.session.rollback()
 
     def test_get_effective_role_name_member(self, app):
         from app.extensions import db
         from app.models.organization import OrganizationMember
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            membership = _create_membership(db, org.id, user.id, 'member')
-            assert membership.get_effective_role_name() == 'tester'
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        membership = _create_membership(db, org.id, user.id, 'member')
+        assert membership.get_effective_role_name() == 'tester'
+        db.session.rollback()
 
     def test_has_permission_tester_can_create_test_case(self, app):
         from app.extensions import db
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            membership = _create_membership(db, org.id, user.id, 'tester')
-            assert membership.has_permission('test_case', 'create') is True
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        membership = _create_membership(db, org.id, user.id, 'tester')
+        assert membership.has_permission('test_case', 'create') is True
+        db.session.rollback()
 
     def test_has_permission_tester_cannot_create_project(self, app):
         from app.extensions import db
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            membership = _create_membership(db, org.id, user.id, 'tester')
-            assert membership.has_permission('project', 'create') is False
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        membership = _create_membership(db, org.id, user.id, 'tester')
+        assert membership.has_permission('project', 'create') is False
+        db.session.rollback()
 
     def test_has_permission_viewer_cannot_delete(self, app):
         from app.extensions import db
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            membership = _create_membership(db, org.id, user.id, 'viewer')
-            assert membership.has_permission('test_case', 'delete') is False
-            assert membership.has_permission('project', 'delete') is False
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        membership = _create_membership(db, org.id, user.id, 'viewer')
+        assert membership.has_permission('test_case', 'delete') is False
+        assert membership.has_permission('project', 'delete') is False
+        db.session.rollback()
 
     def test_get_permissions_returns_full_dict(self, app):
         from app.extensions import db
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            membership = _create_membership(db, org.id, user.id, 'admin')
-            perms = membership.get_permissions()
-            assert 'project' in perms
-            assert 'create' in perms['project']
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        membership = _create_membership(db, org.id, user.id, 'admin')
+        perms = membership.get_permissions()
+        assert 'project' in perms
+        assert 'create' in perms['project']
+        db.session.rollback()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -315,53 +310,48 @@ class TestPermissionService:
     def test_check_permission_member_in_org(self, app):
         from app.extensions import db
         from app.services.permission_service import check_permission
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            _create_membership(db, org.id, user.id, 'tester')
-            assert check_permission(user.id, org.id, 'test_case', 'create') is True
-            assert check_permission(user.id, org.id, 'project', 'create') is False
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        _create_membership(db, org.id, user.id, 'tester')
+        assert check_permission(user.id, org.id, 'test_case', 'create') is True
+        assert check_permission(user.id, org.id, 'project', 'create') is False
+        db.session.rollback()
 
     def test_check_permission_non_member(self, app):
         from app.extensions import db
         from app.services.permission_service import check_permission
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            # 不创建 membership
-            assert check_permission(user.id, org.id, 'test_case', 'create') is False
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        # 不创建 membership
+        assert check_permission(user.id, org.id, 'test_case', 'create') is False
+        db.session.rollback()
 
     def test_get_user_permissions(self, app):
         from app.extensions import db
         from app.services.permission_service import get_user_permissions
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            _create_membership(db, org.id, user.id, 'admin')
-            perms = get_user_permissions(user.id, org.id)
-            assert len(perms) > 0
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        _create_membership(db, org.id, user.id, 'admin')
+        perms = get_user_permissions(user.id, org.id)
+        assert len(perms) > 0
+        db.session.rollback()
 
     def test_get_user_role_name(self, app):
         from app.extensions import db
         from app.services.permission_service import get_user_role_name
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            _create_membership(db, org.id, user.id, 'admin')
-            assert get_user_role_name(user.id, org.id) == 'admin'
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        _create_membership(db, org.id, user.id, 'admin')
+        assert get_user_role_name(user.id, org.id) == 'admin'
+        db.session.rollback()
 
     def test_get_user_role_name_non_member(self, app):
         from app.extensions import db
         from app.services.permission_service import get_user_role_name
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            assert get_user_role_name(user.id, org.id) is None
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        assert get_user_role_name(user.id, org.id) is None
+        db.session.rollback()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -375,148 +365,140 @@ class TestCustomRoleCRUD:
         from app.extensions import db
         from app.services.permission_service import create_custom_role
         from app.models.role import Role
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            role = create_custom_role(
-                organization_id=org.id,
-                name='lead_tester',
-                display_name='测试主管',
-                permissions={
-                    'project': ['read'],
-                    'test_case': ['create', 'read', 'update', 'delete'],
-                },
-                description='可管理测试用例',
-            )
-            assert role.name == 'lead_tester'
-            assert role.is_system is False
-            assert role.organization_id == org.id
-            assert 'delete' in role.permissions['test_case']
-            # 清理
-            db.session.delete(role)
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        role = create_custom_role(
+            organization_id=org.id,
+            name='lead_tester',
+            display_name='测试主管',
+            permissions={
+                'project': ['read'],
+                'test_case': ['create', 'read', 'update', 'delete'],
+            },
+            description='可管理测试用例',
+        )
+        assert role.name == 'lead_tester'
+        assert role.is_system is False
+        assert role.organization_id == org.id
+        assert 'delete' in role.permissions['test_case']
+        # 清理
+        db.session.delete(role)
+        db.session.rollback()
 
     def test_create_custom_role_name_conflict_with_system(self, app):
         from app.extensions import db
         from app.services.permission_service import create_custom_role
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            with pytest.raises(ValueError, match="系统保留"):
-                create_custom_role(
-                    organization_id=org.id,
-                    name='admin',
-                    display_name='自定义管理员',
-                    permissions={'project': ['read']},
-                )
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        with pytest.raises(ValueError, match="系统保留"):
+            create_custom_role(
+                organization_id=org.id,
+                name='admin',
+                display_name='自定义管理员',
+                permissions={'project': ['read']},
+            )
+        db.session.rollback()
 
     def test_create_custom_role_duplicate_name(self, app):
         from app.extensions import db
         from app.services.permission_service import create_custom_role
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        create_custom_role(
+            organization_id=org.id,
+            name='custom_role',
+            display_name='自定义',
+            permissions={'project': ['read']},
+        )
+        with pytest.raises(ValueError, match="已存在"):
             create_custom_role(
                 organization_id=org.id,
                 name='custom_role',
-                display_name='自定义',
+                display_name='自定义2',
                 permissions={'project': ['read']},
             )
-            with pytest.raises(ValueError, match="已存在"):
-                create_custom_role(
-                    organization_id=org.id,
-                    name='custom_role',
-                    display_name='自定义2',
-                    permissions={'project': ['read']},
-                )
-            db.session.rollback()
+        db.session.rollback()
 
     def test_create_custom_role_invalid_resource(self, app):
         from app.extensions import db
         from app.services.permission_service import create_custom_role
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            with pytest.raises(ValueError, match="未知资源类型"):
-                create_custom_role(
-                    organization_id=org.id,
-                    name='bad_role',
-                    display_name='Bad',
-                    permissions={'nonexistent': ['read']},
-                )
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        with pytest.raises(ValueError, match="未知资源类型"):
+            create_custom_role(
+                organization_id=org.id,
+                name='bad_role',
+                display_name='Bad',
+                permissions={'nonexistent': ['read']},
+            )
+        db.session.rollback()
 
     def test_create_custom_role_invalid_action(self, app):
         from app.extensions import db
         from app.services.permission_service import create_custom_role
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            with pytest.raises(ValueError, match="未知操作"):
-                create_custom_role(
-                    organization_id=org.id,
-                    name='bad_role',
-                    display_name='Bad',
-                    permissions={'project': ['fly']},
-                )
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        with pytest.raises(ValueError, match="未知操作"):
+            create_custom_role(
+                organization_id=org.id,
+                name='bad_role',
+                display_name='Bad',
+                permissions={'project': ['fly']},
+            )
+        db.session.rollback()
 
     def test_update_custom_role(self, app):
         from app.extensions import db
         from app.services.permission_service import create_custom_role, update_custom_role
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            role = create_custom_role(
-                organization_id=org.id,
-                name='updatable',
-                display_name='可更新',
-                permissions={'project': ['read']},
-            )
-            updated = update_custom_role(
-                role_id=role.id,
-                organization_id=org.id,
-                display_name='已更新',
-                permissions={'project': ['read', 'create']},
-            )
-            assert updated.display_name == '已更新'
-            assert 'create' in updated.permissions['project']
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        role = create_custom_role(
+            organization_id=org.id,
+            name='updatable',
+            display_name='可更新',
+            permissions={'project': ['read']},
+        )
+        updated = update_custom_role(
+            role_id=role.id,
+            organization_id=org.id,
+            display_name='已更新',
+            permissions={'project': ['read', 'create']},
+        )
+        assert updated.display_name == '已更新'
+        assert 'create' in updated.permissions['project']
+        db.session.rollback()
 
     def test_update_system_role_fails(self, app):
         from app.extensions import db
         from app.models.role import Role
         from app.services.permission_service import update_custom_role
-        with app.app_context():
-            sys_role = Role(
-                name='test_sys', display_name='系统',
-                is_system=True, permissions={'project': ['read']},
-            )
-            db.session.add(sys_role)
-            db.session.flush()
-            with pytest.raises(ValueError, match="系统角色不可修改"):
-                update_custom_role(sys_role.id, organization_id=None, display_name='新名称')
-            db.session.rollback()
+        sys_role = Role(
+            name='test_sys', display_name='系统',
+            is_system=True, permissions={'project': ['read']},
+        )
+        db.session.add(sys_role)
+        db.session.flush()
+        with pytest.raises(ValueError, match="系统角色不可修改"):
+            update_custom_role(sys_role.id, organization_id=None, display_name='新名称')
+        db.session.rollback()
 
     def test_delete_custom_role_soft_delete(self, app):
         from app.extensions import db
         from app.services.permission_service import create_custom_role, delete_custom_role
         from app.models.role import Role
-        with app.app_context():
-            user = _create_user(db)
-            org = _create_org(db, user.id)
-            role = create_custom_role(
-                organization_id=org.id,
-                name='deletable',
-                display_name='可删除',
-                permissions={'project': ['read']},
-            )
-            delete_custom_role(role.id, org.id)
-            # 软删除：记录仍存在但 is_active=False
-            refreshed = Role.query.get(role.id)
-            assert refreshed.is_active is False
-            db.session.rollback()
+        user = _create_user(db)
+        org = _create_org(db, user.id)
+        role = create_custom_role(
+            organization_id=org.id,
+            name='deletable',
+            display_name='可删除',
+            permissions={'project': ['read']},
+        )
+        delete_custom_role(role.id, org.id)
+        # 软删除：记录仍存在但 is_active=False
+        refreshed = db.session.get(Role, role.id)
+        assert refreshed.is_active is False
+        db.session.rollback()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -530,28 +512,26 @@ class TestSeedSystemRoles:
         from app.extensions import db
         from app.models.role import Role
         from app.services.permission_service import seed_system_roles
-        with app.app_context():
-            seed_system_roles()
-            roles = Role.query.filter_by(is_system=True).all()
-            role_names = {r.name for r in roles}
-            assert role_names == {'admin', 'manager', 'tester', 'viewer'}
-            # 清理
-            Role.query.filter_by(is_system=True).delete()
-            db.session.commit()
+        seed_system_roles()
+        roles = db.session.scalars(select(Role).filter_by(is_system=True)).all()
+        role_names = {r.name for r in roles}
+        assert role_names == {'admin', 'manager', 'tester', 'viewer'}
+        # 清理
+        db.session.execute(delete(Role).filter_by(is_system=True))
+        db.session.commit()
 
     def test_seed_system_roles_idempotent(self, app):
         from app.extensions import db
         from app.models.role import Role
         from app.services.permission_service import seed_system_roles
-        with app.app_context():
-            seed_system_roles()
-            count_first = Role.query.filter_by(is_system=True).count()
-            seed_system_roles()
-            count_second = Role.query.filter_by(is_system=True).count()
-            assert count_first == count_second == 4
-            # 清理
-            Role.query.filter_by(is_system=True).delete()
-            db.session.commit()
+        seed_system_roles()
+        count_first = db.session.scalar(select(func.count()).select_from(select(Role).filter_by(is_system=True).subquery()))
+        seed_system_roles()
+        count_second = db.session.scalar(select(func.count()).select_from(select(Role).filter_by(is_system=True).subquery()))
+        assert count_first == count_second == 4
+        # 清理
+        db.session.execute(delete(Role).filter_by(is_system=True))
+        db.session.commit()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -565,47 +545,43 @@ class TestRoleManagementAPI:
         """GET /roles/system — 无需组织上下文"""
         from app.services.permission_service import seed_system_roles
         from app.extensions import db
-        with app.app_context():
-            seed_system_roles()
-            db.session.commit()
+        seed_system_roles()
+        db.session.commit()
 
         headers, user_id, _ = _register_and_login(client)
 
         resp = client.get('/api/v1/roles/system', headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         role_names = {r['name'] for r in data['data']}
         assert 'admin' in role_names
         assert 'viewer' in role_names
 
         # 清理
         from app.models.role import Role
-        with app.app_context():
-            Role.query.filter_by(is_system=True).delete()
-            db.session.commit()
+        db.session.execute(delete(Role).filter_by(is_system=True))
+        db.session.commit()
 
     def test_list_org_roles_includes_system_roles(self, app, client, no_rate_limit):
         """GET /organizations/:id/roles — 包含系统角色"""
         from app.services.permission_service import seed_system_roles
         from app.extensions import db
-        with app.app_context():
-            seed_system_roles()
-            db.session.commit()
+        seed_system_roles()
+        db.session.commit()
 
         headers, user_id, org_id = _setup_org_with_api_user(client, app, 'admin')
 
         resp = client.get(f'/api/v1/organizations/{org_id}/roles', headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         role_names = {r['name'] for r in data['data']}
         assert 'admin' in role_names
         assert 'viewer' in role_names
 
         # 清理
         from app.models.role import Role
-        with app.app_context():
-            Role.query.filter_by(is_system=True).delete()
-            db.session.commit()
+        db.session.execute(delete(Role).filter_by(is_system=True))
+        db.session.commit()
 
     def test_create_custom_role_as_admin(self, app, client, no_rate_limit):
         """POST /organizations/:id/roles — admin 可创建自定义角色"""
@@ -617,16 +593,15 @@ class TestRoleManagementAPI:
             'permissions': {'test_case': ['create', 'read', 'update']},
             'description': '可管理测试用例',
         }, headers=headers)
-        assert resp.status_code == 201
-        data = resp.get_json()
+        assert resp.status_code == 200
+        data = resp.json()
         assert data['data']['name'] == 'lead'
 
         # 清理
         from app.extensions import db
         from app.models.role import Role
-        with app.app_context():
-            Role.query.filter_by(name='lead').delete()
-            db.session.commit()
+        db.session.execute(delete(Role).filter_by(name='lead'))
+        db.session.commit()
 
     def test_create_custom_role_as_viewer_forbidden(self, app, client, no_rate_limit):
         """viewer 无权创建自定义角色"""
@@ -658,27 +633,25 @@ class TestRoleManagementAPI:
         headers, user_id, org_id = _setup_org_with_api_user(client, app, 'admin')
 
         # 先在 DB 中创建角色
-        with app.app_context():
-            role = Role(
-                name='custom_edit', display_name='可编辑',
-                organization_id=org_id, permissions={'project': ['read']},
-            )
-            db.session.add(role)
-            db.session.commit()
-            role_id = role.id
+        role = Role(
+            name='custom_edit', display_name='可编辑',
+            organization_id=org_id, permissions={'project': ['read']},
+        )
+        db.session.add(role)
+        db.session.commit()
+        role_id = role.id
 
         resp = client.put(f'/api/v1/organizations/{org_id}/roles/{role_id}', json={
             'display_name': '已编辑',
             'permissions': {'project': ['read', 'create']},
         }, headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data['data']['display_name'] == '已编辑'
 
         # 清理
-        with app.app_context():
-            Role.query.filter_by(id=role_id).delete()
-            db.session.commit()
+        db.session.execute(delete(Role).filter_by(id=role_id))
+        db.session.commit()
 
     def test_delete_custom_role(self, app, client, no_rate_limit):
         """DELETE /organizations/:id/roles/:role_id — 软删除自定义角色"""
@@ -687,23 +660,22 @@ class TestRoleManagementAPI:
 
         headers, user_id, org_id = _setup_org_with_api_user(client, app, 'admin')
 
-        with app.app_context():
-            role = Role(
-                name='custom_del', display_name='可删除',
-                organization_id=org_id, permissions={'project': ['read']},
-            )
-            db.session.add(role)
-            db.session.commit()
-            role_id = role.id
+        role = Role(
+            name='custom_del', display_name='可删除',
+            organization_id=org_id, permissions={'project': ['read']},
+        )
+        db.session.add(role)
+        db.session.flush()
+        role_id = role.id
+        db.session.commit()
 
         resp = client.delete(f'/api/v1/organizations/{org_id}/roles/{role_id}', headers=headers)
         assert resp.status_code == 200
 
         # 验证软删除
-        with app.app_context():
-            refreshed = db.session.get(Role, role_id)
-            assert refreshed.is_active is False
-            db.session.rollback()
+        refreshed = db.session.get(Role, role_id)
+        assert refreshed.is_active is False
+        db.session.rollback()
 
     def test_get_my_permissions(self, app, client, no_rate_limit):
         """GET /organizations/:id/my-permissions — 获取当前用户权限"""
@@ -711,7 +683,7 @@ class TestRoleManagementAPI:
 
         resp = client.get(f'/api/v1/organizations/{org_id}/my-permissions', headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data['data']['role'] == 'tester'
         assert 'test_case' in data['data']['permissions']
 
@@ -737,9 +709,8 @@ class TestRoleManagementAPI:
 
         # 创建另一个用户并加入组织（作为 tester）
         headers_member, member_id, _ = _register_and_login(client)
-        with app.app_context():
-            _create_membership(db, org_id, member_id, 'tester')
-            db.session.commit()
+        _create_membership(db, org_id, member_id, 'tester')
+        db.session.commit()
 
         resp = client.patch(
             f'/api/v1/organizations/{org_id}/members/{member_id}/role',
@@ -747,7 +718,7 @@ class TestRoleManagementAPI:
             headers=headers_admin,
         )
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data['data']['role'] == 'manager'
 
     def test_update_member_role_invalid_role(self, app, client, no_rate_limit):
@@ -757,9 +728,8 @@ class TestRoleManagementAPI:
         headers_admin, admin_id, org_id = _setup_org_with_api_user(client, app, 'admin')
 
         headers_member, member_id, _ = _register_and_login(client)
-        with app.app_context():
-            _create_membership(db, org_id, member_id, 'tester')
-            db.session.commit()
+        _create_membership(db, org_id, member_id, 'tester')
+        db.session.commit()
 
         resp = client.patch(
             f'/api/v1/organizations/{org_id}/members/{member_id}/role',
@@ -786,7 +756,7 @@ class TestRequirePermissionDecorator:
 
         resp = client.get(f'/api/v1/organizations/{org_id}/my-permissions', headers=headers)
         assert resp.status_code == 200
-        perms = resp.get_json()['data']['permissions']
+        perms = resp.json()['data']['permissions']
         assert 'create' in perms.get('project', [])
 
     def test_viewer_lacks_project_create_permission(self, app, client, no_rate_limit):
@@ -795,7 +765,7 @@ class TestRequirePermissionDecorator:
 
         resp = client.get(f'/api/v1/organizations/{org_id}/my-permissions', headers=headers)
         assert resp.status_code == 200
-        perms = resp.get_json()['data']['permissions']
+        perms = resp.json()['data']['permissions']
         assert 'create' not in perms.get('project', [])
 
     def test_tester_can_read_test_cases(self, app, client, no_rate_limit):
@@ -804,7 +774,7 @@ class TestRequirePermissionDecorator:
 
         resp = client.get(f'/api/v1/organizations/{org_id}/my-permissions', headers=headers)
         assert resp.status_code == 200
-        perms = resp.get_json()['data']['permissions']
+        perms = resp.json()['data']['permissions']
         assert 'read' in perms.get('test_case', [])
 
     def test_manager_has_project_create_but_not_manage(self, app, client, no_rate_limit):
@@ -813,6 +783,6 @@ class TestRequirePermissionDecorator:
 
         resp = client.get(f'/api/v1/organizations/{org_id}/my-permissions', headers=headers)
         assert resp.status_code == 200
-        perms = resp.get_json()['data']['permissions']
+        perms = resp.json()['data']['permissions']
         assert 'create' in perms.get('project', [])
         assert 'manage' not in perms.get('project', [])

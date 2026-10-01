@@ -6,11 +6,12 @@
 
 import os
 from datetime import datetime, timezone
-from flask import current_app
 from ..extensions import db
 from ..models.visual_baseline import VisualBaseline
 from ..models.visual_diff import VisualDiff
 from ..core.logging import get_logger
+from ..core.runtime import get_config
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
@@ -25,7 +26,7 @@ class ScreenshotService:
         Args:
             base_path: 截图存储根目录，默认从配置中获取
         """
-        self.base_path = base_path or current_app.config.get(
+        self.base_path = base_path or get_config().get(
             'SCREENSHOT_STORAGE_PATH',
             os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads', 'screenshots')
         )
@@ -91,12 +92,12 @@ class ScreenshotService:
             VisualBaseline: 创建或更新的基准截图记录
         """
         # 查找现有的基准
-        existing = VisualBaseline.query.filter_by(
+        existing = db.session.scalar(select(VisualBaseline).filter_by(
             test_case_id=test_case_id,
             step_index=step_index,
             test_type=test_type,
             status='active'
-        ).first()
+        ))
 
         if existing:
             # 更新现有基准
@@ -159,12 +160,12 @@ class ScreenshotService:
         Returns:
             VisualBaseline: 基准截图记录，如果没有则返回 None
         """
-        return VisualBaseline.query.filter_by(
+        return db.session.scalar(select(VisualBaseline).filter_by(
             test_case_id=test_case_id,
             step_index=step_index,
             test_type=test_type,
             status='active'
-        ).first()
+        ))
 
     def approve_baseline(self, baseline_id, approved_by):
         """
@@ -177,7 +178,7 @@ class ScreenshotService:
         Returns:
             VisualBaseline: 更新后的基准截图记录
         """
-        baseline = VisualBaseline.query.get(baseline_id)
+        baseline = db.session.get(VisualBaseline, baseline_id)
         if not baseline:
             raise ValueError(f"基准截图 {baseline_id} 不存在")
 
@@ -203,7 +204,7 @@ class ScreenshotService:
         Returns:
             bool: 是否成功删除
         """
-        baseline = VisualBaseline.query.get(baseline_id)
+        baseline = db.session.get(VisualBaseline, baseline_id)
         if not baseline:
             return False
 
@@ -231,7 +232,7 @@ class ScreenshotService:
         Returns:
             list: 差异记录列表
         """
-        query = VisualDiff.query
+        query = select(VisualDiff)
 
         if test_run_id:
             query = query.filter_by(test_run_id=test_run_id)
@@ -240,4 +241,4 @@ class ScreenshotService:
         if status:
             query = query.filter_by(status=status)
 
-        return query.order_by(VisualDiff.created_at.desc()).all()
+        return db.session.scalars(query.order_by(VisualDiff.created_at.desc())).all()

@@ -1,23 +1,25 @@
 from datetime import datetime
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+from ..database import Base
 
-from ..extensions import db
 
 
-class WebTestCollection(db.Model):
+class WebTestCollection(Base):
     """Collection container for Web Playwright scripts."""
 
     __tablename__ = 'web_test_collections'
 
-    id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True, comment='Project ID')
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='User ID')
-    name = db.Column(db.String(100), nullable=False, comment='Collection name')
-    description = db.Column(db.Text, comment='Collection description')
-    sort_order = db.Column(db.Integer, default=0, comment='Sort order')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='Created at')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='Updated at')
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True, comment='Project ID')
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='User ID')
+    name = Column(String(100), nullable=False, comment='Collection name')
+    description = Column(Text, comment='Collection description')
+    sort_order = Column(Integer, default=0, comment='Sort order')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='Created at')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='Updated at')
 
-    scripts = db.relationship('WebTestScript', backref='collection', lazy='dynamic')
+    scripts = relationship('WebTestScript', backref='collection', lazy='dynamic')
 
     def to_dict(self):
         return {

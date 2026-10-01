@@ -3,6 +3,7 @@
 
 提供租户级数据隔离、跨租户访问检测和租户统计。
 """
+from sqlalchemy import delete
 
 from typing import Dict, Any, Optional, List
 from ..extensions import db
@@ -10,6 +11,8 @@ from ..models.organization import Organization, OrganizationMember
 from ..models.project import Project
 from ..models.api_test_case import ApiTestCase
 from ..core.logging import get_logger
+from sqlalchemy import select
+from sqlalchemy import func
 
 logger = get_logger(__name__)
 
@@ -33,11 +36,11 @@ class TenantIsolationService:
             return True  # 无组织限制的资源
 
         # 检查用户是否是该组织成员
-        membership = OrganizationMember.query.filter_by(
+        membership = db.session.scalar(select(OrganizationMember).filter_by(
             user_id=user_id,
             organization_id=resource_org_id,
             is_active=True,
-        ).first()
+        ))
 
         if not membership:
             logger.warning("跨租户访问尝试", user_id=user_id, target_org=resource_org_id, action=action)
@@ -47,30 +50,30 @@ class TenantIsolationService:
 
     def get_user_organizations(self, user_id: int) -> List[Dict[str, Any]]:
         """获取用户所属的所有组织"""
-        memberships = OrganizationMember.query.filter_by(
+        memberships = db.session.scalars(select(OrganizationMember).filter_by(
             user_id=user_id, is_active=True,
-        ).all()
+        )).all()
 
         orgs = []
         for m in memberships:
-            org = Organization.query.get(m.organization_id)
+            org = db.session.get(Organization, m.organization_id)
             if org:
                 orgs.append({"id": org.id, "name": org.name, "role": m.role})
         return orgs
 
     def get_tenant_stats(self, org_id: int) -> Dict[str, Any]:
         """获取租户数据统计"""
-        org = Organization.query.get(org_id)
+        org = db.session.get(Organization, org_id)
         if not org:
             return {"error": "Organization not found"}
 
         # 成员数
-        member_count = OrganizationMember.query.filter_by(
+        member_count = db.session.scalar(select(func.count()).select_from(select(OrganizationMember).filter_by(
             organization_id=org_id, is_active=True,
-        ).count()
+        ).subquery()))
 
         # 项目数
-        project_count = Project.query.filter_by(organization_id=org_id).count()
+        project_count = db.session.scalar(select(func.count()).select_from(select(Project).filter_by(organization_id=org_id).subquery()))
 
         return {
             "organization_id": org_id,
@@ -82,20 +85,20 @@ class TenantIsolationService:
     def cleanup_tenant_data(self, org_id: int) -> Dict[str, Any]:
         """清理租户所有关联数据（删除组织时调用）"""
         # 删除组织的所有项目关联数据
-        projects = Project.query.filter_by(organization_id=org_id).all()
+        projects = db.session.scalars(select(Project).filter_by(organization_id=org_id)).all()
         project_ids = [p.id for p in projects]
 
         deleted_cases = 0
         if project_ids:
-            deleted_cases = ApiTestCase.query.filter(
+            deleted_cases = db.session.execute(delete(ApiTestCase).filter(
                 ApiTestCase.project_id.in_(project_ids)
-            ).delete(synchronize_session=False)
+            ))
 
         # 删除项目
-        deleted_projects = Project.query.filter_by(organization_id=org_id).delete()
+        deleted_projects = db.session.execute(delete(Project).filter_by(organization_id=org_id))
 
         # 删除成员关系
-        deleted_members = OrganizationMember.query.filter_by(organization_id=org_id).delete()
+        deleted_members = db.session.execute(delete(OrganizationMember).filter_by(organization_id=org_id))
 
         db.session.commit()
 

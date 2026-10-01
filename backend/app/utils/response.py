@@ -1,11 +1,14 @@
 """
 统一响应格式工具
 
-提供标准化的 API 响应格式
+提供标准化的 API 响应格式（零 Flask）：
+返回 (payload, status_code) 元组；payload 为可直接 JSON 序列化的 dict，
+由具体框架层（FastAPI 路由/JSONResponse）负责序列化与状态码。
 """
 
-from flask import jsonify
 from datetime import datetime, timezone
+
+from ..core.runtime import ctx
 
 
 def success_response(data=None, message='success', code=200):
@@ -18,7 +21,7 @@ def success_response(data=None, message='success', code=200):
         code: HTTP 状态码
     
     Returns:
-        tuple: (响应体, 状态码)
+        tuple: (响应体 dict, 状态码)
     """
     response = {
         'code': code,
@@ -26,7 +29,7 @@ def success_response(data=None, message='success', code=200):
         'data': data,
         'timestamp': datetime.now(timezone.utc).isoformat() + 'Z'
     }
-    return jsonify(response), code
+    return response, code
 
 
 def error_response(code, message, errors=None):
@@ -39,10 +42,9 @@ def error_response(code, message, errors=None):
         errors: 详细错误信息
 
     Returns:
-        tuple: (响应体, 状态码)
+        tuple: (响应体 dict, 状态码)
     """
-    from flask import g
-    request_id = getattr(g, 'request_id', '')
+    request_id = ctx.get_request_id()
     response = {
         'code': code,
         'message': message,
@@ -50,7 +52,7 @@ def error_response(code, message, errors=None):
         'request_id': request_id,
         'timestamp': datetime.now(timezone.utc).isoformat() + 'Z'
     }
-    return jsonify(response), code
+    return response, code
 
 
 def paginate_response(items, total, page, per_page, message='success'):
@@ -65,7 +67,7 @@ def paginate_response(items, total, page, per_page, message='success'):
         message: 响应消息
     
     Returns:
-        tuple: (响应体, 状态码)
+        tuple: (响应体 dict, 状态码)
     """
     response = {
         'code': 200,
@@ -81,4 +83,4 @@ def paginate_response(items, total, page, per_page, message='success'):
         },
         'timestamp': datetime.now(timezone.utc).isoformat() + 'Z'
     }
-    return jsonify(response), 200
+    return response, 200

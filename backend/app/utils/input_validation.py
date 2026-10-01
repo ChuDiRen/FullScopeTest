@@ -8,7 +8,8 @@ import re
 import os
 from typing import Dict, Any, Optional, List
 from functools import wraps
-from flask import request, current_app
+from ..core.runtime import get_config
+from ..core.request_local import get_request_info
 from ..utils.response import error_response
 from ..core.logging import get_logger
 
@@ -115,7 +116,7 @@ def validate_file_upload(file) -> Dict[str, Any]:
     if file.content_type and file.content_type not in ALLOWED_UPLOAD_TYPES:
         return {'valid': False, 'error': f'不支持的文件类型: {file.content_type}'}
 
-    max_size = current_app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024)
+    max_size = get_config().get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024)
     file.seek(0, 2)
     file_size = file.tell()
     file.seek(0)
@@ -129,13 +130,20 @@ def validate_file_upload(file) -> Dict[str, Any]:
 
 
 def validate_json_body(*required_fields):
-    """验证 JSON 请求体装饰器"""
+    """验证 JSON 请求体装饰器
+
+    零 Flask：请求摘要（headers/json）由 ASGI 中间件写入 request_local；
+    无请求信息时按校验失败处理。
+    """
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            if not request.is_json:
+            info = get_request_info() or {}
+            headers = info.get('headers') or {}
+            content_type = headers.get('Content-Type') or headers.get('content-type') or ''
+            if 'application/json' not in content_type:
                 return error_response(400, '请求必须是 JSON 格式')
-            data = request.get_json()
+            data = info.get('json')
             if not data:
                 return error_response(400, '请求体不能为空')
             missing_fields = [field for field in required_fields if field not in data]
@@ -147,11 +155,12 @@ def validate_json_body(*required_fields):
 
 
 def validate_query_params(*required_params):
-    """验证查询参数装饰器"""
+    """验证查询参数装饰器（零 Flask：query_params 由 request_local 提供）"""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            missing = [param for param in required_params if not request.args.get(param)]
+            params = (get_request_info() or {}).get('query_params') or {}
+            missing = [param for param in required_params if not params.get(param)]
             if missing:
                 return error_response(400, f'缺少必需参数: {", ".join(missing)}')
             return f(*args, **kwargs)
