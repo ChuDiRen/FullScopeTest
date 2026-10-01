@@ -41,7 +41,7 @@ def _get_store_key(user_id: int) -> str:
 
 
 def _get_redis():
-    """获取 Redis 连接（带缓存，失败时自动重建）"""
+    """获取 Redis 连接（带缓存，失败时自动重建；严格 2s 超时防 WSL 转发黑洞挂死）"""
     global _redis_client
     if _redis_client is not None:
         try:
@@ -54,7 +54,10 @@ def _get_redis():
         import redis as redis_lib
         redis_url = os.environ.get('REDIS_URL')
         if redis_url:
-            _redis_client = redis_lib.from_url(redis_url, decode_responses=True)
+            _redis_client = redis_lib.from_url(
+                redis_url, decode_responses=True,
+                socket_timeout=2, socket_connect_timeout=2,
+            )
             _redis_client.ping()
             return _redis_client
     except Exception:

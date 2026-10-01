@@ -9,6 +9,22 @@ import pytest
 from datetime import datetime
 
 
+@pytest.fixture(autouse=True)
+def _cleanup_global_prompt_versions(app):
+    """本文件的直建 PromptVersion 均未设 created_by（全局预置语义），
+    会落入其他用户 select 的可见域造成合跑污染——用例后统一清除。
+    关联 AIInvocationLog 一并删除：否则 SQLite rowid 复用会把旧日志
+    "嫁接"到后续测试新建的同 id 版本上（recent_trend 污染）。"""
+    yield
+    from app.models.prompt_version import PromptVersion
+    from app.models.ai_invocation_log import AIInvocationLog
+    db.session.query(AIInvocationLog).delete(synchronize_session=False)
+    db.session.query(PromptVersion).filter(
+        PromptVersion.created_by.is_(None)
+    ).delete(synchronize_session=False)
+    db.session.commit()
+
+
 class TestPromptVersionModel:
     """PromptVersion 模型测试"""
 

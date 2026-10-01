@@ -80,10 +80,18 @@ def _isolate_tests(app):
 
 @pytest.fixture()
 def no_rate_limit(monkeypatch):
-    """按需禁用限流的 fixture"""
+    """按需禁用限流：全局 ASGI 中间件 + 登录/注册路由级限流一并禁用。
+
+    auth.py 的路由级限流走自己的 _usable_redis 客户端（带 30s 探测缓存），
+    只 stub rate_limit_service 盖不住它——Redis 真实可用时连续登录会被 429。
+    """
     monkeypatch.setattr(
         "app.services.rate_limit_service.sliding_window_rate_limit",
         lambda key, limit, **kw: True,
+    )
+    monkeypatch.setattr(
+        "app.api.v2.v1.auth._usable_redis",
+        lambda: None,
     )
 
 

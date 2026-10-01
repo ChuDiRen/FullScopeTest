@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import threading
 from contextvars import ContextVar
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
@@ -21,6 +22,16 @@ from .logging import configure_structlog, get_logger
 from sqlalchemy import select
 from ..extensions import db
 from sqlalchemy import func
+
+# 加载 backend/.env（override=False：外部环境变量优先）。
+# runtime 是所有入口（FastAPI lifespan / Celery / init_db / CLI）的公共路径，
+# 在此加载一次即可让 REDIS_URL 等本地配置对全部进程生效。
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env", override=False)
+except ImportError:  # pragma: no cover
+    pass
 
 logger = get_logger(__name__)
 

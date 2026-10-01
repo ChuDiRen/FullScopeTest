@@ -56,13 +56,21 @@ def _login_rate_key(request: Request) -> str:
     return f"rate_limit:login_ip:{client_ip(request)}"
 
 
+def _rate_limited(request: Request) -> bool:
+    """路由级登录限流判定；尊重 RATELIMIT_ENABLED 总开关（testing 下禁用）"""
+    from ...core.runtime import get_config
+    if not get_config().get("RATELIMIT_ENABLED", True):
+        return False
+    return not sliding_window_rate_limit(_login_rate_key(request), 5)
+
+
 @router.post("/login")
 async def login_v2(request_data: LoginRequest, request: Request, response: Response):
     """用户登录 - v2 API（限流 5/min + 账户锁定）"""
     from ...core.passwords import check_password_hash
     from ...core.jwt import create_access_token, create_refresh_token
 
-    if not sliding_window_rate_limit(_login_rate_key(request), 5):
+    if _rate_limited(request):
         raise HTTPException(status_code=429, detail="尝试次数过多，请稍后再试")
 
     user = db.session.scalar(select(User).filter(
@@ -103,7 +111,7 @@ async def register_v2(request_data: RegisterRequest, request: Request):
     """用户注册 - v2 API（限流 5/min）"""
     from ...core.passwords import generate_password_hash
 
-    if not sliding_window_rate_limit(_login_rate_key(request), 5):
+    if _rate_limited(request):
         raise HTTPException(status_code=429, detail="尝试次数过多，请稍后再试")
 
     if db.session.scalar(select(User).filter_by(username=request_data.username)):

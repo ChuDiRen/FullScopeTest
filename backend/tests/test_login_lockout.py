@@ -117,9 +117,10 @@ class TestAccountLockout:
         import app.services.password_policy as pp
         from app.services.password_policy import (
             record_login_failure, is_account_locked, reset_login_failures,
-            MAX_LOGIN_FAILURES,
         )
-        # conftest 全局调高阈值防测试间泄漏；本用例显式恢复真实锁定行为
+        # conftest 全局调高阈值防测试间泄漏；本用例显式恢复真实锁定行为。
+        # 循环上限必须经模块属性动态读取——from-import 的常量在导入时已固化为
+        # conftest 的 999999，直接用会真写 99.9 万次 Redis（Redis 可用时挂死）
         monkeypatch.setattr(pp, 'MAX_LOGIN_FAILURES', 5)
         monkeypatch.setattr(pp, 'LOCKOUT_DURATION', 900)
         user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf3@test.com", password_hash="h")
@@ -127,7 +128,7 @@ class TestAccountLockout:
         db.session.flush()
 
         reset_login_failures(user.id)
-        for _ in range(MAX_LOGIN_FAILURES):
+        for _ in range(pp.MAX_LOGIN_FAILURES):
             record_login_failure(user.id)
 
         locked, remaining = is_account_locked(user.id)
@@ -137,19 +138,23 @@ class TestAccountLockout:
         reset_login_failures(user.id)
         db.session.rollback()
 
-    def test_account_not_locked_below_threshold(self, app):
+    def test_account_not_locked_below_threshold(self, app, monkeypatch):
         from app.extensions import db
         from app.models.user import User
+        import app.services.password_policy as pp
         from app.services.password_policy import (
             record_login_failure, is_account_locked, reset_login_failures,
-            MAX_LOGIN_FAILURES,
         )
+        # conftest 全局阈值为 999999（防泄漏），直接用它做循环会真写 Redis 99.9 万次；
+        # 本用例关注"低于阈值不锁定"语义，monkeypatch 小阈值验证
+        monkeypatch.setattr(pp, 'MAX_LOGIN_FAILURES', 3)
+        monkeypatch.setattr(pp, 'LOCKOUT_DURATION', 900)
         user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf4@test.com", password_hash="h")
         db.session.add(user)
         db.session.flush()
 
         reset_login_failures(user.id)
-        for _ in range(MAX_LOGIN_FAILURES - 1):
+        for _ in range(pp.MAX_LOGIN_FAILURES - 1):
             record_login_failure(user.id)
 
         locked, _ = is_account_locked(user.id)
@@ -158,19 +163,21 @@ class TestAccountLockout:
         reset_login_failures(user.id)
         db.session.rollback()
 
-    def test_lockout_resets_on_successful_login(self, app):
+    def test_lockout_resets_on_successful_login(self, app, monkeypatch):
         from app.extensions import db
         from app.models.user import User
+        import app.services.password_policy as pp
         from app.services.password_policy import (
             record_login_failure, is_account_locked, reset_login_failures, get_login_failures,
-            MAX_LOGIN_FAILURES,
         )
+        monkeypatch.setattr(pp, 'MAX_LOGIN_FAILURES', 3)
+        monkeypatch.setattr(pp, 'LOCKOUT_DURATION', 900)
         user = User(username=f"lf_{uuid.uuid4().hex[:6]}", email="lf5@test.com", password_hash="h")
         db.session.add(user)
         db.session.flush()
 
         reset_login_failures(user.id)
-        for _ in range(MAX_LOGIN_FAILURES):
+        for _ in range(pp.MAX_LOGIN_FAILURES):
             record_login_failure(user.id)
 
         # 模拟成功登录

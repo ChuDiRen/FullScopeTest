@@ -214,8 +214,12 @@ def _limit_or_429(request: Request, purpose: str, limit: int) -> None:
     """
     等价 v1 的 @limiter.limit：Redis 滑动窗口，按用途 + 来源 IP 计数。
 
-    Redis 不可用时 fail-open（与 rate_limit_service/全局中间件的降级策略一致）。
+    Redis 不可用时 fail-open（与 rate_limit_service/全局中间件的降级策略一致）；
+    尊重 RATELIMIT_ENABLED 总开关（testing 环境为 False 时与全局中间件一并禁用）。
     """
+    from ....core.runtime import get_config
+    if not get_config().get("RATELIMIT_ENABLED", True):
+        return
     redis_client = _usable_redis()
     if redis_client is None:
         return

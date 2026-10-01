@@ -192,7 +192,10 @@ def test_wrong_password_then_lockout_or_rate_limit(v2_client, make_user, monkeyp
     monkeypatch.setattr(pp, "MAX_LOGIN_FAILURES", 5)
     monkeypatch.setattr(pp, "LOCKOUT_DURATION", 900)
 
-    make_user("v1auth_lock")
+    uid = make_user("v1auth_lock")
+    # Redis 真实可用后：测试库重建时 user_id 会复用，而上一次运行的锁定
+    # 状态仍留在共享 Redis（TTL 30 分钟）——开测前先清自己的键
+    pp.reset_login_failures(uid)
     for i in range(5):
         resp = v2_client.post(
             LOGIN_URL, json={"username": "v1auth_lock", "password": "WrongPass!1"}
@@ -205,6 +208,9 @@ def test_wrong_password_then_lockout_or_rate_limit(v2_client, make_user, monkeyp
         LOGIN_URL, json={"username": "v1auth_lock", "password": "WrongPass!1"}
     )
     assert resp.status_code in (423, 429), resp.text
+
+    # 清理锁定键，避免污染（可能复用同 user_id 的）后续测试运行
+    pp.reset_login_failures(uid)
 
 
 # ---------------------------------------------------------------------------

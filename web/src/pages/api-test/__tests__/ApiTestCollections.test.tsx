@@ -5,21 +5,21 @@ import ApiTestCollections from "../ApiTestCollections"
 
 vi.mock("@/services/api", () => ({
   default: {
-    get: vi.fn().mockResolvedValue({ data: { data: [] } }),
-    post: vi.fn().mockResolvedValue({ data: { data: {} } }),
+    get: vi.fn().mockResolvedValue({ code: 200, data: { data: [] } }),
+    post: vi.fn().mockResolvedValue({ code: 200, data: { data: {} } }),
   },
 }))
 
 vi.mock("@/services/apiTestService", () => ({
   apiTestService: {
-    getCollections: vi.fn().mockResolvedValue({ data: [] }),
-    getCases: vi.fn().mockResolvedValue({ data: [] }),
-    deleteCase: vi.fn().mockResolvedValue({ message: "ok" }),
+    getCollections: vi.fn().mockResolvedValue({ code: 200, data: [] }),
+    getCases: vi.fn().mockResolvedValue({ code: 200, data: [] }),
+    deleteCase: vi.fn().mockResolvedValue({ code: 200, message: "ok" }),
   },
 }))
 
 vi.mock("@/stores/projectStore", () => ({
-  useProjectStore: () => ({ currentProject: { id: 1 } }),
+  useProjectStore: () => ({ currentProjectId: 1 }),
 }))
 
 vi.mock("react-i18next", () => ({
@@ -43,28 +43,29 @@ describe("ApiTestCollections Page", () => {
     expect(document.body).toBeTruthy()
   })
 
-  it("should render case name column", () => {
+  // loadData 为异步：列头在首帧后随 fetch resolve 渲染，须用 findByText 等待
+  it("should render case name column", async () => {
     renderCollections()
-    expect(screen.getByText("apiTest.caseName")).toBeTruthy()
+    expect(await screen.findByText("apiTest.caseName")).toBeTruthy()
   })
 
-  it("should render request method column", () => {
+  it("should render request method column", async () => {
     renderCollections()
-    expect(screen.getByText("apiTest.requestMethod")).toBeTruthy()
+    expect(await screen.findByText("apiTest.requestMethod")).toBeTruthy()
   })
 
-  it("should render request path column", () => {
+  it("should render request path column", async () => {
     renderCollections()
-    expect(screen.getByText("apiTest.requestPath")).toBeTruthy()
+    expect(await screen.findByText("apiTest.requestPath")).toBeTruthy()
   })
 
-  it("should render collection column", () => {
+  it("should render collection column", async () => {
     renderCollections()
-    expect(screen.getByText("apiTest.collection")).toBeTruthy()
+    expect(await screen.findByText("apiTest.collection")).toBeTruthy()
   })
 
-  it("should render updated at column", () => {
+  it("should render updated at column", async () => {
     renderCollections()
-    expect(screen.getByText("common.updatedAt")).toBeTruthy()
+    expect(await screen.findByText("common.updatedAt")).toBeTruthy()
   })
 })
