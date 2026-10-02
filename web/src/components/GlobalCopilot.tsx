@@ -375,6 +375,15 @@ const GlobalCopilot: React.FC = () => {
     setShowConfig(false);
   };
 
+  // 侧边栏"AI 助手"菜单没有独立路由，通过窗口事件唤起面板（ref 保证拿到最新闭包）
+  const handleOpenRef = useRef(handleOpen);
+  handleOpenRef.current = handleOpen;
+  useEffect(() => {
+    const openFromMenu = () => handleOpenRef.current();
+    window.addEventListener('fst-copilot:open', openFromMenu);
+    return () => window.removeEventListener('fst-copilot:open', openFromMenu);
+  }, []);
+
   const handlePanelPointerDown: React.PointerEventHandler<HTMLDivElement> = (e) => {
     if (isSmallScreen) return;
     const target = e.target as HTMLElement | null;

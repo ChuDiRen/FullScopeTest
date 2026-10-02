@@ -41,6 +41,7 @@ import {
   LineChartOutlined,
   HeartOutlined,
   AuditOutlined,
+  MessageOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
@@ -403,6 +404,8 @@ const MainLayout = () => {
     ] : []),
     { icon: <ExperimentOutlined />, label: t('sidebar.testPlans'), path: '/test-plans' },
     { icon: <SafetyOutlined />, label: t('sidebar.qualityGates'), path: '/quality-gates' },
+    // AI 助手：无独立路由的菜单动作项，点击唤起全局 Copilot 面板（见下方 onClick 拦截）
+    { icon: <MessageOutlined />, label: t('sidebar.aiAssistant'), path: '/ai-assistant' },
     { icon: <DotChartOutlined />, label: t('sidebar.aiInsights'), path: '/ai-insights' },
     { icon: <RobotOutlined />, label: t('sidebar.dataFactory'), path: '/data-factory' },
     { icon: <BugOutlined />, label: t('sidebar.flakyTests'), path: '/flaky-tests' },
@@ -520,7 +523,14 @@ const MainLayout = () => {
               tourId={item.path === '/settings' ? 'tour-settings' : item.path === '/api-test' ? 'tour-api-test' : undefined}
               currentPath={location.pathname}
               children={item.children}
-              onClick={(p) => { navigate(p); if (isMobile) setMobileDrawerOpen(false) }}
+              onClick={(p) => {
+                if (p === '/ai-assistant') {
+                  window.dispatchEvent(new CustomEvent('fst-copilot:open'))
+                  if (isMobile) setMobileDrawerOpen(false)
+                  return
+                }
+                navigate(p); if (isMobile) setMobileDrawerOpen(false)
+              }}
               onToggle={() => toggleGroup(item.path)}
             />
           ))}

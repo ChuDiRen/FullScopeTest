@@ -257,6 +257,7 @@
     "monitor": "实时监控",
     "results": "测试结果",
     "perfDashboard": "性能大盘",
+    "aiAssistant": "AI 助手",
     "aiInsights": "AI 统计看板",
     "reports": "测试报告",
     "cicd": "CI/CD与定时任务",

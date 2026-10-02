@@ -257,6 +257,7 @@
     "monitor": "Real-time Monitor",
     "results": "Test Results",
     "perfDashboard": "Perf Dashboard",
+    "aiAssistant": "AI Assistant",
     "aiInsights": "AI Insights",
     "reports": "Test Reports",
     "cicd": "CI/CD & Schedules",
