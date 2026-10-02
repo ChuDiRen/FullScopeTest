@@ -29,7 +29,6 @@ import {
   ExperimentOutlined,
   SafetyOutlined,
   BellOutlined,
-  LinkOutlined,
   SunOutlined,
   MoonOutlined,
   RobotOutlined,
@@ -39,7 +38,6 @@ import {
   SyncOutlined,
   CloudServerOutlined,
   LineChartOutlined,
-  HeartOutlined,
   AuditOutlined,
   MessageOutlined,
 } from '@ant-design/icons'
@@ -425,11 +423,7 @@ const MainLayout = () => {
     { icon: <CloudServerOutlined />, label: t('sidebar.mockServers'), path: '/mock-servers' },
     { icon: <BellOutlined />, label: t('sidebar.notifications'), path: '/notification-settings' },
     { icon: <LineChartOutlined />, label: t('sidebar.teamMetrics'), path: '/team-metrics' },
-    { icon: <TeamOutlined />, label: t('sidebar.organizations'), path: '/organizations' },
     { icon: <KeyOutlined />, label: t('sidebar.apiTokens'), path: '/api-tokens' },
-    { icon: <LinkOutlined />, label: t('sidebar.integrations'), path: '/integrations' },
-    { icon: <HeartOutlined />, label: t('sidebar.healthMonitor'), path: '/health-monitor' },
-    { icon: <ApiOutlined />, label: t('sidebar.webhookDebugger'), path: '/webhook-debugger' },
     { icon: <FileTextOutlined />, label: t('sidebar.documents'), path: '/docs' },
     ...(isAdmin ? [
       { icon: <AuditOutlined />, label: t('sidebar.auditLogs'), path: '/audit-logs' },
