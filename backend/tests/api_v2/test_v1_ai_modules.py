@@ -503,9 +503,6 @@ def test_copilot_chat_mock_ai(v2_client, make_user, auth_headers, monkeypatch):
             "base_url": " http://llm.local/v1 ",
             "model": " test-model ",
             "api_key": "sk-test",
-            "vision_base_url": " http://vision.local ",
-            "vision_model": " vision-model ",
-            "vision_api_key": "sk-vision",
         },
     )
     assert resp.status_code == 200, resp.text
@@ -513,9 +510,9 @@ def test_copilot_chat_mock_ai(v2_client, make_user, auth_headers, monkeypatch):
     assert cfg["AI_ASSISTANT_BASE_URL"] == "http://llm.local/v1"
     assert cfg["AI_ASSISTANT_MODEL"] == "test-model"
     assert cfg["AI_ASSISTANT_API_KEY"] == "sk-test"
-    assert cfg["AI_VISION_BASE_URL"] == "http://vision.local"
-    assert cfg["AI_VISION_MODEL"] == "vision-model"
-    assert cfg["AI_VISION_API_KEY"] == "sk-vision"
+    assert "AI_VISION_BASE_URL" not in cfg
+    assert "AI_VISION_MODEL" not in cfg
+    assert "AI_VISION_API_KEY" not in cfg
 
 
 def test_copilot_chat_empty_messages_400(v2_client, make_user, auth_headers):

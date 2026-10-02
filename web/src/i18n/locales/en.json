@@ -4,7 +4,6 @@
     "placeholder": "Send a command to AI Assistant...",
     "welcome": "Hi! I'm your AI test platform assistant. I can help you create performance test tasks, or query recent failed Web test records.",
     "apiKeyPlaceholder": "Enter model provider API Key",
-    "visionKeyPlaceholder": "Enter vision model API Key",
     "send": "Send"
   },
   "common": {
@@ -806,17 +805,11 @@
     "modelName": "Model Name",
     "modelTooltip": "e.g. deepseek-chat, gpt-4o, etc.",
     "apiKey": "API Key",
-    "visionBaseURL": "Vision Model Base URL",
-    "visionModel": "Vision Model",
-    "visionApiKey": "Vision Model API Key",
     "saveBtn": "Save Settings",
     "saveSuccess": "Settings saved successfully, written to backend .env",
     "baseURLRequired": "Please enter Base URL",
     "modelRequired": "Please enter model name",
     "apiKeyRequired": "Please enter API Key",
-    "visionBaseURLRequired": "Please enter vision model Base URL",
-    "visionModelRequired": "Please enter vision model name",
-    "visionApiKeyRequired": "Please enter vision model API Key",
     "generalTab": "General",
     "appearanceTab": "Appearance",
     "generalHint": "Configure general platform behavior preferences including page size, auto refresh, and animations.",
@@ -867,7 +860,8 @@
     "notifyAlert": "Performance Alert",
     "notifyAlertDesc": "Send notification when performance metrics exceed thresholds",
     "notifyQualityGate": "Quality Gate Notification",
-    "notifyQualityGateDesc": "Send notification when quality gate evaluation fails"
+    "notifyQualityGateDesc": "Send notification when quality gate evaluation fails",
+    "visionMergedHint": "Visual analysis (e.g. Web-test screenshot understanding) uses the main model above — no separate config"
   },
   "prompt": {
     "allFeatures": "All Features",

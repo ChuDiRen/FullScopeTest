@@ -176,17 +176,11 @@ export const getAiConfig = (): Promise<ApiResponse<{
   base_url: string
   model: string
   api_key: string
-  vision_base_url: string
-  vision_model: string
-  vision_api_key: string
 }>> => {
   return api.get('/api-test/ai/config') as Promise<ApiResponse<{
     base_url: string
     model: string
     api_key: string
-    vision_base_url: string
-    vision_model: string
-    vision_api_key: string
   }>>
 }
 
@@ -194,24 +188,15 @@ export const saveAiConfig = (data: {
   base_url: string
   model: string
   api_key: string
-  vision_base_url: string
-  vision_model: string
-  vision_api_key: string
 }): Promise<ApiResponse<{
   base_url: string
   model: string
   api_key: string
-  vision_base_url: string
-  vision_model: string
-  vision_api_key: string
 }>> => {
   return api.post('/api-test/ai/config', data) as Promise<ApiResponse<{
     base_url: string
     model: string
     api_key: string
-    vision_base_url: string
-    vision_model: string
-    vision_api_key: string
   }>>
 }
 
@@ -220,9 +205,6 @@ export const generateAiPlan = (data: {
   base_url?: string
   model?: string
   api_key?: string
-  vision_base_url?: string
-  vision_model?: string
-  vision_api_key?: string
   project_id?: number
   collection_id?: number
   case_id?: number
@@ -237,9 +219,6 @@ export const synthesizeCasesAI = (data: {
   base_url?: string
   model?: string
   api_key?: string
-  vision_base_url?: string
-  vision_model?: string
-  vision_api_key?: string
 }): Promise<ApiResponse<{ cases: Array<Record<string, unknown>> }>> => {
   return api.post('/api-test/ai/synthesize-cases', data, { timeout: 120000 }) as Promise<ApiResponse<{ cases: Array<Record<string, unknown>> }>>
 }
@@ -249,9 +228,6 @@ export const reviewCollectionAI = (data: {
   base_url?: string
   model?: string
   api_key?: string
-  vision_base_url?: string
-  vision_model?: string
-  vision_api_key?: string
 }): Promise<ApiResponse<{ review_summary: string, suggested_cases: Array<Record<string, unknown>> }>> => {
   return api.post('/api-test/ai/review-collection', data, { timeout: 120000 }) as Promise<ApiResponse<{ review_summary: string, suggested_cases: Array<Record<string, unknown>> }>>
 }

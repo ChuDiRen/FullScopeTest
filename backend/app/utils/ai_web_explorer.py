@@ -160,9 +160,6 @@ def run_exploration_task(
     base_url = str(os.environ.get("AI_ASSISTANT_BASE_URL") or config.get("AI_ASSISTANT_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
     model = str(os.environ.get("AI_ASSISTANT_MODEL") or config.get("AI_ASSISTANT_MODEL") or "gpt-4o-mini")
     api_key = str(os.environ.get("AI_ASSISTANT_API_KEY") or config.get("AI_ASSISTANT_API_KEY") or "").strip()
-    vision_base_url = str(os.environ.get("AI_VISION_BASE_URL") or config.get("AI_VISION_BASE_URL") or base_url).rstrip("/")
-    vision_model = str(os.environ.get("AI_VISION_MODEL") or config.get("AI_VISION_MODEL") or model)
-    vision_api_key = str(os.environ.get("AI_VISION_API_KEY") or config.get("AI_VISION_API_KEY") or api_key).strip()
     explore_headless = _to_bool(
         os.environ.get("AI_EXPLORE_BROWSER_HEADLESS", config.get("AI_EXPLORE_BROWSER_HEADLESS")),
         True,
@@ -397,9 +394,6 @@ def run_exploration_task(
                         api_key,
                         base_url,
                         model,
-                        vision_api_key,
-                        vision_base_url,
-                        vision_model,
                         decision_log_callback=_emit_log,
                     )
                 
@@ -556,9 +550,6 @@ def _decide_next_action(
     api_key: str,
     base_url: str,
     model: str,
-    vision_api_key: str,
-    vision_base_url: str,
-    vision_model: str,
     decision_log_callback: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
     import requests
@@ -641,7 +632,7 @@ def _decide_next_action(
         return wrapped
 
     try:
-        _emit_decision_log(f"开始请求视觉模型决策: model={vision_model}, base_url={vision_base_url}")
+        _emit_decision_log(f"开始请求视觉模型决策: model={model}, base_url={base_url}")
         vision_user_content: Any = [{"type": "text", "text": user_text_content}]
         if screenshot_base64:
             vision_user_content.append({
@@ -649,7 +640,7 @@ def _decide_next_action(
                 "image_url": {"url": f"data:image/jpeg;base64,{screenshot_base64}"}
             })
         vision_payload = {
-            "model": vision_model,
+            "model": model,
             "temperature": 0.5,
             "response_format": {"type": "json_object"},
             "messages": [
@@ -659,9 +650,9 @@ def _decide_next_action(
         }
         vision_started_at = time.time()
         vision_resp = requests.post(
-            f"{vision_base_url}/chat/completions",
+            f"{base_url}/chat/completions",
             headers={
-                "Authorization": f"Bearer {vision_api_key}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
             json=vision_payload,

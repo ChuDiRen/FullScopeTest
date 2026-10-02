@@ -27,12 +27,6 @@ interface AiAssistantDrawerProps {
   setAiModel: (v: string) => void
   aiApiKey: string
   setAiApiKey: (v: string) => void
-  aiVisionBaseUrl: string
-  setAiVisionBaseUrl: (v: string) => void
-  aiVisionModel: string
-  setAiVisionModel: (v: string) => void
-  aiVisionApiKey: string
-  setAiVisionApiKey: (v: string) => void
   // Prompt & execution
   aiPrompt: string
   setAiPrompt: (v: string) => void
@@ -54,9 +48,6 @@ const AiAssistantDrawer = ({
   aiBaseUrl, setAiBaseUrl,
   aiModel, setAiModel,
   aiApiKey, setAiApiKey,
-  aiVisionBaseUrl, setAiVisionBaseUrl,
-  aiVisionModel, setAiVisionModel,
-  aiVisionApiKey, setAiVisionApiKey,
   aiPrompt, setAiPrompt,
   aiAutoRun, setAiAutoRun,
   aiRunning,
@@ -109,27 +100,6 @@ const AiAssistantDrawer = ({
                 placeholder={globalAiConfig?.api_key || "请输入模型提供商的 API Key"}
                 value={aiApiKey}
                 onChange={(e) => setAiApiKey(e.target.value)}
-              />
-            </Form.Item>
-            <Form.Item label="Vision Base URL" style={{ marginTop: 12, marginBottom: 12 }}>
-              <Input
-                placeholder={globalAiConfig?.vision_base_url || globalAiConfig?.base_url || "https://api.openai.com/v1"}
-                value={aiVisionBaseUrl}
-                onChange={(e) => setAiVisionBaseUrl(e.target.value)}
-              />
-            </Form.Item>
-            <Form.Item label="Vision Model" style={{ marginBottom: 12 }}>
-              <Input
-                placeholder={globalAiConfig?.vision_model || "gpt-4o-mini"}
-                value={aiVisionModel}
-                onChange={(e) => setAiVisionModel(e.target.value)}
-              />
-            </Form.Item>
-            <Form.Item label="Vision API Key" style={{ marginBottom: 0 }}>
-              <Input.Password
-                placeholder={globalAiConfig?.vision_api_key || "请输入视觉模型 API Key"}
-                value={aiVisionApiKey}
-                onChange={(e) => setAiVisionApiKey(e.target.value)}
               />
             </Form.Item>
           </Form>

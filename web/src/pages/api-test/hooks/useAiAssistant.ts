@@ -15,9 +15,6 @@ interface GlobalAiConfig {
   base_url: string
   model: string
   api_key: string
-  vision_base_url: string
-  vision_model: string
-  vision_api_key: string
 }
 
 export function useAiAssistant() {
@@ -26,9 +23,6 @@ export function useAiAssistant() {
   const [aiBaseUrl, setAiBaseUrl] = useState("")
   const [aiModel, setAiModel] = useState("")
   const [aiApiKey, setAiApiKey] = useState("")
-  const [aiVisionBaseUrl, setAiVisionBaseUrl] = useState("")
-  const [aiVisionModel, setAiVisionModel] = useState("")
-  const [aiVisionApiKey, setAiVisionApiKey] = useState("")
   const [aiAutoRun, setAiAutoRun] = useState(true)
   const [aiRunning, setAiRunning] = useState(false)
   const [aiSummary, setAiSummary] = useState("")
@@ -66,9 +60,6 @@ export function useAiAssistant() {
         setAiBaseUrl(res.data.base_url || "")
         setAiModel(res.data.model || "")
         setAiApiKey(res.data.api_key || "")
-        setAiVisionBaseUrl(res.data.vision_base_url || "")
-        setAiVisionModel(res.data.vision_model || "")
-        setAiVisionApiKey(res.data.vision_api_key || "")
       }
     } catch (e) {
       logger.error("Failed to load AI config", e)
@@ -95,9 +86,6 @@ export function useAiAssistant() {
     aiBaseUrl, setAiBaseUrl,
     aiModel, setAiModel,
     aiApiKey, setAiApiKey,
-    aiVisionBaseUrl, setAiVisionBaseUrl,
-    aiVisionModel, setAiVisionModel,
-    aiVisionApiKey, setAiVisionApiKey,
     aiAutoRun, setAiAutoRun,
     aiRunning, setAiRunning,
     aiSummary, setAiSummary,

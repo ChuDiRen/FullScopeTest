@@ -113,9 +113,6 @@ export interface AiConfig {
   base_url: string
   model: string
   api_key: string
-  vision_base_url: string
-  vision_model: string
-  vision_api_key: string
   enabled: boolean
 }
 

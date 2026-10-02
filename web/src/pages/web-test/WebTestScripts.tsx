@@ -246,9 +246,6 @@ const WebTestScripts = () => {
   const [aiBaseUrl] = useState(() => localStorage.getItem('api-test-ai-base-url') || '')
   const [aiModel] = useState(() => localStorage.getItem('api-test-ai-model') || '')
   const [aiApiKey] = useState(() => localStorage.getItem('api-test-ai-api-key') || '')
-  const [aiVisionBaseUrl] = useState(() => localStorage.getItem('api-test-ai-vision-base-url') || '')
-  const [aiVisionModel] = useState(() => localStorage.getItem('api-test-ai-vision-model') || '')
-  const [aiVisionApiKey] = useState(() => localStorage.getItem('api-test-ai-vision-api-key') || '')
 
   const loadCollections = async () => {
     try {
@@ -346,9 +343,6 @@ const WebTestScripts = () => {
         base_url: aiBaseUrl,
         model: aiModel,
         api_key: aiApiKey,
-        vision_base_url: aiVisionBaseUrl,
-        vision_model: aiVisionModel,
-        vision_api_key: aiVisionApiKey
       })
       if (res.code === 200 && res.data?.script_content) {
         message.success('AI 脚本生成成功')
@@ -419,9 +413,6 @@ const WebTestScripts = () => {
         base_url: aiBaseUrl,
         model: aiModel,
         api_key: aiApiKey,
-        vision_base_url: aiVisionBaseUrl,
-        vision_model: aiVisionModel,
-        vision_api_key: aiVisionApiKey
       }, {
         token: '',
         signal: controller.signal,
@@ -709,9 +700,6 @@ const WebTestScripts = () => {
         base_url: aiBaseUrl,
         model: aiModel,
         api_key: aiApiKey,
-        vision_base_url: aiVisionBaseUrl,
-        vision_model: aiVisionModel,
-        vision_api_key: aiVisionApiKey
       })
       if (res.code === 200 && res.data) {
         setAiAnalysisResult(res.data)

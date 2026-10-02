@@ -30,9 +30,6 @@ const AiAssistantConfig = () => {
       aiBaseUrl: localStorage.getItem('api-test-ai-base-url') || '',
       aiModel: localStorage.getItem('api-test-ai-model') || '',
       aiApiKey: localStorage.getItem('api-test-ai-api-key') || '',
-      aiVisionBaseUrl: localStorage.getItem('api-test-ai-vision-base-url') || '',
-      aiVisionModel: localStorage.getItem('api-test-ai-vision-model') || '',
-      aiVisionApiKey: localStorage.getItem('api-test-ai-vision-api-key') || '',
     })
   }, [form])
 
@@ -43,9 +40,6 @@ const AiAssistantConfig = () => {
         base_url: values.aiBaseUrl || '',
         model: values.aiModel || '',
         api_key: values.aiApiKey || '',
-        vision_base_url: values.aiVisionBaseUrl || '',
-        vision_model: values.aiVisionModel || '',
-        vision_api_key: values.aiVisionApiKey || '',
       }
       const res = await apiTestService.saveAiConfig(payload)
       if (res.code !== 200) {
@@ -104,10 +98,7 @@ const AiAssistantConfig = () => {
             initialValues={{
               aiBaseUrl: '',
               aiModel: '',
-              aiApiKey: '',
-              aiVisionBaseUrl: '',
-              aiVisionModel: '',
-              aiVisionApiKey: ''
+              aiApiKey: ''
             }}
           >
             <Row gutter={24}>
@@ -132,28 +123,9 @@ const AiAssistantConfig = () => {
             </Row>
 
             <Divider style={{ margin: '16px 0' }} />
-            <Text strong style={{ ...labelStyle, display: 'block', marginBottom: 16 }}>{t('settings.visionModel') || '视觉模型'}</Text>
-
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>Vision Base URL</span>} name="aiVisionBaseUrl">
-                  <Input placeholder={globalAiConfig?.vision_base_url || globalAiConfig?.base_url || "https://api.openai.com/v1"} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>Vision Model</span>} name="aiVisionModel">
-                  <Input placeholder={globalAiConfig?.vision_model || "gpt-4o-mini"} />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>Vision API Key</span>} name="aiVisionApiKey">
-                  <Input.Password placeholder={globalAiConfig?.vision_api_key || "sk-..."} />
-                </Form.Item>
-              </Col>
-            </Row>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {t('settings.visionMergedHint') || '视觉分析（Web 测试截图理解等）直接使用上方主模型，无需单独配置'}
+            </Text>
 
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading} disabled={!isAdmin}>
               {t('settings.saveBtn')}

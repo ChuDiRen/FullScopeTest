@@ -130,9 +130,6 @@ const ApiTestWorkspace = () => {
     aiBaseUrl, setAiBaseUrl,
     aiModel, setAiModel,
     aiApiKey, setAiApiKey,
-    aiVisionBaseUrl, setAiVisionBaseUrl,
-    aiVisionModel, setAiVisionModel,
-    aiVisionApiKey, setAiVisionApiKey,
     aiAutoRun, setAiAutoRun,
     aiRunning, setAiRunning,
     aiSummary, setAiSummary,
@@ -1167,9 +1164,6 @@ const ApiTestWorkspace = () => {
         base_url: aiBaseUrl,
         model: aiModel,
         api_key: aiApiKey,
-        vision_base_url: aiVisionBaseUrl,
-        vision_model: aiVisionModel,
-        vision_api_key: aiVisionApiKey
       })
       if (res.code === 200 && res.data?.cases) {
         setSynthesizedCases(res.data.cases)
@@ -1234,9 +1228,6 @@ const ApiTestWorkspace = () => {
         base_url: aiBaseUrl,
         model: aiModel,
         api_key: aiApiKey,
-        vision_base_url: aiVisionBaseUrl,
-        vision_model: aiVisionModel,
-        vision_api_key: aiVisionApiKey
       })
       if (res.code === 200 && res.data) {
         setReviewSummary(res.data.review_summary)
@@ -1367,9 +1358,6 @@ const ApiTestWorkspace = () => {
         base_url: aiBaseUrl.trim(),
         model: aiModel.trim(),
         api_key: aiApiKey.trim(),
-        vision_base_url: aiVisionBaseUrl.trim(),
-        vision_model: aiVisionModel.trim(),
-        vision_api_key: aiVisionApiKey.trim(),
         project_id: currentProjectId,
         collection_id: activeCollectionId,
         case_id: currentCaseId || undefined,
@@ -2085,12 +2073,6 @@ const ApiTestWorkspace = () => {
         setAiModel={setAiModel}
         aiApiKey={aiApiKey}
         setAiApiKey={setAiApiKey}
-        aiVisionBaseUrl={aiVisionBaseUrl}
-        setAiVisionBaseUrl={setAiVisionBaseUrl}
-        aiVisionModel={aiVisionModel}
-        setAiVisionModel={setAiVisionModel}
-        aiVisionApiKey={aiVisionApiKey}
-        setAiVisionApiKey={setAiVisionApiKey}
         aiPrompt={aiPrompt}
         setAiPrompt={setAiPrompt}
         aiAutoRun={aiAutoRun}

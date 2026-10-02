@@ -163,9 +163,6 @@ def _build_runtime_ai_config(data: dict) -> dict:
         "AI_ASSISTANT_BASE_URL": _config_get("AI_ASSISTANT_BASE_URL", ""),
         "AI_ASSISTANT_API_KEY": _config_get("AI_ASSISTANT_API_KEY", ""),
         "AI_ASSISTANT_MODEL": _config_get("AI_ASSISTANT_MODEL", ""),
-        "AI_VISION_BASE_URL": _config_get("AI_VISION_BASE_URL", ""),
-        "AI_VISION_API_KEY": _config_get("AI_VISION_API_KEY", ""),
-        "AI_VISION_MODEL": _config_get("AI_VISION_MODEL", ""),
         "AI_EXPLORE_BROWSER_HEADLESS": _config_get("AI_EXPLORE_BROWSER_HEADLESS", "true"),
         "AI_EXPLORE_BROWSER_SLOW_MO": _config_get("AI_EXPLORE_BROWSER_SLOW_MO", 0),
     }
@@ -176,12 +173,6 @@ def _build_runtime_ai_config(data: dict) -> dict:
         runtime_config["AI_ASSISTANT_MODEL"] = str(data.get("model")).strip()
     if data.get("api_key"):
         runtime_config["AI_ASSISTANT_API_KEY"] = str(data.get("api_key")).strip()
-    if data.get("vision_base_url"):
-        runtime_config["AI_VISION_BASE_URL"] = str(data.get("vision_base_url")).strip()
-    if data.get("vision_model"):
-        runtime_config["AI_VISION_MODEL"] = str(data.get("vision_model")).strip()
-    if data.get("vision_api_key"):
-        runtime_config["AI_VISION_API_KEY"] = str(data.get("vision_api_key")).strip()
     if "explore_browser_headless" in data:
         runtime_config["AI_EXPLORE_BROWSER_HEADLESS"] = data.get("explore_browser_headless")
     if data.get("explore_browser_slow_mo") is not None:
