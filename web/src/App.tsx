@@ -45,6 +45,11 @@ const TeamMetrics = lazy(() => import('./pages/TeamMetrics'))
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'))
 const MockServers = lazy(() => import('./pages/MockServers'))
 const ApiDocumentation = lazy(() => import('./pages/ApiDocumentation'))
+const DataFactory = lazy(() => import('./pages/DataFactory'))
+const FlakyTestDashboard = lazy(() => import('./pages/FlakyTestDashboard'))
+const TestCaseTemplates = lazy(() => import('./pages/TestCaseTemplates'))
+const ReportSchedules = lazy(() => import('./pages/ReportSchedules'))
+const ReportTemplateEditor = lazy(() => import('./pages/ReportTemplateEditor'))
 const DeviceManager = lazy(() => import('./pages/app-test/DeviceManager'))
 
 // 加载中组件
@@ -415,6 +420,60 @@ function App() {
           element={
             <Suspense fallback={<PageLoading />}>
               <ApiDocumentation />
+            </Suspense>
+          }
+        />
+
+        {/* AI 数据工厂（member+） */}
+        <Route
+          path="data-factory"
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <RequireRole roles={['admin', 'member']}>
+                <DataFactory />
+              </RequireRole>
+            </Suspense>
+          }
+        />
+
+        {/* Flaky 检测（viewer+） */}
+        <Route
+          path="flaky-tests"
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <FlakyTestDashboard />
+            </Suspense>
+          }
+        />
+
+        {/* 用例模板库（viewer+） */}
+        <Route
+          path="test-templates"
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <TestCaseTemplates />
+            </Suspense>
+          }
+        />
+
+        {/* 定时报告（member+） */}
+        <Route
+          path="report-schedules"
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <RequireRole roles={['admin', 'member']}>
+                <ReportSchedules />
+              </RequireRole>
+            </Suspense>
+          }
+        />
+
+        {/* 报告模板编辑器（member+） */}
+        <Route
+          path="report-templates"
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <ReportTemplateEditor />
             </Suspense>
           }
         />

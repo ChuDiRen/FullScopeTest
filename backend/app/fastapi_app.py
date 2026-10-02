@@ -38,6 +38,13 @@ async def lifespan(app: FastAPI):
     cfg = init_runtime()
     logger.info("FastAPI application starting...")
 
+    # 内置用例模板种子（幂等：仅表空时插入）
+    try:
+        from .models.test_case_template import ensure_builtin_seed
+        ensure_builtin_seed()
+    except Exception as exc:
+        logger.warning("Builtin case template seed failed", error=str(exc))
+
     # 定时调度器（环境变量可关；多副本部署只允许一个实例开启）
     scheduler_enabled = os.environ.get("SCHEDULER_ENABLED", "true").strip().lower() == "true"
     if scheduler_enabled and cfg.get("CONFIG_NAME") != "testing":

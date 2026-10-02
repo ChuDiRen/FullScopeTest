@@ -54,6 +54,12 @@ def init_database(args):
 
     print("Creating database tables...")
     db.create_all()
+
+# 内置用例模板种子（幂等）
+from app.models.test_case_template import ensure_builtin_seed
+seeded = ensure_builtin_seed()
+if seeded:
+    print(f"已插入 {seeded} 个内置用例模板")
     print("Database tables created successfully!")
 
     # Create admin user

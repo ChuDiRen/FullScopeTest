@@ -83,6 +83,22 @@ def init_scheduler():
         except Exception as e:
             logger.warning("数据库未就绪，跳过加载定时任务", error=str(e))
 
+        # 加载激活的报告调度
+        try:
+            inspector = inspect(db.engine)
+            if inspector.has_table("report_schedules"):
+                from .models.report_schedule import ReportSchedule
+
+                active_schedules = db.session.scalars(
+                    select(ReportSchedule).filter_by(is_active=True)
+                ).all()
+                for sched in active_schedules:
+                    add_or_update_report_job(sched)
+            else:
+                logger.warning("report_schedules 表不存在，跳过加载报告调度")
+        except Exception as e:
+            logger.warning("数据库未就绪，跳过加载报告调度", error=str(e))
+
         # 注册内置定时任务
         _register_builtin_jobs()
 
@@ -276,3 +292,126 @@ def _run_stale_running_sweep():
         logger.error("定时僵尸任务清理失败", error=str(exc))
     finally:
         session_teardown()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 定时报告调度（daily / weekly / monthly 测试统计聚合 + webhook 通知）
+# ══════════════════════════════════════════════════════════════════════════════
+
+_FREQUENCY_CRON = {
+    "daily": "0 8 * * *",        # 每天 08:00
+    "weekly": "0 8 * * 1",       # 每周一 08:00
+    "monthly": "0 8 1 * *",      # 每月 1 日 08:00
+}
+
+
+def get_report_job_id(schedule_id):
+    return f"report_schedule_{schedule_id}"
+
+
+def add_or_update_report_job(schedule):
+    """添加或更新报告调度到调度器"""
+    job_id = get_report_job_id(schedule.id)
+    cron = _FREQUENCY_CRON.get(schedule.frequency)
+    if not cron:
+        logger.error("未知的报告调度频率", frequency=schedule.frequency, job_id=job_id)
+        return
+    try:
+        trigger = CronTrigger.from_crontab(cron)
+        if scheduler.get_job(job_id):
+            scheduler.modify_job(job_id, trigger=trigger)
+        else:
+            scheduler.add_job(
+                id=job_id,
+                func=execute_report_schedule,
+                args=[schedule.id],
+                trigger=trigger,
+                replace_existing=True,
+            )
+        logger.info("成功加载报告调度", job_id=job_id, name=schedule.name, frequency=schedule.frequency)
+    except Exception as e:
+        logger.error("加载报告调度失败", job_id=job_id, error=str(e))
+
+
+def remove_report_job(schedule_id):
+    """从调度器移除报告调度"""
+    job_id = get_report_job_id(schedule_id)
+    if scheduler.get_job(job_id):
+        scheduler.remove_job(job_id)
+        logger.info("已移除报告调度", job_id=job_id)
+
+
+def execute_report_schedule(schedule_id):
+    """执行报告调度：聚合统计并发送 webhook（调度器后台线程中运行）"""
+    from .core.runtime import ensure_runtime, session_teardown
+
+    ensure_runtime()
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        from .models.report_schedule import ReportSchedule
+        from .models.test_run import TestRun
+
+        schedule = db.session.get(ReportSchedule, schedule_id)
+        if not schedule or not schedule.is_active:
+            return
+
+        logger.info("开始执行报告调度", name=schedule.name, schedule_id=schedule_id)
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        days = {"daily": 1, "weekly": 7, "monthly": 30}.get(schedule.frequency, 1)
+        since = now - timedelta(days=days)
+
+        query = select(TestRun).filter(TestRun.created_at >= since)
+        if schedule.project_id:
+            query = query.filter(TestRun.project_id == schedule.project_id)
+        runs = db.session.scalars(query).all()
+
+        summary = {
+            "period_start": since.isoformat() + "Z",
+            "period_end": now.isoformat() + "Z",
+            "frequency": schedule.frequency,
+            "total_runs": len(runs),
+            "passed": len([r for r in runs if r.status == "passed"]),
+            "failed": len([r for r in runs if r.status == "failed"]),
+            "running": len([r for r in runs if r.status == "running"]),
+        }
+        summary["pass_rate"] = round(
+            summary["passed"] / summary["total_runs"] * 100, 1
+        ) if summary["total_runs"] else 0.0
+
+        schedule.last_run_at = now
+        schedule.last_result = summary
+        db.session.commit()
+
+        _send_report_notification(schedule, summary)
+        logger.info("报告调度执行完成", schedule_id=schedule_id, total_runs=summary["total_runs"])
+    except Exception as exc:
+        logger.error("报告调度执行失败", schedule_id=schedule_id, error=str(exc))
+    finally:
+        session_teardown()
+
+
+def _send_report_notification(schedule, summary):
+    """推送报告摘要到 webhook（钉钉/飞书 markdown 格式）"""
+    import requests as _requests
+
+    if not schedule.webhook_url:
+        return
+    title = f"定时测试报告: {schedule.name}"
+    content = (
+        f"**统计周期:** {summary['frequency']}\n"
+        f"**总执行:** {summary['total_runs']}\n"
+        f"**通过:** {summary['passed']}  **失败:** {summary['failed']}\n"
+        f"**通过率:** {summary['pass_rate']}%"
+    )
+    try:
+        resp = _requests.post(
+            schedule.webhook_url,
+            json={"msgtype": "markdown", "markdown": {"title": title, "text": content}},
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        logger.info("报告通知发送结果", schedule_id=schedule.id, status_code=resp.status_code)
+    except Exception as e:
+        logger.error("报告通知发送失败", schedule_id=schedule.id, error=str(e))

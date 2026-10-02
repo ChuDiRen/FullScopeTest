@@ -28,6 +28,9 @@ from .quality_gate import QualityGate, QualityGateEvaluation
 from .organization import Organization, OrganizationMember
 from .api_token import ApiToken
 from .audit_log import AuditLog
+from .report_schedule import ReportSchedule
+from .report_template import ReportTemplate
+from .test_case_template import TestCaseTemplate
 from .quota import Quota
 from .notification_config import NotificationConfig
 from .role import Role

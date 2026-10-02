@@ -283,7 +283,12 @@
     "qualityReports": "报告与质量",
     "engineeringIntegration": "工程集成",
     "collaboration": "协作",
-    "platformAdmin": "平台管理"
+    "platformAdmin": "平台管理",
+    "dataFactory": "AI 数据工厂",
+    "flakyTests": "Flaky 测试",
+    "reportSchedules": "定时报告",
+    "reportTemplates": "报告模板",
+    "testTemplates": "测试模板"
   },
   "admin": {
     "userManagement": "用户管理",
@@ -1573,5 +1578,110 @@
     "copied": "已复制",
     "selectHint": "选择用例集后点击生成",
     "selectCollectionWarning": "请选择用例集"
+  },
+  "dataFactory": {
+    "title": "AI 数据工厂",
+    "subtitle": "按字段 Schema 批量生成测试数据",
+    "generate": "生成数据",
+    "rowCount": "生成行数",
+    "fieldName": "字段名",
+    "fieldType": "类型",
+    "fieldRule": "规则",
+    "addOneField": "请至少添加一个字段",
+    "generateSuccess": "生成成功",
+    "generateFailed": "生成失败",
+    "export": "导出 CSV",
+    "types": {
+      "string": "字符串",
+      "number": "数字",
+      "email": "邮箱",
+      "phone": "手机号",
+      "name": "姓名",
+      "date": "日期",
+      "boolean": "布尔",
+      "uuid": "UUID",
+      "address": "地址",
+      "url": "URL"
+    }
+  },
+  "flakyTests": {
+    "title": "Flaky 测试检测",
+    "subtitle": "识别不稳定用例与失败模式",
+    "caseName": "用例名称",
+    "stabilityScore": "稳定性评分",
+    "totalRuns": "执行次数",
+    "flakyCount": "状态翻转",
+    "failurePattern": "失败模式",
+    "suggestion": "修复建议",
+    "empty": "暂无数据（需要有执行记录的用例）"
+  },
+  "reportSchedules": {
+    "title": "定时报告",
+    "subtitle": "按周期聚合测试统计并推送通知",
+    "create": "新建调度",
+    "name": "名称",
+    "frequency": "频率",
+    "frequencies": {
+      "daily": "每天",
+      "weekly": "每周",
+      "monthly": "每月"
+    },
+    "recipients": "接收人",
+    "status": "状态",
+    "enabled": "启用",
+    "disabled": "停用",
+    "lastRun": "最近执行",
+    "actions": "操作",
+    "webhook": "Webhook 地址",
+    "runNow": "立即执行",
+    "createSuccess": "创建成功",
+    "createFailed": "创建失败",
+    "runSuccess": "已执行",
+    "deleteConfirm": "确认删除该调度？"
+  },
+  "reportTemplates": {
+    "title": "报告模板",
+    "subtitle": "自定义报告展示模块与配色",
+    "save": "保存模板",
+    "templateName": "模板名称",
+    "modules": "展示模块",
+    "theme": "配色主题",
+    "themes": {
+      "default": "默认",
+      "dark": "暗色",
+      "light": "浅色"
+    },
+    "saveSuccess": "保存成功",
+    "saveFailed": "保存失败",
+    "loadFailed": "加载失败",
+    "modulesList": {
+      "summary": "执行摘要",
+      "passRate": "通过率",
+      "duration": "耗时分析",
+      "failedCases": "失败用例",
+      "trend": "趋势图",
+      "envInfo": "环境信息",
+      "aiAnalysis": "AI 分析",
+      "screenshots": "截图"
+    }
+  },
+  "testTemplates": {
+    "title": "用例模板库",
+    "subtitle": "内置模板 + 自定义模板，快速套用创建用例",
+    "searchPlaceholder": "搜索模板",
+    "copied": "模板已复制到剪贴板",
+    "builtin": "内置",
+    "createTemplate": "新建模板",
+    "editTemplate": "编辑模板",
+    "name": "模板名称",
+    "description": "模板说明",
+    "category": "分类",
+    "endpoint": "接口地址",
+    "assertions": "断言",
+    "deleteConfirm": "确认删除该模板？",
+    "createSuccess": "创建成功",
+    "updateSuccess": "更新成功",
+    "deleteSuccess": "删除成功",
+    "empty": "暂无模板"
   }
 }

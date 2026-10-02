@@ -48,6 +48,10 @@ def app():
     import app.models  # noqa: F401 — 确保所有模型注册
     db.create_all()
 
+    # 内置用例模板种子（与生产 lifespan/init_db 同一幂等函数）
+    from app.models.test_case_template import ensure_builtin_seed
+    ensure_builtin_seed()
+
     yield _get_test_fastapi_app()
 
     from app.extensions import db as _db
