@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Form, Input, Button, Checkbox, message, Divider, Modal } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -132,7 +132,6 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('fst-remembered-username'))
 
   const [mode, setMode] = useState<AuthMode>(() => getModeFromPathname(location.pathname))
-  const autoFilled = useRef(false)
 
   // SSO 提供商状态
   const [ssoProviders, setSsoProviders] = useState<Array<{ name: string; display_name: string }>>([])
@@ -234,25 +233,26 @@ const Login = () => {
         duration: 5
       })
     }
+  }, [t])
 
-    if (!isRegister && !autoFilled.current) {
-      loginForm.setFieldsValue({
-        username: 'huangxuan',
-        password: 'Test@123456'
-      })
-
-      message.open({
-        content: <span style={{ color: '#3D6E66', fontWeight: 500 }}>{t('login.autoFillHint')}</span>,
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18, marginRight: 8, verticalAlign: '-4px', color: '#5FA59B' }} aria-hidden="true">
-            <path d="M20 21a8 8 0 0 0-16 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            <path d="M12 13a4.6 4.6 0 1 0 0-9.2A4.6 4.6 0 0 0 12 13Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-        )
-      })
-      autoFilled.current = true
-    }
-  }, [isRegister, loginForm])
+  // 演示便捷入口：本机部署默认管理员账号，点击填入而非页面加载就自动填充
+  const handleFillAdmin = useCallback(() => {
+    loginForm.setFieldsValue({ username: 'admin', password: 'Admin@123456' })
+    loginForm.setFields([
+      { name: 'username', errors: [] },
+      { name: 'password', errors: [] },
+    ])
+    setLoginError(null)
+    message.open({
+      content: <span style={{ color: '#3D6E66', fontWeight: 500 }}>{t('login.fillAdminHint') || '已填入管理员账号密码，直接点击登录'}</span>,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18, marginRight: 8, verticalAlign: '-4px', color: '#5FA59B' }} aria-hidden="true">
+          <path d="M20 21a8 8 0 0 0-16 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M12 13a4.6 4.6 0 1 0 0-9.2A4.6 4.6 0 0 0 12 13Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      )
+    })
+  }, [loginForm, t])
 
   const onLoginFinish = async (values: LoginForm) => {
     setLoginLoading(true)
@@ -390,6 +390,9 @@ const Login = () => {
                     <Checkbox checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}>
                       {t('login.rememberMe') || '记住用户名'}
                     </Checkbox>
+                    <button type="button" className="fst-auth-link fst-auth-link-btn" onClick={handleFillAdmin}>
+                      {t('login.fillAdmin') || '一键填入管理员'}
+                    </button>
                   </div>
 
                   <Form.Item style={{ marginBottom: 16 }}>

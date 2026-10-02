@@ -538,6 +538,17 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* 两面同格堆叠后互为共面 3D 层：只允许朝向用户的一面接收指针事件，
+   避免背面层拦截点击（backface-visibility 只管绘制，不管命中）。 */
+.fst-login-right-card .fst-auth-face {
+  pointer-events: none;
+}
+
+.fst-login-right-card .fst-auth-flip:not(.is-flipped) .fst-auth-front,
+.fst-login-right-card .fst-auth-flip.is-flipped .fst-auth-back {
+  pointer-events: auto;
+}
+
 .fst-login-right-card .fst-auth-back {
   transform: rotateY(180deg);
 }
@@ -887,6 +898,16 @@ body {
   color: rgba(61, 110, 102, 0.92);
   text-decoration: none;
   transition: color 200ms ease;
+}
+
+/* 登录表单里的"一键填入管理员"按钮：复用链接配色，重置按钮默认外观 */
+.fst-auth-link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
 }
 
 .fst-auth-link::after {
