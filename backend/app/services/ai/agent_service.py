@@ -34,11 +34,15 @@ AGENT_SYSTEM_PROMPT = """你是"大熊AI测试平台"的智能体（Agent），�
 
 你可以：
 - 创建和管理性能测试场景（Locust 压测）
+- 为已创建的压测场景生成定制化 Locust 业务脚本
 - 查询最近失败的 Web UI 测试
 - 查询用户的 API 测试用例
 - 对多步任务先用 write_todos 列出计划，再逐步执行并更新状态
 
-工作准则：
+压测场景创建准则：
+- 用户提出压测需求时：先 create_performance_test 落库场景，再调用 generate_performance_script
+  生成定制化业务脚本（除非用户明确说"只要默认模板"）
+- 生成脚本时把用户的完整需求（接口、断言、参数化、请求链等）传入 requirements
 - 用户的意图明确时才执行创建类操作；信息不足时先询问，不要编造参数
 - 回答用中文，结论先行，简洁专业
 - 工具返回的数据是唯一事实来源，不要虚构测试结果"""
@@ -72,31 +76,50 @@ def _resolve_config(config: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
-def _build_tools(user_id: int) -> List[Any]:
+def _build_tools(user_id: int, config: Dict[str, Any] = None) -> List[Any]:
     """构建当前用户作用域内的智能体工具（闭包注入 user_id，属主过滤铁律）"""
     from langchain_core.tools import tool
+
+    config = config or {}
 
     @tool
     def create_performance_test(
         name: str,
         target_url: str = "http://example.com",
+        endpoint_path: str = "/",
         concurrent_users: int = 10,
         duration_seconds: int = 60,
     ) -> str:
-        """创建一个新的性能测试场景（Locust 压测）。用户明确要求创建压测/性能测试时使用。"""
+        """创建一个新的性能测试场景（Locust 压测）。用户明确要求创建压测/性能测试时使用。
+
+        Args:
+            name: 场景名称（简洁描述压测目标）
+            target_url: 目标服务基地址（如 https://fakestoreapi.com）
+            endpoint_path: 要压测的接口路径（如 /products），默认 /
+            concurrent_users: 并发用户数（新手建议 5-20）
+            duration_seconds: 持续时间（秒）
+        """
+        from urllib.parse import urlparse
+
         from ...models.perf_test_scenario import PerfTestScenario
 
+        path = endpoint_path if endpoint_path.startswith("/") else "/" + endpoint_path
+        # target_url 若带路径，路径并入脚本、基地址单独存
+        parsed = urlparse(target_url)
+        if parsed.path and parsed.path != "/":
+            path = parsed.path
+            target_url = f"{parsed.scheme}://{parsed.netloc}"
         script_content = (
             "from locust import HttpUser, task, between\n\n"
             "class QuickstartUser(HttpUser):\n"
             "    wait_time = between(1, 5)\n\n"
             "    @task\n"
             "    def test_target(self):\n"
-            '        self.client.get("/")\n'
+            f'        self.client.get("{path}")\n'
         )
         scenario = PerfTestScenario(
             name=name,
-            description=f"Agent created: {concurrent_users} VUs for {duration_seconds}s",
+            description=f"Agent created: {concurrent_users} VUs for {duration_seconds}s, path {path}",
             target_url=target_url,
             user_count=concurrent_users,
             duration=duration_seconds,
@@ -110,7 +133,61 @@ def _build_tools(user_id: int) -> List[Any]:
             {
                 "status": "success",
                 "scenario_id": scenario.id,
-                "message": f"已创建性能测试场景 '{name}'（并发 {concurrent_users}，时长 {duration_seconds} 秒）",
+                "message": f"已创建性能测试场景 '{name}'（压测 {path}，并发 {concurrent_users}，时长 {duration_seconds} 秒）",
+            },
+            ensure_ascii=False,
+        )
+
+    @tool
+    def generate_performance_script(scenario_id: int, requirements: str = "") -> str:
+        """为已创建的压测场景生成定制化 Locust 业务脚本并回写场景。
+
+        在 create_performance_test 之后调用；requirements 传入用户的完整需求
+        （要压的接口、请求方法、断言、参数化、多接口链路等）。
+
+        Args:
+            scenario_id: create_performance_test 返回的场景 ID
+            requirements: 业务需求描述（接口路径、请求体、断言、思考时间等）
+        """
+        from sqlalchemy import select
+
+        from ...models.perf_test_scenario import PerfTestScenario
+        from ...utils.ai_script_generator import generate_test_script
+        from ...utils.sandbox import check_script_safety
+
+        scenario = db.session.scalar(
+            select(PerfTestScenario).filter_by(id=scenario_id, user_id=user_id)
+        )
+        if not scenario:
+            return json.dumps(
+                {"status": "error", "message": f"场景 {scenario_id} 不存在"},
+                ensure_ascii=False,
+            )
+
+        prompt = (
+            f"目标地址: {scenario.target_url}（Locust HttpUser 的 host，脚本内请求路径不要重复写完整域名）\n"
+            f"并发用户数: {scenario.user_count}，持续时间: {scenario.duration} 秒\n"
+            f"业务需求: {requirements or '对默认接口做 GET 压测'}\n"
+            "生成完整的 Locust 压测脚本（HttpUser + @task）。"
+        )
+        script = generate_test_script(
+            prompt, "perf", _resolve_config(config), user_id=user_id
+        )
+        safe, reason = check_script_safety(script, allow_network_libs=True)
+        if not safe:
+            return json.dumps(
+                {"status": "error", "message": f"生成的脚本未通过安全检查: {reason}"},
+                ensure_ascii=False,
+            )
+
+        scenario.script_content = script
+        db.session.commit()
+        return json.dumps(
+            {
+                "status": "success",
+                "scenario_id": scenario.id,
+                "message": f"已为场景 '{scenario.name}' 生成定制化压测脚本并保存",
+                "script_preview": script[:400],
             },
             ensure_ascii=False,
         )
@@ -178,7 +255,7 @@ def _build_tools(user_id: int) -> List[Any]:
             ensure_ascii=False,
         )
 
-    return [create_performance_test, query_failed_web_tests, query_recent_api_cases, list_performance_scenarios]
+    return [create_performance_test, generate_performance_script, query_failed_web_tests, query_recent_api_cases, list_performance_scenarios]
 
 
 def _to_langchain_messages(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
@@ -300,7 +377,7 @@ def run_agent_chat(
         temperature=0.3,
         timeout=cfg["timeout"],
     )
-    agent = create_deep_agent(model=llm, tools=_build_tools(user_id), system_prompt=AGENT_SYSTEM_PROMPT)
+    agent = create_deep_agent(model=llm, tools=_build_tools(user_id, config), system_prompt=AGENT_SYSTEM_PROMPT)
 
     start_time = time.monotonic()
     try:
