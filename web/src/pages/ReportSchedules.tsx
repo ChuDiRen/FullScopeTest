@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { Card, Table, Button, Space, Tag, Typography, Modal, Form, Input, Select, message, Popconfirm } from "antd"
 import { PlusOutlined, ClockCircleOutlined, DeleteOutlined } from "@ant-design/icons"
 import { useTranslation } from "react-i18next"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 import { useTableOperations } from "@/hooks/useTableOperations"
 
 const { Text } = Typography
@@ -25,12 +25,12 @@ const ReportSchedules: React.FC = () => {
     loading, data: schedules, fetchData: fetchSchedules, deleteItem,
   } = useTableOperations<ReportSchedule>({
     fetchFn: async () => {
-      const res = await api.get("/report-schedules")
-      return { code: res.data?.code, data: res.data?.data }
+      const res = await (api.get("/report-schedules") as unknown as ApiResponse)
+      return { code: res.code, data: res.data }
     },
     deleteFn: async (id) => {
-      const res = await api.delete("/report-schedules/" + id)
-      return { code: res.data?.code }
+      const res = await (api.delete("/report-schedules/" + id) as unknown as ApiResponse)
+      return { code: res.code }
     },
   })
 
@@ -40,8 +40,8 @@ const ReportSchedules: React.FC = () => {
     try {
       const values = await form.validateFields()
       values.recipients = (values.recipients_str || "").split(",").map((s: string) => s.trim()).filter(Boolean)
-      const res = await api.post("/report-schedules", values)
-      if (res.data?.code === 200) {
+      const res = await (api.post("/report-schedules", values) as unknown as ApiResponse)
+      if (res.code === 200) {
         message.success(t("reportSchedules.createSuccess"))
         setModalOpen(false); form.resetFields(); fetchSchedules()
       }

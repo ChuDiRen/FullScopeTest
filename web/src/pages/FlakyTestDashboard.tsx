@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Card, Table, Tag, Typography, Space, Progress, Tooltip, Button } from "antd"
 import { ReloadOutlined, BugOutlined } from "@ant-design/icons"
 import { useTranslation } from "react-i18next"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 
 const { Text } = Typography
 
@@ -25,8 +25,8 @@ const FlakyTestDashboard: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get("/flaky-detector/analyze")
-      if (res.data?.code === 200) setCases(res.data.data || [])
+      const res = await (api.get("/flaky-detector/analyze") as unknown as ApiResponse)
+      if (res.code === 200) setCases(res.data || [])
     } catch {} finally { setLoading(false) }
   }, [])
 

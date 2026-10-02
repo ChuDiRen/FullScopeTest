@@ -8,7 +8,7 @@ import { Card, Row, Col, Button, Tag, Typography, Space, Empty, message, Input, 
 import { CopyOutlined, SearchOutlined, PlusOutlined, DeleteOutlined, EditOutlined, DatabaseOutlined } from "@ant-design/icons"
 import { useTranslation } from "react-i18next"
 import { useSearchFilter } from "@/hooks/useSearchFilter"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -43,10 +43,10 @@ const TestCaseTemplates: React.FC = () => {
   const fetchTemplates = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get("/test-case-templates")
-      if (res.data?.code === 200) setTemplates(res.data.data || [])
-      const catRes = await api.get("/test-case-templates/categories")
-      if (catRes.data?.code === 200) setCategories(catRes.data.data || [])
+      const res = await (api.get("/test-case-templates") as unknown as ApiResponse)
+      if (res.code === 200) setTemplates(res.data || [])
+      const catRes = await (api.get("/test-case-templates/categories") as unknown as ApiResponse)
+      if (catRes.code === 200) setCategories(catRes.data || [])
     } catch {
       message.error(t("common.failed"))
     } finally {
@@ -86,9 +86,9 @@ const TestCaseTemplates: React.FC = () => {
     try {
       const values = await form.validateFields()
       const res = editing
-        ? await api.put(`/test-case-templates/${editing.id}`, values)
-        : await api.post("/test-case-templates", values)
-      if (res.data?.code === 200) {
+        ? await (api.put(`/test-case-templates/${editing.id}`, values) as unknown as ApiResponse)
+        : await (api.post("/test-case-templates", values) as unknown as ApiResponse)
+      if (res.code === 200) {
         message.success(editing ? t("testTemplates.updateSuccess") : t("testTemplates.createSuccess"))
         setModalOpen(false)
         fetchTemplates()
@@ -101,8 +101,8 @@ const TestCaseTemplates: React.FC = () => {
   }
 
   const handleDelete = async (id: number) => {
-    const res = await api.delete(`/test-case-templates/${id}`)
-    if (res.data?.code === 200) {
+    const res = await (api.delete(`/test-case-templates/${id}`) as unknown as ApiResponse)
+    if (res.code === 200) {
       message.success(t("testTemplates.deleteSuccess"))
       fetchTemplates()
     } else {

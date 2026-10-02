@@ -7,7 +7,7 @@ import { useState, useEffect } from "react"
 import { Card, Checkbox, Space, Typography, Button, Input, Select, message, Divider, Tag } from "antd"
 import { SaveOutlined, FileTextOutlined } from "@ant-design/icons"
 import { useTranslation } from "react-i18next"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 
 const { Text } = Typography
 
@@ -33,7 +33,7 @@ const ReportTemplateEditor: React.FC = () => {
 
   useEffect(() => {
     api.get("/report-templates").then(res => {
-      const list = res.data?.data || []
+      const list = res.data || []
       if (list.length > 0) {
         const first = list[0]
         setTemplateId(first.id)
@@ -59,9 +59,9 @@ const ReportTemplateEditor: React.FC = () => {
         theme,
       }
       const res = templateId
-        ? await api.put(`/report-templates/${templateId}`, payload)
-        : await api.post("/report-templates", payload)
-      if (res.data?.code === 200 && res.data.data?.id) setTemplateId(res.data.data.id)
+        ? await (api.put(`/report-templates/${templateId}`, payload) as unknown as ApiResponse)
+        : await (api.post("/report-templates", payload) as unknown as ApiResponse)
+      if (res.code === 200 && res.data?.id) setTemplateId(res.data.id)
       message.success(t("reportTemplates.saveSuccess"))
     } catch { message.error(t("reportTemplates.saveFailed")) }
   }

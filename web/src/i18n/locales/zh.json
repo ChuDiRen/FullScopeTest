@@ -288,7 +288,7 @@
     "flakyTests": "Flaky 测试",
     "reportSchedules": "定时报告",
     "reportTemplates": "报告模板",
-    "testTemplates": "测试模板"
+    "testTemplates": "用例模板"
   },
   "admin": {
     "userManagement": "用户管理",
@@ -1581,16 +1581,21 @@
   },
   "dataFactory": {
     "title": "AI 数据工厂",
-    "subtitle": "按字段 Schema 批量生成测试数据",
-    "generate": "生成数据",
-    "rowCount": "生成行数",
+    "subtitle": "配置数据 Schema，AI 自动生成测试数据",
+    "schema": "数据 Schema",
     "fieldName": "字段名",
     "fieldType": "类型",
     "fieldRule": "规则",
-    "addOneField": "请至少添加一个字段",
-    "generateSuccess": "生成成功",
+    "addField": "添加字段",
+    "rowCount": "生成行数",
+    "rowSuffix": " 行",
+    "generate": "AI 生成",
+    "generating": "生成中...",
+    "exportCsv": "导出 CSV",
+    "preview": "预览 (前 10 行)",
+    "generateSuccess": "生成完成",
     "generateFailed": "生成失败",
-    "export": "导出 CSV",
+    "addOneField": "请至少添加一个字段",
     "types": {
       "string": "字符串",
       "number": "数字",
@@ -1598,78 +1603,88 @@
       "phone": "手机号",
       "name": "姓名",
       "date": "日期",
-      "boolean": "布尔",
+      "boolean": "布尔值",
       "uuid": "UUID",
       "address": "地址",
       "url": "URL"
     }
   },
   "flakyTests": {
-    "title": "Flaky 测试检测",
-    "subtitle": "识别不稳定用例与失败模式",
-    "caseName": "用例名称",
+    "title": "Flaky Test 检测",
+    "subtitle": "检测不稳定测试用例，分析失败模式",
+    "caseName": "用例名",
     "stabilityScore": "稳定性评分",
-    "totalRuns": "执行次数",
-    "flakyCount": "状态翻转",
+    "totalRuns": "总执行",
+    "flakyCount": "Flaky 次数",
     "failurePattern": "失败模式",
     "suggestion": "修复建议",
-    "empty": "暂无数据（需要有执行记录的用例）"
+    "refresh": "刷新",
+    "fetchFailed": "获取数据失败"
   },
   "reportSchedules": {
     "title": "定时报告",
-    "subtitle": "按周期聚合测试统计并推送通知",
-    "create": "新建调度",
+    "subtitle": "管理定时报告任务，自动发送测试报告",
+    "create": "创建定时报告",
     "name": "名称",
     "frequency": "频率",
-    "frequencies": {
-      "daily": "每天",
-      "weekly": "每周",
-      "monthly": "每月"
-    },
-    "recipients": "接收人",
+    "recipients": "收件人",
     "status": "状态",
+    "nextRun": "下次执行",
     "enabled": "启用",
     "disabled": "停用",
-    "lastRun": "最近执行",
-    "actions": "操作",
-    "webhook": "Webhook 地址",
-    "runNow": "立即执行",
-    "createSuccess": "创建成功",
+    "delete": "删除",
+    "deleteConfirm": "确定删除此定时报告吗？",
+    "createSuccess": "定时报告已创建",
     "createFailed": "创建失败",
-    "runSuccess": "已执行",
-    "deleteConfirm": "确认删除该调度？"
+    "deleteSuccess": "定时报告已删除",
+    "fetchFailed": "获取定时报告失败",
+    "namePlaceholder": "每日测试报告",
+    "emailPlaceholder": "多个邮箱用逗号分隔",
+    "frequencies": {
+      "daily": "每日",
+      "weekly": "每周",
+      "monthly": "每月"
+    }
   },
   "reportTemplates": {
-    "title": "报告模板",
-    "subtitle": "自定义报告展示模块与配色",
-    "save": "保存模板",
+    "title": "报告模板编辑器",
+    "subtitle": "自定义报告模板：选择展示模块、排序、配色",
     "templateName": "模板名称",
-    "modules": "展示模块",
-    "theme": "配色主题",
-    "themes": {
-      "default": "默认",
-      "dark": "暗色",
-      "light": "浅色"
-    },
-    "saveSuccess": "保存成功",
+    "themeColor": "主题配色",
+    "reportModules": "报告模块",
+    "moduleHint": "勾选要包含的模块，按顺序展示",
+    "save": "保存模板",
+    "saveSuccess": "模板已保存",
     "saveFailed": "保存失败",
-    "loadFailed": "加载失败",
-    "modulesList": {
+    "themes": {
+      "default": "默认蓝",
+      "green": "清新绿",
+      "dark": "暗夜黑",
+      "warm": "暖橙"
+    },
+    "modules": {
       "summary": "执行摘要",
-      "passRate": "通过率",
-      "duration": "耗时分析",
-      "failedCases": "失败用例",
-      "trend": "趋势图",
+      "passRate": "通过率统计",
+      "duration": "执行时长",
+      "failedCases": "失败用例详情",
+      "trend": "质量趋势",
       "envInfo": "环境信息",
       "aiAnalysis": "AI 分析",
-      "screenshots": "截图"
+      "screenshots": "截图附件"
     }
   },
   "testTemplates": {
     "title": "用例模板库",
-    "subtitle": "内置模板 + 自定义模板，快速套用创建用例",
+    "subtitle": "内置用例模板，快速创建测试用例",
     "searchPlaceholder": "搜索模板",
+    "use": "使用",
     "copied": "模板已复制到剪贴板",
+    "noTemplates": "未找到匹配的模板",
+    "categories": {
+      "crud": "CRUD",
+      "auth": "认证",
+      "monitor": "监控"
+    },
     "builtin": "内置",
     "createTemplate": "新建模板",
     "editTemplate": "编辑模板",

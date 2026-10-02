@@ -7,7 +7,7 @@ import { useState } from "react"
 import { Card, Button, Input, Space, Table, Typography, Select, message, Divider } from "antd"
 import { RobotOutlined, PlusOutlined, DeleteOutlined, DownloadOutlined, ExperimentOutlined } from "@ant-design/icons"
 import { useTranslation } from "react-i18next"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 
 const { Text } = Typography
 
@@ -48,8 +48,8 @@ const DataFactory: React.FC = () => {
     if (validFields.length === 0) { message.warning(t("dataFactory.addOneField")); return }
     setGenerating(true)
     try {
-      const res = await api.post("/ai/data-factory/generate", { schema: validFields, count: rowCount })
-      if (res.data?.code === 200) { setGenerated(res.data.data || []); message.success(t("dataFactory.generateSuccess")) }
+      const res = await (api.post("/ai/data-factory/generate", { schema: validFields, count: rowCount }) as unknown as ApiResponse)
+      if (res.code === 200) { setGenerated(res.data || []); message.success(t("dataFactory.generateSuccess")) }
     } catch { message.error(t("dataFactory.generateFailed")) } finally { setGenerating(false) }
   }
 
