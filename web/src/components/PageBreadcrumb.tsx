@@ -43,12 +43,7 @@ const ROUTE_LABEL_MAP: Record<string, string> = {
   'trigger-rules': 'sidebar.triggerRules',
   'mock-servers': 'sidebar.mockServers',
   devices: 'sidebar.deviceManager',
-  'data-factory': 'sidebar.dataFactory',
-  'flaky-tests': 'sidebar.flakyTests',
   'api-docs': 'sidebar.apiDocs',
-  'report-schedules': 'sidebar.reportSchedules',
-  'report-templates': 'sidebar.reportTemplates',
-  'test-templates': 'sidebar.testTemplates',
 }
 
 // 纯前缀段：不产生独立面包屑条目，仅用于路径拼接

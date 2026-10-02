@@ -370,7 +370,6 @@ const MainLayout = () => {
       { label: t('sidebar.environments'), path: '/api-test/environments' },
       { label: t('sidebar.mockServers'), path: '/mock-servers' },
       { label: t('sidebar.apiDocs'), path: '/api-docs' },
-      { label: t('sidebar.testTemplates'), path: '/test-templates' },
     ]},
     { icon: <GlobalOutlined />, label: t('sidebar.webTest'), path: '/web-test', children: [
       { label: t('sidebar.scripts'), path: '/web-test/scripts' },
@@ -393,12 +392,7 @@ const MainLayout = () => {
       path: '/reports',
       children: [
         { label: t('sidebar.reports'), path: '/reports' },
-        ...(isMember ? [
-          { label: t('sidebar.reportSchedules'), path: '/report-schedules' },
-          { label: t('sidebar.reportTemplates'), path: '/report-templates' },
-        ] : []),
         { label: t('sidebar.qualityGates'), path: '/quality-gates' },
-        { label: t('sidebar.flakyTests'), path: '/flaky-tests' },
       ],
     },
     // AI 助手分组：子项「AI 对话」唤起全局 Copilot 面板（onClick 拦截，无路由），「Prompt 管理」为独立页面
@@ -409,7 +403,6 @@ const MainLayout = () => {
       children: [
         { label: t('sidebar.aiChat'), path: '/ai-assistant' },
         { label: t('sidebar.aiInsights'), path: '/ai-insights' },
-        { label: t('sidebar.dataFactory'), path: '/data-factory' },
         { label: t('sidebar.aiConfig'), path: '/ai-assistant/config' },
         { label: t('sidebar.promptManagement'), path: '/ai-assistant/prompts' },
       ],
