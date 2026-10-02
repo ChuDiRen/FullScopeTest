@@ -404,8 +404,16 @@ const MainLayout = () => {
     ] : []),
     { icon: <ExperimentOutlined />, label: t('sidebar.testPlans'), path: '/test-plans' },
     { icon: <SafetyOutlined />, label: t('sidebar.qualityGates'), path: '/quality-gates' },
-    // AI 助手：无独立路由的菜单动作项，点击唤起全局 Copilot 面板（见下方 onClick 拦截）
-    { icon: <MessageOutlined />, label: t('sidebar.aiAssistant'), path: '/ai-assistant' },
+    // AI 助手分组：子项「AI 对话」唤起全局 Copilot 面板（onClick 拦截，无路由），「Prompt 管理」为独立页面
+    {
+      icon: <MessageOutlined />,
+      label: t('sidebar.aiAssistant'),
+      path: '/ai-assistant',
+      children: [
+        { label: t('sidebar.aiChat'), path: '/ai-assistant' },
+        { label: t('sidebar.promptManagement'), path: '/ai-assistant/prompts' },
+      ],
+    },
     { icon: <DotChartOutlined />, label: t('sidebar.aiInsights'), path: '/ai-insights' },
     { icon: <RobotOutlined />, label: t('sidebar.dataFactory'), path: '/data-factory' },
     { icon: <BugOutlined />, label: t('sidebar.flakyTests'), path: '/flaky-tests' },
