@@ -147,17 +147,18 @@ body {
   display: block;
 }
 
-/* ─── Right panel: login form ─── */
+/* ─── Right panel: login form ───
+   用 inner 的 auto margin 居中：视口过矮时溢出转为面板滚动，
+   不像 justify-content:center + overflow:hidden 那样把内容裁掉。 */
 .fst-login-right {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   padding: 40px 60px 24px;
   background: #fff;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .fst-login-right-inner {
@@ -165,6 +166,8 @@ body {
   max-width: 420px;
   display: flex;
   flex-direction: column;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .fst-login-right-brand {
@@ -508,11 +511,13 @@ body {
   animation: fst-auth-card-in 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ─── Flip card in split layout ─── */
+/* ─── Flip card in split layout ───
+   两面用 grid 同格堆叠（而非 absolute）：容器高度跟随内容增长，
+   登录失败提示出现时卡片自然变高，不再内部滚动裁切底部。 */
 .fst-login-right-card .fst-auth-flip {
   position: relative;
+  display: grid;
   width: 100%;
-  height: 100%;
   transform-style: preserve-3d;
   transition: transform 680ms cubic-bezier(0.2, 0.9, 0.2, 1);
   will-change: transform;
@@ -523,13 +528,13 @@ body {
 }
 
 .fst-login-right-card .fst-auth-face {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0;
   backface-visibility: hidden;
-  overflow-y: auto;
+  overflow: visible;
   -webkit-overflow-scrolling: touch;
 }
 

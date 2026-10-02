@@ -384,11 +384,7 @@ const Login = () => {
                     />
                   </Form.Item>
 
-                  {loginError ? (
-                    <div className="fst-auth-error" role="alert" aria-live="polite">
-                      {loginError}
-                    </div>
-                  ) : null}
+                  {/* 错误统一由密码字段的 help 展示，避免同一消息出现两份撑爆卡片 */}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <Checkbox checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}>
