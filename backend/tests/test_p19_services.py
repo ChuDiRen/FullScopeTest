@@ -1,81 +1,9 @@
 """
-P19 生产运维服务测试（Feature Flag / Config 热更新）
+P19 生产运维服务测试（Config 热更新）
 """
 
 import pytest
 import os
-
-
-class TestFeatureFlagService:
-    """Feature Flag 服务测试"""
-
-    def test_register_flag(self, app):
-        """注册功能开关"""
-        from app.services.feature_flag_service import FeatureFlagService
-        svc = FeatureFlagService()
-        flag = svc.register_flag("dark_mode", enabled=True, description="暗色模式")
-        assert flag.name == "dark_mode"
-        assert flag.enabled is True
-
-    def test_is_enabled_boolean(self, app):
-        """布尔类型开关"""
-        from app.services.feature_flag_service import FeatureFlagService
-        svc = FeatureFlagService()
-        svc.register_flag("feature_a", enabled=True)
-        assert svc.is_enabled("feature_a") is True
-        svc.register_flag("feature_b", enabled=False)
-        assert svc.is_enabled("feature_b") is False
-
-    def test_is_enabled_percentage(self, app):
-        """百分比灰度开关"""
-        from app.services.feature_flag_service import FeatureFlagService
-        svc = FeatureFlagService()
-        svc.register_flag("new_ui", enabled=True, flag_type="percentage", percentage=50)
-        # 同一用户应始终得到相同结果
-        result1 = svc.is_enabled("new_ui", user_id=123)
-        result2 = svc.is_enabled("new_ui", user_id=123)
-        assert result1 == result2
-
-    def test_is_enabled_user_list(self, app):
-        """用户白名单开关"""
-        from app.services.feature_flag_service import FeatureFlagService
-        svc = FeatureFlagService()
-        svc.register_flag("beta", enabled=True, flag_type="user_list", user_list=[1, 2, 3])
-        assert svc.is_enabled("beta", user_id=1) is True
-        assert svc.is_enabled("beta", user_id=99) is False
-
-    def test_default_behavior_disabled(self, app):
-        """未注册的开关默认关闭"""
-        from app.services.feature_flag_service import FeatureFlagService
-        svc = FeatureFlagService()
-        assert svc.is_enabled("nonexistent") is False
-
-    def test_toggle_flag(self, app):
-        """切换开关状态"""
-        from app.services.feature_flag_service import FeatureFlagService
-        svc = FeatureFlagService()
-        svc.register_flag("test", enabled=False)
-        assert svc.is_enabled("test") is False
-        svc.toggle_flag("test", True)
-        assert svc.is_enabled("test") is True
-
-    def test_list_flags(self, app):
-        """列出所有开关"""
-        from app.services.feature_flag_service import FeatureFlagService
-        svc = FeatureFlagService()
-        svc.register_flag("a", enabled=True)
-        svc.register_flag("b", enabled=False)
-        flags = svc.list_flags()
-        assert len(flags) == 2
-
-    def test_env_override(self, app):
-        """环境变量覆盖"""
-        from app.services.feature_flag_service import FeatureFlagService
-        svc = FeatureFlagService()
-        os.environ["FEATURE_NEW_API"] = "true"
-        assert svc.is_enabled("new_api") is True
-        del os.environ["FEATURE_NEW_API"]
-        assert svc.is_enabled("new_api") is False
 
 
 class TestConfigService:

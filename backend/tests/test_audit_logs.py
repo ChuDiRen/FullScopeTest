@@ -1,7 +1,7 @@
 """
 审计日志完善测试
 
-覆盖：日志记录、查询 API、过滤、统计、不可修改/删除
+覆盖：查询 API、过滤、统计、不可修改/删除
 """
 from sqlalchemy import func, select
 from app.extensions import db
@@ -19,40 +19,6 @@ def _auth_headers(client, username=None):
     token = resp.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 一、审计日志记录测试
-# ══════════════════════════════════════════════════════════════════════════════
-
-class TestAuditLogRecord:
-    """审计日志记录测试"""
-
-    def test_log_action_records(self, app):
-        from app.extensions import db
-        from app.models.audit_log import AuditLog
-        from app.services.audit_log_service import log_action
-        count_before = db.session.scalar(select(func.count()).select_from(select(AuditLog).subquery()))
-        log_action('create', 'project', resource_id=1, new_values={'name': 'Test'})
-        count_after = db.session.scalar(select(func.count()).select_from(select(AuditLog).subquery()))
-        assert count_after == count_before + 1
-
-        log = db.session.scalar(select(AuditLog).order_by(AuditLog.id.desc()))
-        assert log.action == 'create'
-        assert log.resource_type == 'project'
-        assert log.resource_id == 1
-        db.session.rollback()
-
-    def test_log_action_without_request_context(self, app):
-        """无请求上下文时不应抛异常"""
-        from app.services.audit_log_service import log_action
-        # 不在请求上下文中，应静默处理
-        log_action('test', 'test_resource')
-        # 不应抛异常
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 二、审计日志查询 API 测试
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestAuditLogsAPI:
     """审计日志查询 API 测试"""
@@ -106,13 +72,12 @@ class TestAuditLogsAPI:
         """获取单条审计日志详情"""
         from app.extensions import db
         from app.models.audit_log import AuditLog
-        from app.services.audit_log_service import log_action
 
-        # 先创建一条日志
-        log_action('create', 'test_resource', resource_id=42)
-        log = db.session.scalar(select(AuditLog).order_by(AuditLog.id.desc()))
-        log_id = log.id
+        # 直接插入一条日志（log_action 服务已移除）
+        log = AuditLog(action='create', resource_type='test_resource', resource_id=42)
+        db.session.add(log)
         db.session.commit()
+        log_id = log.id
 
         headers = _auth_headers(client, username='audit_detail_user')
         from app.models.user import User
