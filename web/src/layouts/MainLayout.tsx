@@ -18,27 +18,16 @@ import {
   MenuUnfoldOutlined,
   FolderOutlined,
   TranslationOutlined,
-  DotChartOutlined,
   EditOutlined,
   DeleteOutlined,
   PushpinOutlined,
   PushpinFilled,
   TeamOutlined,
   FileSearchOutlined,
-  KeyOutlined,
   ExperimentOutlined,
-  SafetyOutlined,
-  BellOutlined,
   SunOutlined,
   MoonOutlined,
-  RobotOutlined,
-  BugOutlined,
-  ClockCircleOutlined,
-  CopyOutlined,
   SyncOutlined,
-  CloudServerOutlined,
-  LineChartOutlined,
-  AuditOutlined,
   MessageOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
@@ -372,12 +361,14 @@ const MainLayout = () => {
   ]
 
   // Sidebar nav configuration
+  // 结构：四大核心测试 + 测试计划一级直达；报告/质量、AI、工程集成、协作、平台管理归组收纳
   const sidebarNav = [
     { icon: <HomeOutlined />, label: t('sidebar.dashboard'), path: '/dashboard' },
     { icon: <ApiOutlined />, label: t('sidebar.apiTest'), path: '/api-test', children: [
       { label: t('sidebar.workspace'), path: '/api-test/workspace' },
       { label: t('sidebar.collections'), path: '/api-test/collections' },
       { label: t('sidebar.environments'), path: '/api-test/environments' },
+      { label: t('sidebar.mockServers'), path: '/mock-servers' },
       { label: t('sidebar.apiDocs'), path: '/api-docs' },
       { label: t('sidebar.testTemplates'), path: '/test-templates' },
     ]},
@@ -395,13 +386,21 @@ const MainLayout = () => {
       { label: t('sidebar.perfDashboard'), path: '/perf-test/dashboard' },
       { label: t('sidebar.alertRules'), path: '/perf-test/alerts' },
     ]},
-    { icon: <BarChartOutlined />, label: t('sidebar.reports'), path: '/reports' },
-    ...(isMember ? [
-      { icon: <ClockCircleOutlined />, label: t('sidebar.reportSchedules'), path: '/report-schedules' },
-      { icon: <CopyOutlined />, label: t('sidebar.reportTemplates'), path: '/report-templates' },
-    ] : []),
     { icon: <ExperimentOutlined />, label: t('sidebar.testPlans'), path: '/test-plans' },
-    { icon: <SafetyOutlined />, label: t('sidebar.qualityGates'), path: '/quality-gates' },
+    {
+      icon: <BarChartOutlined />,
+      label: t('sidebar.qualityReports'),
+      path: '/reports',
+      children: [
+        { label: t('sidebar.reports'), path: '/reports' },
+        ...(isMember ? [
+          { label: t('sidebar.reportSchedules'), path: '/report-schedules' },
+          { label: t('sidebar.reportTemplates'), path: '/report-templates' },
+        ] : []),
+        { label: t('sidebar.qualityGates'), path: '/quality-gates' },
+        { label: t('sidebar.flakyTests'), path: '/flaky-tests' },
+      ],
+    },
     // AI 助手分组：子项「AI 对话」唤起全局 Copilot 面板（onClick 拦截，无路由），「Prompt 管理」为独立页面
     {
       icon: <MessageOutlined />,
@@ -409,26 +408,41 @@ const MainLayout = () => {
       path: '/ai-assistant',
       children: [
         { label: t('sidebar.aiChat'), path: '/ai-assistant' },
+        { label: t('sidebar.aiInsights'), path: '/ai-insights' },
+        { label: t('sidebar.dataFactory'), path: '/data-factory' },
         { label: t('sidebar.aiConfig'), path: '/ai-assistant/config' },
         { label: t('sidebar.promptManagement'), path: '/ai-assistant/prompts' },
       ],
     },
-    { icon: <DotChartOutlined />, label: t('sidebar.aiInsights'), path: '/ai-insights' },
-    { icon: <RobotOutlined />, label: t('sidebar.dataFactory'), path: '/data-factory' },
-    { icon: <BugOutlined />, label: t('sidebar.flakyTests'), path: '/flaky-tests' },
-    { icon: <SyncOutlined />, label: t('sidebar.cicd'), path: '/ci-cd', children: [
-      { label: t('sidebar.cicdMain'), path: '/ci-cd' },
-      { label: t('sidebar.triggerRules'), path: '/trigger-rules' },
-    ]},
-    { icon: <CloudServerOutlined />, label: t('sidebar.mockServers'), path: '/mock-servers' },
-    { icon: <BellOutlined />, label: t('sidebar.notifications'), path: '/notification-settings' },
-    { icon: <LineChartOutlined />, label: t('sidebar.teamMetrics'), path: '/team-metrics' },
-    { icon: <KeyOutlined />, label: t('sidebar.apiTokens'), path: '/api-tokens' },
-    { icon: <FileTextOutlined />, label: t('sidebar.documents'), path: '/docs' },
-    ...(isAdmin ? [
-      { icon: <AuditOutlined />, label: t('sidebar.auditLogs'), path: '/audit-logs' },
-    ] : []),
-    { icon: <SettingOutlined />, label: t('sidebar.settings'), path: '/settings' },
+    {
+      icon: <SyncOutlined />,
+      label: t('sidebar.engineeringIntegration'),
+      path: '/ci-cd',
+      children: [
+        { label: t('sidebar.cicd'), path: '/ci-cd' },
+        { label: t('sidebar.triggerRules'), path: '/trigger-rules' },
+      ],
+    },
+    {
+      icon: <FileTextOutlined />,
+      label: t('sidebar.collaboration'),
+      path: '/docs',
+      children: [
+        { label: t('sidebar.teamMetrics'), path: '/team-metrics' },
+        { label: t('sidebar.documents'), path: '/docs' },
+      ],
+    },
+    {
+      icon: <SettingOutlined />,
+      label: t('sidebar.platformAdmin'),
+      path: '/settings',
+      children: [
+        { label: t('sidebar.settings'), path: '/settings' },
+        { label: t('sidebar.notifications'), path: '/notification-settings' },
+        { label: t('sidebar.apiTokens'), path: '/api-tokens' },
+        ...(isAdmin ? [{ label: t('sidebar.auditLogs'), path: '/audit-logs' }] : []),
+      ],
+    },
   ]
 
   // 管理员专属菜单
@@ -440,8 +454,15 @@ const MainLayout = () => {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     const path = location.pathname
     const parts = path.split('/').filter(Boolean)
-    if (parts.length > 1) return new Set([`/${parts[0]}`])
-    return new Set()
+    const expanded = new Set<string>()
+    if (parts.length > 1) expanded.add(`/${parts[0]}`)
+    // 归组收纳后：访问组内子路径时自动展开所属大组
+    for (const item of sidebarNav) {
+      if (item.children?.some(c => path === c.path || path.startsWith(c.path + '/'))) {
+        expanded.add(item.path)
+      }
+    }
+    return expanded
   })
 
   const toggleGroup = (key: string) => {

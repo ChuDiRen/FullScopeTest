@@ -285,7 +285,11 @@
     "deviceManager": "设备管理",
     "reportSchedules": "定时报告",
     "reportTemplates": "报告模板",
-    "testTemplates": "用例模板"
+    "testTemplates": "用例模板",
+    "qualityReports": "报告与质量",
+    "engineeringIntegration": "工程集成",
+    "collaboration": "协作",
+    "platformAdmin": "平台管理"
   },
   "admin": {
     "userManagement": "用户管理",

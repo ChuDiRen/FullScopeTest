@@ -285,7 +285,11 @@
     "deviceManager": "Device Manager",
     "reportSchedules": "Report Schedules",
     "reportTemplates": "Report Templates",
-    "testTemplates": "Test Templates"
+    "testTemplates": "Test Templates",
+    "qualityReports": "Reports & Quality",
+    "engineeringIntegration": "Engineering",
+    "collaboration": "Collaboration",
+    "platformAdmin": "Administration"
   },
   "admin": {
     "userManagement": "User Management",
