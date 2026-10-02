@@ -532,11 +532,14 @@ const PerfTestScenarios = () => {
       title: t('perfTest.scenarioName'),
       dataIndex: 'name',
       key: 'name',
+      width: 280,
       render: (text, record) => (
-        <div>
-          <Text strong>{text}</Text>
+        <div style={{ minWidth: 0 }}>
+          <Text strong ellipsis={{ tooltip: text }} style={{ maxWidth: '100%' }}>
+            {text}
+          </Text>
           <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: record.description }}>
             {record.description}
           </Text>
         </div>
@@ -793,6 +796,7 @@ const PerfTestScenarios = () => {
               onChange: setSelectedRowKeys,
             }}
             columns={columns}
+            scroll={{ x: 1240 }}
             dataSource={scenarios.filter(s =>
               !searchText ||
               s.name.toLowerCase().includes(searchText.toLowerCase()) ||
