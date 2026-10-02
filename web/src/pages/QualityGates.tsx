@@ -152,12 +152,15 @@ const QualityGates = () => {
       title: t('common.name'),
       dataIndex: 'name',
       key: 'name',
+      width: 200,
+      ellipsis: true,
       render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span>,
     },
     {
       title: t('common.description'),
       dataIndex: 'description',
       key: 'description',
+      width: 240,
       ellipsis: true,
       render: (desc: string) => desc || '-',
     },
@@ -256,6 +259,7 @@ const QualityGates = () => {
           dataSource={gates}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1080 }}
           locale={{ emptyText: <Empty description={t('qualityGates.noGates')} /> }}
           pagination={{ pageSize: 20, showSizeChanger: true }}
         />

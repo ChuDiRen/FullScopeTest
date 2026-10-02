@@ -375,10 +375,13 @@ const Reports = () => {
       title: t('reports.testName'),
       dataIndex: 'test_object_name',
       key: 'test_object_name',
+      width: 240,
       render: (text, record) => (
         <Space>
           <FileTextOutlined style={{ color: '#1890ff' }} />
-          <Text strong>{text || `${t('reports.testRunPrefix')}${record.id}`}</Text>
+          <Text strong ellipsis={{ tooltip: text }} style={{ maxWidth: 190, verticalAlign: 'middle' }}>
+            {text || `${t('reports.testRunPrefix')}${record.id}`}
+          </Text>
         </Space>
       ),
     },
@@ -619,6 +622,7 @@ const Reports = () => {
             <Skeleton active paragraph={{ rows: 10 }} style={{ padding: '16px 0' }} />
           ) : (
           <Table
+          scroll={{ x: 1150 }}
             rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
             columns={columns}
             dataSource={testRuns.filter(

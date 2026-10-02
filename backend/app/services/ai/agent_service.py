@@ -21,6 +21,8 @@ import json
 import time
 from typing import Any, Dict, List, Optional
 
+import requests
+
 from ...extensions import db
 from ...models.ai_invocation_log import AIInvocationLog
 from ...core.logging import get_logger
@@ -33,11 +35,22 @@ DEFAULT_MODEL = "deepseek-chat"
 AGENT_SYSTEM_PROMPT = """你是"大熊AI测试平台"的智能体（Agent），帮助用户完成测试相关任务。
 
 你可以：
+- 抓取 API 文档 URL 并解析出端点清单（自动发现 Redoc/Swagger UI 背后的 OpenAPI 规范）
+- 对目标接口发真实请求做探活验证
 - 创建和管理性能测试场景（Locust 压测）
 - 为已创建的压测场景生成定制化 Locust 业务脚本
 - 查询最近失败的 Web UI 测试
 - 查询用户的 API 测试用例
 - 对多步任务先用 write_todos 列出计划，再逐步执行并更新状态
+
+API 文档分析流程（用户给出 API 文档/接口文档 URL，或要求"分析这个 API 生成压测"时）：
+1. 先 fetch_api_docs 抓取并解析端点清单（接受文档页 URL 或 openapi.json 直链）
+2. 用 probe_api_endpoint 对关键接口探活：GET 优先；POST/PUT 用文档示例值；
+   探针发现的 401/404/5xx 必须在压测方案中注明或规避，不要假设接口可用
+3. 基于真实端点清单设计业务压测场景：按用户旅程分组（浏览/下单链路等），
+   读接口高权重、写接口低权重，明确每个场景压哪些接口链路
+4. 每个场景先 create_performance_test 落库，再 generate_performance_script
+   生成多接口业务脚本（requirements 里带上场景的接口链路与权重）
 
 压测场景创建准则：
 - 用户提出压测需求时：先 create_performance_test 落库场景，再调用 generate_performance_script
@@ -193,6 +206,95 @@ def _build_tools(user_id: int, config: Dict[str, Any] = None) -> List[Any]:
         )
 
     @tool
+    def fetch_api_docs(url: str) -> str:
+        """抓取 API 文档 URL 并解析为端点清单。
+
+        支持文档页地址（自动发现 Redoc/Swagger UI 背后的 OpenAPI/Swagger 规范，
+        如 https://fakestoreapi.com/docs）或 spec 直链（openapi.json/swagger.yaml）。
+        返回接口清单：方法、路径、参数、请求体 schema、描述。分析接口、设计压测场景前必须先用本工具摸清接口面。
+
+        Args:
+            url: API 文档页或 OpenAPI spec 的 URL
+        """
+        from .api_doc_importer import api_doc_importer
+
+        try:
+            spec = api_doc_importer.discover_spec(url.strip())
+            inventory = api_doc_importer.parse_inventory(spec["raw"])
+            return json.dumps(
+                {
+                    "status": "success",
+                    "spec_url": spec["spec_url"],
+                    "discovered_via": spec["discovered_via"],
+                    **inventory,
+                    "endpoints_truncated": inventory["endpoints_count"] > len(inventory["endpoints"]),
+                },
+                ensure_ascii=False,
+            )
+        except (ValueError, requests.exceptions.RequestException) as exc:
+            return json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False)
+
+    @tool
+    def probe_api_endpoint(
+        base_url: str,
+        method: str = "GET",
+        path: str = "/",
+        path_values: str = "",
+        query_params: str = "",
+        headers_json: str = "",
+        body_json: str = "",
+    ) -> str:
+        """对目标接口发一次真实请求，探活验证可用性与响应结构。
+
+        压测前用它验证接口真实可用（fetch_api_docs 的 spec 可能滞后于服务实际行为）。
+        path 中的 {param} 占位符用 path_values 的 JSON 填充（如 {"id": 1}）；
+        query_params/body_json/headers_json 传 JSON 字符串（可为空串）。
+        返回状态码、耗时、响应体预览。POST/PUT 探活用文档示例值，避免写脏数据。
+
+        Args:
+            base_url: 目标基地址（如 https://fakestoreapi.com）
+            method: HTTP 方法（GET/POST/PUT/DELETE/PATCH）
+            path: 接口路径，可含 {param} 占位符（如 /products/{id}）
+            path_values: 路径占位符取值的 JSON 字符串（如 '{"id": 1}'，可为空）
+            query_params: 查询参数 JSON 字符串（如 '{"limit": 5}'，可为空）
+            headers_json: 额外请求头 JSON 字符串（可为空）
+            body_json: 请求体 JSON 字符串（POST/PUT 时使用，可为空）
+        """
+        from .api_doc_importer import api_doc_importer
+
+        def _loads(raw: str, field: str, default):
+            if not raw or not str(raw).strip():
+                return default
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{field} 不是合法 JSON: {exc}") from exc
+
+        try:
+            result = api_doc_importer.probe_endpoint(
+                base_url.strip(),
+                method,
+                path,
+                path_values=_loads(path_values, "path_values", {}),
+                query_params=_loads(query_params, "query_params", {}),
+                headers=_loads(headers_json, "headers_json", {}),
+                body=_loads(body_json, "body_json", None),
+            )
+            # 探针结果的 status 是 HTTP 状态码，信封改用 http_status 避免覆盖
+            return json.dumps(
+                {
+                    "status": "success",
+                    "http_status": result["status"],
+                    "latency_ms": result["latency_ms"],
+                    "content_type": result["content_type"],
+                    "body_preview": result["body_preview"],
+                },
+                ensure_ascii=False,
+            )
+        except (ValueError, requests.exceptions.RequestException) as exc:
+            return json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False)
+
+    @tool
     def query_failed_web_tests(limit: int = 5) -> str:
         """查询当前用户最近的失败 Web UI 测试脚本。用户询问失败测试/测试结果时使用。"""
         from sqlalchemy import select
@@ -255,7 +357,15 @@ def _build_tools(user_id: int, config: Dict[str, Any] = None) -> List[Any]:
             ensure_ascii=False,
         )
 
-    return [create_performance_test, generate_performance_script, query_failed_web_tests, query_recent_api_cases, list_performance_scenarios]
+    return [
+        fetch_api_docs,
+        probe_api_endpoint,
+        create_performance_test,
+        generate_performance_script,
+        query_failed_web_tests,
+        query_recent_api_cases,
+        list_performance_scenarios,
+    ]
 
 
 def _to_langchain_messages(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:

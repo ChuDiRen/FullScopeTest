@@ -294,10 +294,13 @@ const AppTestScripts = () => {
       title: t('appTest.scriptName'),
       dataIndex: 'name',
       key: 'name',
+      width: 220,
       render: (text, record) => (
         <Space>
           <MobileOutlined style={{ color: '#1890ff' }} />
-          <Text strong>{text}</Text>
+          <Text strong ellipsis={{ tooltip: text }} style={{ maxWidth: 150, verticalAlign: 'middle' }}>
+            {text}
+          </Text>
           {!record.is_enabled && <Tag color="default">{t('appTest.disabled')}</Tag>}
         </Space>
       ),
@@ -509,6 +512,7 @@ const AppTestScripts = () => {
         </div>
 
         <Table
+          scroll={{ x: 1080 }}
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,
