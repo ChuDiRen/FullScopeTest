@@ -411,6 +411,7 @@ const MainLayout = () => {
       path: '/ai-assistant',
       children: [
         { label: t('sidebar.aiChat'), path: '/ai-assistant' },
+        { label: t('sidebar.aiConfig'), path: '/ai-assistant/config' },
         { label: t('sidebar.promptManagement'), path: '/ai-assistant/prompts' },
       ],
     },

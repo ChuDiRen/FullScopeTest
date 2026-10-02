@@ -31,6 +31,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const VisualRegressionHistory = lazy(() => import('./pages/VisualRegressionHistory'))
 const AIInsightsDashboard = lazy(() => import('./pages/AIInsightsDashboard'))
 const PromptManagement = lazy(() => import('./pages/PromptManagement'))
+const AiAssistantConfig = lazy(() => import('./pages/AiAssistantConfig'))
 const OrganizationList = lazy(() => import('./pages/organizations/OrganizationList'))
 const OrganizationDetail = lazy(() => import('./pages/organizations/OrganizationDetail'))
 const AuditLogs = lazy(() => import('./pages/AuditLogs'))
@@ -265,6 +266,16 @@ function App() {
           element={
             <Suspense fallback={<PageLoading />}>
               <PromptManagement />
+            </Suspense>
+          }
+        />
+
+        {/* AI 助手全局配置（AI 助手分组下） */}
+        <Route
+          path="ai-assistant/config"
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <AiAssistantConfig />
             </Suspense>
           }
         />

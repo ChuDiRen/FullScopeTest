@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Form, Input, Button, message, Typography, Row, Col, Space, Tabs, Switch, Select, Slider, Divider, Radio, Tag, Alert, Popconfirm, Table, Modal, InputNumber, Tooltip, Badge } from 'antd';
 import {
-  RobotOutlined, SaveOutlined, SettingOutlined, BulbOutlined,
+  SaveOutlined, SettingOutlined, BulbOutlined,
   GlobalOutlined, BellOutlined, SafetyOutlined, KeyOutlined,
   SunOutlined, MoonOutlined, DesktopOutlined,
   LinkOutlined, GithubOutlined, DisconnectOutlined, ApiOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { apiTestService } from '../services/apiTestService';
 import { useThemeStore } from '../stores/themeStore';
 import integrationService from '../services/integrationService';
 import { useBranding } from '../hooks/useBranding';
@@ -189,62 +188,14 @@ const SettingsIntegrationsTab: React.FC = () => {
 const Settings: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { isAdmin } = useRole();
-  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const { mode: themeMode, setMode: setThemeMode, resolvedTheme } = useThemeStore();
-  const [globalAiConfig, setGlobalAiConfig] = useState<any>(null);
 
   // General settings state
   const [pageSize, setPageSize] = useState(() => Number(localStorage.getItem('fst-page-size') || 20));
   const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem('fst-auto-refresh') === 'true');
   const [refreshInterval, setRefreshInterval] = useState(() => Number(localStorage.getItem('fst-refresh-interval') || 30));
   const [reduceMotion, setReduceMotion] = useState(() => localStorage.getItem('fst-reduce-motion') === 'true');
-
-  useEffect(() => {
-    apiTestService.getAiConfig()
-      .then((res: any) => {
-        if (res.code === 200 && res.data) setGlobalAiConfig(res.data);
-      })
-      .catch(() => {});
-
-    form.setFieldsValue({
-      aiBaseUrl: localStorage.getItem('api-test-ai-base-url') || '',
-      aiModel: localStorage.getItem('api-test-ai-model') || '',
-      aiApiKey: localStorage.getItem('api-test-ai-api-key') || '',
-      aiVisionBaseUrl: localStorage.getItem('api-test-ai-vision-base-url') || '',
-      aiVisionModel: localStorage.getItem('api-test-ai-vision-model') || '',
-      aiVisionApiKey: localStorage.getItem('api-test-ai-vision-api-key') || '',
-    });
-  }, [form]);
-
-  const handleSaveAi = async (values: any) => {
-    setLoading(true);
-    try {
-      const payload = {
-        base_url: values.aiBaseUrl || '',
-        model: values.aiModel || '',
-        api_key: values.aiApiKey || '',
-        vision_base_url: values.aiVisionBaseUrl || '',
-        vision_model: values.aiVisionModel || '',
-        vision_api_key: values.aiVisionApiKey || '',
-      };
-      const res = await apiTestService.saveAiConfig(payload);
-      if (res.code !== 200) {
-        message.error(res.message || t('common.failed'));
-        return;
-      }
-      Object.entries(payload).forEach(([k, v]) => {
-        const lk = `api-test-ai-${k.replace(/_/g, '-')}`;
-        localStorage.setItem(lk, v as string);
-      });
-      if (res.data) setGlobalAiConfig(res.data);
-      message.success(t('settings.saveSuccess'));
-    } catch {
-      message.error(t('common.failed'));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSaveGeneral = () => {
     localStorage.setItem('fst-page-size', String(pageSize));
@@ -494,82 +445,6 @@ const Settings: React.FC = () => {
                 : (t('settings.lightPreview') || '当前为亮色模式，适合日间使用。')}
             </Text>
           </div>
-        </div>
-      ),
-    },
-    {
-      key: 'ai',
-      label: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <RobotOutlined /> {t('settings.aiConfig') || 'AI 配置'}
-        </span>
-      ),
-      children: (
-        <div style={{ padding: '8px 0' }}>
-          {hintBox(t('settings.aiConfigHint'))}
-
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSaveAi}
-            initialValues={{
-              aiBaseUrl: '',
-              aiModel: '',
-              aiApiKey: '',
-              aiVisionBaseUrl: '',
-              aiVisionModel: '',
-              aiVisionApiKey: ''
-            }}
-          >
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>Base URL</span>} name="aiBaseUrl" rules={[{ required: true, message: t('settings.baseURLRequired') }]} tooltip={t('settings.baseURLTooltip')}>
-                  <Input placeholder={globalAiConfig?.base_url || "https://api.openai.com/v1"} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>{t('settings.modelLabel') || '模型名称'}</span>} name="aiModel" rules={[{ required: true, message: t('settings.modelRequired') }]} tooltip={t('settings.modelTooltip')}>
-                  <Input placeholder={globalAiConfig?.model || "gpt-4o-mini"} />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>API Key</span>} name="aiApiKey" rules={[{ required: true, message: t('settings.apiKeyRequired') }]}>
-                  <Input.Password placeholder={globalAiConfig?.api_key || "sk-..."} />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Divider style={{ margin: '16px 0' }} />
-            <Text strong style={{ ...labelStyle, display: 'block', marginBottom: 16 }}>{t('settings.visionModel') || '视觉模型'}</Text>
-
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>Vision Base URL</span>} name="aiVisionBaseUrl">
-                  <Input placeholder={globalAiConfig?.vision_base_url || globalAiConfig?.base_url || "https://api.openai.com/v1"} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>Vision Model</span>} name="aiVisionModel">
-                  <Input placeholder={globalAiConfig?.vision_model || "gpt-4o-mini"} />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item label={<span style={labelStyle}>Vision API Key</span>} name="aiVisionApiKey">
-                  <Input.Password placeholder={globalAiConfig?.vision_api_key || "sk-..."} />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading} disabled={!isAdmin}>
-              {t('settings.saveBtn')}
-            </Button>
-          </Form>
         </div>
       ),
     },
