@@ -202,8 +202,6 @@ def _inject_step_load_shape(script_content, stages):
     shape_script = f'''
 
 from locust import LoadTestShape
-from sqlalchemy import select
-from ..extensions import db
 
 class StepLoadShape(LoadTestShape):
     stages = {json.dumps(stages)}

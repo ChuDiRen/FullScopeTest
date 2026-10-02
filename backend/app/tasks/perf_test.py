@@ -229,6 +229,9 @@ def run_perf_test_task(
             proc = subprocess.Popen(
                 cmd,
                 cwd=temp_dir,
+                # stdin 用 PIPE（FILE_TYPE_PIPE → isatty=False）：Windows 上 DEVNULL 是
+                # FILE_TYPE_CHAR，locust 2.20 的 WindowsKeyPoller 误判 tty 后 SetConsoleMode 崩溃（RC=2）
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,

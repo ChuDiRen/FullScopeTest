@@ -17,6 +17,8 @@ from ...models.perf_test_result import PerformanceTestResult, PerformanceMetricS
 from ...models.perf_test_alert import PerformanceAlertRule, PerformanceAlertLog
 from ...models.user import User
 from ...utils.validators import is_valid_url, is_valid_http_method
+from ...utils.url_safety import is_safe_url
+from ...services.perf.grpc_script import prepare_grpc_scenario
 from ...tasks import run_perf_test_task
 from ...utils.ai_script_generator import generate_test_script
 from .auth import get_current_user
@@ -43,6 +45,10 @@ class ScenarioCreate(BaseModel):
     project_id: Optional[int] = None
     script_content: Optional[str] = None
     tags: Optional[List[str]] = None
+    protocol: Optional[str] = "http"
+    proto_content: Optional[str] = None
+    grpc_method: Optional[str] = None
+    grpc_request_json: Optional[str] = None
 
 
 class ScenarioUpdate(BaseModel):
@@ -60,6 +66,10 @@ class ScenarioUpdate(BaseModel):
     step_duration: Optional[int] = None
     script_content: Optional[str] = None
     tags: Optional[List[str]] = None
+    protocol: Optional[str] = None
+    proto_content: Optional[str] = None
+    grpc_method: Optional[str] = None
+    grpc_request_json: Optional[str] = None
 
 
 class ScenarioRunRequest(BaseModel):
@@ -171,28 +181,57 @@ async def get_scenarios(project_id: Optional[int] = Query(None), user: User = De
 
 @router.post("/scenarios", status_code=200)
 async def create_scenario(data: ScenarioCreate, user: User = Depends(get_current_user)):
-    if not is_valid_url(data.target_url):
-        raise HTTPException(400, "target_url must be valid")
-    method = data.method.upper()
-    if not is_valid_http_method(method):
-        raise HTTPException(400, "method must be valid")
+    protocol = (data.protocol or "http").strip().lower()
+    if protocol not in ("http", "grpc"):
+        raise HTTPException(400, "protocol must be http or grpc")
+    grpc_fields: Dict[str, Any] = {}
+    if protocol == "grpc":
+        grpc_fields, gerr = prepare_grpc_scenario(
+            data.target_url, data.proto_content, data.grpc_method, data.grpc_request_json,
+            custom_script=data.script_content,
+        )
+        if gerr:
+            raise HTTPException(400, gerr)
+        safe, reason = is_safe_url(grpc_fields.pop("_ssrf_probe"))
+        if not safe:
+            raise HTTPException(400, reason)
+        target_url = grpc_fields["target_url"]
+        method = "POST"
+    else:
+        if not is_valid_url(data.target_url):
+            raise HTTPException(400, "target_url must be valid")
+        safe, reason = is_safe_url(data.target_url)
+        if not safe:
+            raise HTTPException(400, reason)
+        target_url = data.target_url
+        method = data.method.upper()
+        if not is_valid_http_method(method):
+            raise HTTPException(400, "method must be valid")
     numbers, error = _validate_perf_numbers(data.user_count, data.spawn_rate, data.duration)
     if error:
         raise HTTPException(400, error)
     user_count, spawn_rate, duration = numbers
     if data.step_load_enabled and (data.step_users is None or data.step_duration is None):
         raise HTTPException(400, "step_users and step_duration required when step_load_enabled")
-    script_content = data.script_content
-    if not script_content:
-        _, ep = _parse_target_url(data.target_url)
-        script_content = _generate_locust_script(method, ep, data.headers, data.body)
+    if protocol == "grpc":
+        script_content = grpc_fields["script_content"]
+    else:
+        script_content = data.script_content
+        if not script_content:
+            _, ep = _parse_target_url(data.target_url)
+            script_content = _generate_locust_script(method, ep, data.headers, data.body)
+    # 这三项已作为显式参数传入构造器，避免重复
+    for _k in ("target_url", "protocol", "script_content"):
+        grpc_fields.pop(_k, None)
     s = PerfTestScenario(
-        name=data.name, description=data.description or "", target_url=data.target_url,
+        name=data.name, description=data.description or "", target_url=target_url,
+        protocol=protocol,
         method=method, headers=data.headers, body=data.body,
         user_count=user_count, spawn_rate=spawn_rate, duration=duration,
         step_load_enabled=data.step_load_enabled, step_users=data.step_users or 10,
         step_duration=data.step_duration or 30, project_id=data.project_id,
         user_id=user.id, script_content=script_content, tags=data.tags,
+        **grpc_fields,
     )
     db.session.add(s)
     db.session.commit()
@@ -212,7 +251,28 @@ async def update_scenario(scenario_id: int, data: ScenarioUpdate, user: User = D
     s = db.session.scalar(select(PerfTestScenario).filter_by(id=scenario_id, user_id=user.id))
     if not s:
         raise HTTPException(404, "Scenario not found")
-    for k, v in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    grpc_touched = {"protocol", "proto_content", "grpc_method", "grpc_request_json"} & set(updates)
+    if grpc_touched:
+        next_protocol = (updates.get("protocol") or s.protocol or "http").strip().lower()
+        if next_protocol not in ("http", "grpc"):
+            raise HTTPException(400, "protocol must be http or grpc")
+        if next_protocol == "grpc":
+            grpc_fields, gerr = prepare_grpc_scenario(
+                updates.get("target_url", s.target_url),
+                updates.get("proto_content", s.proto_content),
+                updates.get("grpc_method", s.grpc_method),
+                updates.get("grpc_request_json", s.grpc_request_json),
+                custom_script=updates.get("script_content"),
+            )
+            if gerr:
+                raise HTTPException(400, gerr)
+            safe, reason = is_safe_url(grpc_fields.pop("_ssrf_probe"))
+            if not safe:
+                raise HTTPException(400, reason)
+            updates.update(grpc_fields)
+            updates["method"] = "POST"
+    for k, v in updates.items():
         setattr(s, k, v)
     db.session.commit()
     return s.to_dict()

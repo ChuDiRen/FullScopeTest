@@ -695,7 +695,17 @@
     "monitor": "Monitor",
     "results": "Results",
     "dashboard": "Dashboard",
-    "perfDashboard": "Performance Dashboard"
+    "perfDashboard": "Performance Dashboard",
+    "protocol": "Protocol",
+    "protocolHttp": "HTTP / HTTPS",
+    "protocolGrpc": "gRPC / Dubbo3 Triple",
+    "grpcTargetFormat": "gRPC target must be grpc://host:port",
+    "protoContent": "Proto definition (.proto)",
+    "protoContentRequired": "Please enter the .proto definition",
+    "grpcMethod": "RPC method",
+    "grpcMethodRequired": "Please enter the full RPC method name",
+    "grpcMethodTooltip": "Format: package.Service/Method, e.g. helloworld.Greeter/SayHello",
+    "grpcRequestJson": "Request body (JSON)"
   },
   "ai": {
     "title": "AI Insights Dashboard",

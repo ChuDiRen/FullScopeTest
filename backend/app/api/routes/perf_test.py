@@ -37,6 +37,7 @@ from app.models.perf_test_result import PerformanceMetricSample, PerformanceTest
 from app.models.perf_test_scenario import PerfTestScenario
 from app.models.user import User
 from app.services.perf_test_service import PerfTestService
+from app.services.perf.grpc_script import prepare_grpc_scenario
 from app.tasks import run_perf_test_task
 from app.utils.ai_script_generator import generate_test_script
 from app.utils.exceptions import NotFoundError
@@ -329,17 +330,40 @@ def create_scenario(
         return error_response(400, error)
 
     target_url = data.get("target_url", "http://localhost:8080")
-    if not is_valid_url(target_url):
-        return error_response(400, "target_url must be a valid http/https URL")
+    protocol = (data.get("protocol") or "http").strip().lower()
+    if protocol not in ("http", "grpc"):
+        return error_response(400, "protocol must be http or grpc")
 
-    # SSRF 防护：校验目标地址
-    safe, reason = is_safe_url(target_url)
-    if not safe:
-        return error_response(400, reason)
+    grpc_fields = {}
+    if protocol == "grpc":
+        grpc_fields, error = prepare_grpc_scenario(
+            target_url,
+            data.get("proto_content"),
+            data.get("grpc_method"),
+            data.get("grpc_request_json"),
+            custom_script=data.get("script_content"),
+        )
+        if error:
+            return error_response(400, error)
+        # SSRF 防护与 http 场景同一套（grpc:// 归一为 http:// 仅用于校验）
+        safe, reason = is_safe_url(grpc_fields.pop("_ssrf_probe"))
+        if not safe:
+            return error_response(400, reason)
+        target_url = grpc_fields["target_url"]
+        script_content = grpc_fields["script_content"]
+        method = "POST"
+    else:
+        if not is_valid_url(target_url):
+            return error_response(400, "target_url must be a valid http/https URL")
 
-    method = data.get("method", "GET").upper()
-    if not is_valid_http_method(method):
-        return error_response(400, "method must be a valid HTTP method")
+        # SSRF 防护：校验目标地址
+        safe, reason = is_safe_url(target_url)
+        if not safe:
+            return error_response(400, reason)
+
+        method = data.get("method", "GET").upper()
+        if not is_valid_http_method(method):
+            return error_response(400, "method must be a valid HTTP method")
 
     headers = data.get("headers")
     if headers is not None and not isinstance(headers, dict):
@@ -363,16 +387,22 @@ def create_scenario(
         return error_response(400, error)
     step_load_enabled, step_users, step_duration = step_config
 
-    # Generate script when no custom script is provided.
-    script_content = data.get("script_content")
-    if not script_content:
-        _, endpoint_path = _parse_target_url(target_url)
-        script_content = _generate_locust_script(method, endpoint_path, headers, body)
+    if protocol != "grpc":
+        # Generate script when no custom script is provided.
+        script_content = data.get("script_content")
+        if not script_content:
+            _, endpoint_path = _parse_target_url(target_url)
+            script_content = _generate_locust_script(method, endpoint_path, headers, body)
+
+    # 这三项已作为显式参数传入构造器，避免重复
+    for _k in ("target_url", "protocol", "script_content"):
+        grpc_fields.pop(_k, None)
 
     scenario = PerfTestScenario(
         name=data["name"],
         description=data.get("description", ""),
         target_url=target_url,
+        protocol=protocol,
         method=method,
         headers=headers,
         body=body,
@@ -385,6 +415,7 @@ def create_scenario(
         project_id=data.get("project_id"),
         user_id=user.id,
         script_content=script_content,
+        **grpc_fields,
     )
 
     db.session.add(scenario)
@@ -426,12 +457,15 @@ def update_scenario(
             return error_response(400, "step_users and step_duration are required when step_load_enabled is true")
 
     if "target_url" in data:
-        if not is_valid_url(data["target_url"]):
-            return error_response(400, "target_url must be a valid http/https URL")
-        # SSRF 防护：校验目标地址
-        safe, reason = is_safe_url(data["target_url"])
-        if not safe:
-            return error_response(400, reason)
+        # grpc 协议下 target_url 为 host:port 形式，校验交给下方 grpc 分支统一处理
+        next_proto_probe = (data.get("protocol") or scenario.protocol or "http").strip().lower()
+        if next_proto_probe != "grpc":
+            if not is_valid_url(data["target_url"]):
+                return error_response(400, "target_url must be a valid http/https URL")
+            # SSRF 防护：校验目标地址
+            safe, reason = is_safe_url(data["target_url"])
+            if not safe:
+                return error_response(400, reason)
         scenario.target_url = data["target_url"]
 
     if "method" in data:
@@ -455,6 +489,29 @@ def update_scenario(
         scenario.description = data["description"]
     if "script_content" in data:
         scenario.script_content = data["script_content"]
+
+    # 协议切换 / gRPC 字段更新：整体重编译重校验
+    if "protocol" in data or "proto_content" in data or "grpc_method" in data or "grpc_request_json" in data:
+        next_protocol = (data.get("protocol") or scenario.protocol or "http").strip().lower()
+        if next_protocol not in ("http", "grpc"):
+            return error_response(400, "protocol must be http or grpc")
+        scenario.protocol = next_protocol
+        if next_protocol == "grpc":
+            grpc_fields, error = prepare_grpc_scenario(
+                data.get("target_url", scenario.target_url),
+                data.get("proto_content", scenario.proto_content),
+                data.get("grpc_method", scenario.grpc_method),
+                data.get("grpc_request_json", scenario.grpc_request_json),
+                custom_script=data.get("script_content"),
+            )
+            if error:
+                return error_response(400, error)
+            safe, reason = is_safe_url(grpc_fields.pop("_ssrf_probe"))
+            if not safe:
+                return error_response(400, reason)
+            for field_name, value in grpc_fields.items():
+                setattr(scenario, field_name, value)
+            scenario.method = "POST"
 
     limits = _get_perf_limits()
     if "user_count" in data:

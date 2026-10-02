@@ -20,6 +20,10 @@ export const createScenario = (data: {
   step_users?: number
   step_duration?: number
   project_id?: number
+  protocol?: 'http' | 'grpc'
+  proto_content?: string
+  grpc_method?: string
+  grpc_request_json?: string
 }): Promise<ApiResponse> => {
   return api.post('/perf-test/scenarios', data) as Promise<ApiResponse>
 }
@@ -41,6 +45,10 @@ export const updateScenario = (id: number, data: {
   step_load_enabled?: boolean
   step_users?: number
   step_duration?: number
+  protocol?: 'http' | 'grpc'
+  proto_content?: string
+  grpc_method?: string
+  grpc_request_json?: string
 }): Promise<ApiResponse> => {
   return api.put(`/perf-test/scenarios/${id}`, data) as Promise<ApiResponse>
 }

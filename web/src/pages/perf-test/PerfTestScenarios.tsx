@@ -68,6 +68,10 @@ interface PerfTestScenario {
   step_users: number
   step_duration: number
   status: 'passed' | 'failed' | 'pending' | 'running'
+  protocol?: 'http' | 'grpc'
+  proto_content?: string
+  grpc_method?: string
+  grpc_request_json?: string
   script_content?: string
   avg_response_time: number
   throughput: number
@@ -188,6 +192,10 @@ const PerfTestScenarios = () => {
         step_load_enabled: !!values.stepLoadEnabled,
         step_users: values.stepUsers as number,
         step_duration: values.stepDuration as number,
+        protocol: (values.protocol as 'http' | 'grpc') || 'http',
+        proto_content: values.protoContent as string,
+        grpc_method: values.grpcMethod as string,
+        grpc_request_json: values.grpcRequestJson as string,
       })
       if (result.code === 200) {
         message.success(t('perfTest.createSuccess'))
@@ -317,6 +325,10 @@ const PerfTestScenarios = () => {
         step_load_enabled: !!values.stepLoadEnabled,
         step_users: values.stepUsers as number,
         step_duration: values.stepDuration as number,
+        protocol: (values.protocol as 'http' | 'grpc') || 'http',
+        proto_content: values.protoContent as string,
+        grpc_method: values.grpcMethod as string,
+        grpc_request_json: values.grpcRequestJson as string,
       })
       if (result.code === 200) {
         message.success(t('perfTest.editSuccess'))
@@ -668,6 +680,10 @@ const PerfTestScenarios = () => {
                     stepLoadEnabled: record.step_load_enabled,
                     stepUsers: record.step_users,
                     stepDuration: record.step_duration,
+                    protocol: record.protocol || 'http',
+                    protoContent: record.proto_content,
+                    grpcMethod: record.grpc_method,
+                    grpcRequestJson: record.grpc_request_json,
                     headers: record.headers ? JSON.stringify(record.headers, null, 2) : undefined,
                     body: record.body ? JSON.stringify(record.body, null, 2) : undefined,
                   })
@@ -826,15 +842,32 @@ const PerfTestScenarios = () => {
           <Form.Item name="description" label={t('perfTest.scenarioDesc')}>
             <TextArea rows={2} placeholder={t('perfTest.scenarioDesc')} />
           </Form.Item>
-          <Form.Item
-            name="targetUrl"
-            label={t('perfTest.targetUrl')}
-            rules={[
-              { required: true, message: t('perfTest.targetUrlRequired') },
-              { type: 'url', message: t('perfTest.targetUrlRequired') },
-            ]}
-          >
-            <Input placeholder={t('perfTest.targetUrlPlaceholder')} />
+          <Form.Item name="protocol" label={t('perfTest.protocol')} initialValue="http">
+            <Select
+              options={[
+                { value: 'http', label: t('perfTest.protocolHttp') },
+                { value: 'grpc', label: t('perfTest.protocolGrpc') },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.protocol !== curr.protocol}>
+            {({ getFieldValue }) => {
+              const isGrpc = getFieldValue('protocol') === 'grpc'
+              return (
+                <Form.Item
+                  name="targetUrl"
+                  label={t('perfTest.targetUrl')}
+                  rules={[
+                    { required: true, message: t('perfTest.targetUrlRequired') },
+                    ...(isGrpc
+                      ? [{ pattern: /^(grpc|triple|https?):\/\/[^\s/:]+:\d+$/, message: t('perfTest.grpcTargetFormat') }]
+                      : [{ type: 'url' as const, message: t('perfTest.targetUrlRequired') }]),
+                  ]}
+                >
+                  <Input placeholder={isGrpc ? 'grpc://host:50051' : t('perfTest.targetUrlPlaceholder')} />
+                </Form.Item>
+              )
+            }}
           </Form.Item>
           <Row gutter={16}>
             <Col span={8}>
@@ -909,35 +942,78 @@ const PerfTestScenarios = () => {
               )
             }}
           </Form.Item>
-          <Form.Item name="method" label={t('apiTest.method')} initialValue="GET">
-            <Select
-              options={['GET', 'POST', 'PUT', 'DELETE'].map((m) => ({
-                value: m,
-                label: m,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="headers" label={t('perfTest.requestHeaders')}>
-            <TextArea
-              rows={3}
-              placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
-            />
-          </Form.Item>
-          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.method !== curr.method}>
+          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.protocol !== curr.protocol}>
             {({ getFieldValue }) => {
-              const method = getFieldValue('method')
-              if (['POST', 'PUT', 'PATCH'].includes(method)) {
+              if (getFieldValue('protocol') === 'grpc') {
                 return (
-                  <Form.Item name="body" label={t('perfTest.requestBody')}>
-                    <TextArea
-                      rows={4}
-                      placeholder='{"username": "test", "password": "REDACTED_PASSWORD"}'
-                    />
-                  </Form.Item>
+                  <>
+                    <Form.Item
+                      name="protoContent"
+                      label={t('perfTest.protoContent')}
+                      rules={[{ required: true, message: t('perfTest.protoContentRequired') }]}
+                    >
+                      <TextArea rows={8} placeholder={'syntax = "proto3";\\npackage helloworld;\\nservice Greeter { ... }'} style={{ fontFamily: 'monospace' }} />
+                    </Form.Item>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name="grpcMethod"
+                          label={t('perfTest.grpcMethod')}
+                          rules={[{ required: true, message: t('perfTest.grpcMethodRequired') }]}
+                          tooltip={t('perfTest.grpcMethodTooltip')}
+                        >
+                          <Input placeholder="helloworld.Greeter/SayHello" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item name="grpcRequestJson" label={t('perfTest.grpcRequestJson')}>
+                          <TextArea rows={2} placeholder='{"name": "world"}' style={{ fontFamily: 'monospace' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </>
                 )
               }
               return null
             }}
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.protocol !== curr.protocol}>
+            {({ getFieldValue }) => (
+              getFieldValue('protocol') === 'grpc' ? null : (
+                <>
+                  <Form.Item name="method" label={t('apiTest.method')} initialValue="GET">
+                    <Select
+                      options={['GET', 'POST', 'PUT', 'DELETE'].map((m) => ({
+                        value: m,
+                        label: m,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item name="headers" label={t('perfTest.requestHeaders')}>
+                    <TextArea
+                      rows={3}
+                      placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
+                    />
+                  </Form.Item>
+                  <Form.Item noStyle shouldUpdate={(prev, curr) => prev.method !== curr.method}>
+                    {({ getFieldValue }) => {
+                      const method = getFieldValue('method')
+                      if (['POST', 'PUT', 'PATCH'].includes(method)) {
+                        return (
+                          <Form.Item name="body" label={t('perfTest.requestBody')}>
+                            <TextArea
+                              rows={4}
+                              placeholder='{"username": "test", "password": "REDACTED_PASSWORD"}'
+                            />
+                          </Form.Item>
+                        )
+                      }
+                      return null
+                    }}
+                  </Form.Item>
+                </>
+              )
+            )}
           </Form.Item>
         </Form>
         {/* 多步骤用户旅程编辑器 */}

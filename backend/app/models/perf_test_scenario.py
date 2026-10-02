@@ -27,10 +27,17 @@ class PerfTestScenario(Base):
     
     # 请求配置
     target_url = Column(String(500), nullable=False, comment='目标 URL')
+    protocol = Column(String(20), default='http', comment='压测协议: http / grpc（Dubbo3 Triple 兼容）')
     method = Column(String(10), default='GET', comment='HTTP 方法')
     headers = Column(JSON, default=dict, comment='请求头')
     body = Column(JSON, comment='请求体')
     script_content = Column(Text, comment='Locust 脚本内容')
+
+    # gRPC (Dubbo3 Triple) 配置
+    proto_content = Column(Text, comment='.proto 定义源码（protocol=grpc 时必填）')
+    grpc_method = Column(String(255), comment='RPC 全名，格式 package.Service/Method')
+    grpc_request_json = Column(Text, comment='请求消息 JSON 模板')
+    grpc_descriptor = Column(Text, comment='编译后的 FileDescriptorSet（base64），运行时免 protoc')
     
     # 负载配置
     user_count = Column(Integer, default=10, comment='并发用户数')
@@ -71,10 +78,14 @@ class PerfTestScenario(Base):
             'name': self.name,
             'description': self.description,
             'target_url': self.target_url,
+            'protocol': self.protocol or 'http',
             'method': self.method,
             'headers': self.headers,
             'body': self.body,
             'script_content': self.script_content,
+            'proto_content': self.proto_content,
+            'grpc_method': self.grpc_method,
+            'grpc_request_json': self.grpc_request_json,
             'user_count': self.user_count,
             'spawn_rate': self.spawn_rate,
             'duration': self.duration,

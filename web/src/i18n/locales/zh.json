@@ -695,7 +695,17 @@
     "monitor": "实时监控",
     "results": "压测结果",
     "dashboard": "性能面板",
-    "perfDashboard": "性能面板"
+    "perfDashboard": "性能面板",
+    "protocol": "压测协议",
+    "protocolHttp": "HTTP / HTTPS",
+    "protocolGrpc": "gRPC / Dubbo3 Triple",
+    "grpcTargetFormat": "gRPC 目标格式应为 grpc://host:port",
+    "protoContent": "Proto 定义 (.proto)",
+    "protoContentRequired": "请输入 .proto 定义",
+    "grpcMethod": "RPC 方法",
+    "grpcMethodRequired": "请输入 RPC 方法全名",
+    "grpcMethodTooltip": "格式：包名.Service/方法名，如 helloworld.Greeter/SayHello",
+    "grpcRequestJson": "请求体 (JSON)"
   },
   "ai": {
     "title": "AI 统计看板",
