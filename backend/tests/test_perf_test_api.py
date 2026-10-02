@@ -187,7 +187,7 @@ class TestPerfScenarioRun:
 
         def _fake_apply_async(*a, **k):
             return SimpleNamespace(id="fake-perf-task")
-        monkeypatch.setattr("app.api.v2.v1.perf_test.run_perf_test_task.apply_async", _fake_apply_async)
+        monkeypatch.setattr("app.api.routes.perf_test.run_perf_test_task.apply_async", _fake_apply_async)
 
         resp = client.post(f"/api/v1/perf-test/scenarios/{s['id']}/run", headers=headers)
         assert resp.status_code == 200

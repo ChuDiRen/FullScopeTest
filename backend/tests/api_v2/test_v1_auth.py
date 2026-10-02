@@ -1,5 +1,5 @@
 """
-v1 auth 平迁路由测试（app/api/v2/v1/auth.py）
+v1 auth 平迁路由测试（app/api/routes/auth.py）
 
 覆盖：
 1. 未登录访问受保护端点（GET /api/v1/auth/me）→ 401

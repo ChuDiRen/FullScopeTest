@@ -60,7 +60,7 @@ class AdminService:
 
     def get_system_health(self) -> Dict[str, Any]:
         """获取系统健康状态"""
-        from ..api.v2.v1.health import _check_database, _check_redis
+        from ..api.routes.health import _check_database, _check_redis
         return {
             "database": _check_database(),
             "redis": _check_redis(),

@@ -129,7 +129,7 @@ def test_run_web_collection_submit_and_skip_running(client, monkeypatch):
         task_counter["count"] += 1
         return SimpleNamespace(id=f"fake-task-{task_counter['count']}")
 
-    monkeypatch.setattr("app.api.v2.v1.web_test.run_web_test_task.apply_async", _fake_apply_async)
+    monkeypatch.setattr("app.api.routes.web_test.run_web_test_task.apply_async", _fake_apply_async)
 
     run_resp = client.post(
         f"/api/v1/web-test/collections/{collection_id}/run",

@@ -491,7 +491,7 @@ class TestApiEndpoint:
         """测试成功生成用例（mock AI）"""
         headers = self._get_auth_header(client, app)
 
-        with patch('app.api.v2.v1.swagger_gen.swagger_case_generator.generate_cases') as mock_gen:
+        with patch('app.api.routes.swagger_gen.swagger_case_generator.generate_cases') as mock_gen:
             mock_gen.return_value = {
                 'spec_info': {'title': 'Test API', 'version': '1.0', 'description': ''},
                 'endpoints_count': 2,

@@ -1,6 +1,6 @@
 """
 v1 organizations / projects / admin / audit-logs 平迁路由测试
-（FastAPI 实现：app/api/v2/v1/{organizations,projects,admin,audit_logs}.py）
+（FastAPI 实现：app/api/routes/{organizations,projects,admin,audit_logs}.py）
 
 覆盖：
 1. 未登录访问受保护端点（org/project/admin/audit 各抽端点参数化）→ 401

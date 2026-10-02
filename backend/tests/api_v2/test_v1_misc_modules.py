@@ -786,7 +786,7 @@ class TestSwaggerGen:
         user_id = make_user(_uname())
         headers = auth_headers(user_id)
 
-        import app.api.v2.v1.swagger_gen as swagger_mod
+        import app.api.routes.swagger_gen as swagger_mod
 
         fake_result = {
             "spec_info": {"title": "Demo API"},

@@ -67,7 +67,7 @@ def test_ai_plan_accepts_runtime_provider_config(client, monkeypatch):
         return {"summary": "ok", "operations": [], "source": "llm"}
 
     monkeypatch.setattr(
-        "app.api.v2.v1.api_test.generate_api_test_plan",
+        "app.api.routes.api_test.generate_api_test_plan",
         fake_generate_api_test_plan,
     )
 

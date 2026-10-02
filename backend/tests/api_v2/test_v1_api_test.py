@@ -434,7 +434,7 @@ class TestIDOR:
         self, v2_client, app, make_user, auth_headers
     ):
         """他人用例 run / 版本历史 / 执行进度 → 404"""
-        import app.api.v2.v1.api_test as api_test_mod
+        import app.api.routes.api_test as api_test_mod
 
         owner = make_user(_username())
         attacker = make_user(_username())
@@ -464,7 +464,7 @@ class TestIDOR:
         self, v2_client, app, make_user, auth_headers, monkeypatch
     ):
         """属主查询进度：service 返回数据时透传；无进度时返回 v1 默认 unknown 结构"""
-        import app.api.v2.v1.api_test as api_test_mod
+        import app.api.routes.api_test as api_test_mod
 
         user_id = make_user(_username())
         headers = auth_headers(user_id)
@@ -600,7 +600,7 @@ class TestIDOR:
 
 class TestExecutionValidation:
     def _patch_execution(self, monkeypatch, result):
-        import app.api.v2.v1.api_test as api_test_mod
+        import app.api.routes.api_test as api_test_mod
 
         monkeypatch.setattr(
             api_test_mod.execution_service, "execute_request", lambda data, user_id: result

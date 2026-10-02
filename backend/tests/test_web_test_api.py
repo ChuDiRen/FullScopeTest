@@ -187,7 +187,7 @@ class TestWebScriptRun:
 
         def _fake_apply_async(*a, **k):
             return SimpleNamespace(id="fake-task-001")
-        monkeypatch.setattr("app.api.v2.v1.web_test.run_web_test_task.apply_async", _fake_apply_async)
+        monkeypatch.setattr("app.api.routes.web_test.run_web_test_task.apply_async", _fake_apply_async)
 
         resp = client.post(f"/api/v1/web-test/scripts/{sid}/run", headers=headers)
         assert resp.status_code == 200

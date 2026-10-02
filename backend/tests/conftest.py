@@ -90,7 +90,7 @@ def no_rate_limit(monkeypatch):
         lambda key, limit, **kw: True,
     )
     monkeypatch.setattr(
-        "app.api.v2.v1.auth._usable_redis",
+        "app.api.routes.auth._usable_redis",
         lambda: None,
     )
 

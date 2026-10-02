@@ -19,7 +19,7 @@ import uuid
 
 import pytest
 
-import app.api.v2.v1.web_test as wt
+import app.api.routes.web_test as wt
 from app.extensions import db
 from sqlalchemy import update
 

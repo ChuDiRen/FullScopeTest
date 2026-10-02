@@ -167,7 +167,7 @@ def test_run_scenario_returns_task_id_with_mocked_celery(
     scenario = _create_scenario(v2_client, headers)
     sid = scenario["id"]
 
-    from app.api.v2.v1 import perf_test as perf_test_v1
+    from app.api.routes import perf_test as perf_test_v1
 
     captured = {}
 

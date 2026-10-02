@@ -2,11 +2,11 @@
 AI 五模块 v1 平迁路由测试（FastAPI 实现，自 Flask 蓝图平迁）
 
 覆盖模块与源蓝图：
-- app/api/ai_stats.py            → app/api/v2/v1/ai_stats.py
-- app/api/prompt_versions.py     → app/api/v2/v1/prompt_versions.py
-- app/api/ai_prompt_versions.py  → app/api/v2/v1/ai_prompt_versions.py（独有 /stats 路由）
-- app/api/ai_copilot.py          → app/api/v2/v1/ai_copilot.py
-- app/api/semantic_dedup.py      → app/api/v2/v1/semantic_dedup.py
+- app/api/ai_stats.py            → app/api/routes/ai_stats.py
+- app/api/prompt_versions.py     → app/api/routes/prompt_versions.py
+- app/api/ai_prompt_versions.py  → app/api/routes/ai_prompt_versions.py（独有 /stats 路由）
+- app/api/ai_copilot.py          → app/api/routes/ai_copilot.py
+- app/api/semantic_dedup.py      → app/api/routes/semantic_dedup.py
 
 覆盖场景：
 1. 未登录访问五模块端点 → 401（参数化，五模块各抽代表端点）
@@ -374,7 +374,7 @@ def test_find_duplicates_other_project_404(v2_client, make_user, auth_headers, a
 
 
 def test_find_duplicates_mock_ai_200(v2_client, make_user, auth_headers, app, monkeypatch):
-    import app.api.v2.v1.semantic_dedup as dedup_mod
+    import app.api.routes.semantic_dedup as dedup_mod
 
     uid = make_user(_uname("duok"))
     headers = auth_headers(uid)
@@ -466,7 +466,7 @@ def test_find_duplicates_validation_400(v2_client, make_user, auth_headers, app)
 
 
 def test_copilot_chat_mock_ai(v2_client, make_user, auth_headers, monkeypatch):
-    import app.api.v2.v1.ai_copilot as copilot_mod
+    import app.api.routes.ai_copilot as copilot_mod
 
     uid = make_user(_uname("cpu"))
     headers = auth_headers(uid)
@@ -528,7 +528,7 @@ def test_copilot_chat_empty_messages_400(v2_client, make_user, auth_headers):
 
 
 def test_copilot_chat_ai_failure_500(v2_client, make_user, auth_headers, monkeypatch):
-    import app.api.v2.v1.ai_copilot as copilot_mod
+    import app.api.routes.ai_copilot as copilot_mod
 
     uid = make_user(_uname("cpf"))
     headers = auth_headers(uid)

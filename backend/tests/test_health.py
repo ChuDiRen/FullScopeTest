@@ -94,7 +94,7 @@ class TestReadinessProbe:
 
     def test_readiness_with_db_error_returns_503(self, client):
         """数据库故障时返回 503"""
-        with patch('app.api.v2.v1.health._check_database', return_value={'status': 'error', 'message': 'Connection refused'}):
+        with patch('app.api.routes.health._check_database', return_value={'status': 'error', 'message': 'Connection refused'}):
             resp = client.get('/health/ready')
             assert resp.status_code == 503
             data = resp.json()
@@ -102,7 +102,7 @@ class TestReadinessProbe:
 
     def test_readiness_with_redis_warning_still_200(self, client):
         """Redis 故障时状态为 degraded 但仍返回 200"""
-        with patch('app.api.v2.v1.health._check_redis', return_value={'status': 'warning', 'message': 'Connection refused'}):
+        with patch('app.api.routes.health._check_redis', return_value={'status': 'warning', 'message': 'Connection refused'}):
             resp = client.get('/health/ready')
             assert resp.status_code == 200
             data = resp.json()
@@ -110,9 +110,9 @@ class TestReadinessProbe:
 
     def test_readiness_all_ok(self, client):
         """所有组件正常时返回 ok"""
-        with patch('app.api.v2.v1.health._check_database', return_value={'status': 'ok'}):
-            with patch('app.api.v2.v1.health._check_redis', return_value={'status': 'ok'}):
-                with patch('app.api.v2.v1.health._check_celery', return_value={'status': 'ok'}):
+        with patch('app.api.routes.health._check_database', return_value={'status': 'ok'}):
+            with patch('app.api.routes.health._check_redis', return_value={'status': 'ok'}):
+                with patch('app.api.routes.health._check_celery', return_value={'status': 'ok'}):
                     resp = client.get('/health/ready')
                     assert resp.status_code == 200
                     data = resp.json()
@@ -123,35 +123,35 @@ class TestComponentChecks:
     """组件检查函数测试"""
 
     def test_check_database_ok(self, app):
-        from app.api.v2.v1.health import _check_database
+        from app.api.routes.health import _check_database
         result = _check_database()
         assert result['status'] == 'ok'
 
     def test_check_database_error(self, app):
-        from app.api.v2.v1.health import _check_database
-        with patch('app.api.v2.v1.health.db') as mock_db:
+        from app.api.routes.health import _check_database
+        with patch('app.api.routes.health.db') as mock_db:
             mock_db.session.execute.side_effect = Exception("Connection failed")
             result = _check_database()
             assert result['status'] == 'error'
             assert 'Connection failed' in result['message']
 
     def test_check_redis_returns_result(self):
-        from app.api.v2.v1.health import _check_redis
+        from app.api.routes.health import _check_redis
         result = _check_redis()
         assert result['status'] in ('ok', 'warning')
 
     def test_check_celery_disabled(self):
-        from app.api.v2.v1.health import _check_celery
+        from app.api.routes.health import _check_celery
         import os
         with patch.dict(os.environ, {'CELERY_ENABLE': 'false'}):
             result = _check_celery()
             assert result['status'] == 'disabled'
 
     def test_check_celery_no_workers(self):
-        from app.api.v2.v1.health import _check_celery
+        from app.api.routes.health import _check_celery
         import os
         with patch.dict(os.environ, {'CELERY_ENABLE': 'true'}):
-            with patch('app.api.v2.v1.health.celery') as mock_celery:
+            with patch('app.api.routes.health.celery') as mock_celery:
                 mock_inspect = MagicMock()
                 mock_inspect.active.return_value = {}
                 mock_celery.control.inspect.return_value = mock_inspect
@@ -159,10 +159,10 @@ class TestComponentChecks:
                 assert result['status'] == 'warning'
 
     def test_check_celery_with_workers(self):
-        from app.api.v2.v1.health import _check_celery
+        from app.api.routes.health import _check_celery
         import os
         with patch.dict(os.environ, {'CELERY_ENABLE': 'true'}):
-            with patch('app.api.v2.v1.health.celery') as mock_celery:
+            with patch('app.api.routes.health.celery') as mock_celery:
                 mock_inspect = MagicMock()
                 mock_inspect.active.return_value = {'worker1': []}
                 mock_celery.control.inspect.return_value = mock_inspect
@@ -171,10 +171,10 @@ class TestComponentChecks:
                 assert 'worker1' in result['workers']
 
     def test_check_celery_error(self):
-        from app.api.v2.v1.health import _check_celery
+        from app.api.routes.health import _check_celery
         import os
         with patch.dict(os.environ, {'CELERY_ENABLE': 'true'}):
-            with patch('app.api.v2.v1.health.celery') as mock_celery:
+            with patch('app.api.routes.health.celery') as mock_celery:
                 mock_celery.control.inspect.side_effect = Exception("Timeout")
                 result = _check_celery()
                 assert result['status'] == 'warning'

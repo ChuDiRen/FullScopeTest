@@ -1,9 +1,9 @@
 """
 大熊AI测试平台 FastAPI 主应用（唯一生产后端，零 Flask）
 
-- /api/v1/* : 原 Flask 蓝图的等价实现（app/api/v2/v1/，路径 100% 兼容）
+- /api/v1/* : 原 Flask 蓝图的等价实现（app/api/routes/，路径 100% 兼容）
 - /api/v2/* : FastAPI 原生增强接口（app/api/v2/）
-- /health*  : 健康检查（app/api/v2/v1/health.py，供 compose healthcheck）
+- /health*  : 健康检查（app/api/routes/health.py，供 compose healthcheck）
 
 运行：uvicorn app.fastapi_app:app --host 0.0.0.0 --port 5000 --workers 4
 """
@@ -238,7 +238,7 @@ def register_exception_handlers(app: FastAPI, is_production: bool = False):
 
 def register_routes(app: FastAPI):
     """注册 v1（平迁自 Flask 蓝图）与 v2（FastAPI 原生）路由"""
-    from .api.v2 import v1 as v1_package
+    from .api import routes as v1_package
 
     registered = 0
     for router in v1_package.iter_routers():

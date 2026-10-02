@@ -335,8 +335,9 @@ class TestStatsRefresh:
 class TestScriptGenerationWithPromptVersion:
     """测试脚本生成使用 PromptVersion"""
 
-    def test_script_gen_fallback_when_no_key(self, client):
+    def test_script_gen_fallback_when_no_key(self, client, monkeypatch):
         """测试无 API Key 时使用默认 Prompt 降级"""
+        monkeypatch.delenv("AI_ASSISTANT_API_KEY", raising=False)
         get_config()["AI_ASSISTANT_API_KEY"] = ""
         headers = _auth_headers(client)
 
@@ -377,8 +378,9 @@ class TestScriptGenerationWithPromptVersion:
         })
         assert resp.status_code == 400
 
-    def test_script_gen_with_prompt_version(self, client):
+    def test_script_gen_with_prompt_version(self, client, monkeypatch):
         """测试使用指定 Prompt 版本生成脚本"""
+        monkeypatch.delenv("AI_ASSISTANT_API_KEY", raising=False)
         get_config()["AI_ASSISTANT_API_KEY"] = ""
         headers = _auth_headers(client)
 

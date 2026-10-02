@@ -1,7 +1,7 @@
 """
 v1 平迁路由测试：质量门禁 / 测试计划 / API Token / GitHub 集成 / GitHub Checks
 （源：app/api/quality_gates.py、test_plans.py、tokens.py、github_integration.py、
-github_checks.py，FastAPI 实现在 app/api/v2/v1/ 同名模块）
+github_checks.py，FastAPI 实现在 app/api/routes/ 同名模块）
 
 覆盖：
 1. 未登录 401（五模块受保护端点全量参数化）；公开端点（GitHub OAuth 回调/config）
@@ -599,7 +599,7 @@ class TestGithubIntegration:
         assert data["state"]
 
         # mock 外呼服务（零真实 HTTP）
-        import app.api.v2.v1.github_integration as gi_module
+        import app.api.routes.github_integration as gi_module
 
         monkeypatch.setattr(
             gi_module,
@@ -683,7 +683,7 @@ class TestGithubChecks:
         run_id = _make_test_run(app, project_id)
         _make_integration(app, user_id)
 
-        import app.api.v2.v1.github_checks as gc_module
+        import app.api.routes.github_checks as gc_module
 
         calls = []
 
