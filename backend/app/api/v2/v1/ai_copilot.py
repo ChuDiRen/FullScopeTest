@@ -18,8 +18,8 @@ AI 调用：
 
 IDOR 说明：
 - 聊天接口无资源 id 参数；user_id 仅用于工具调用（如 create_performance_test）
-  创建"当前用户自有"的 PerfTestScenario（utils.ai_copilot.execute_tool_call 内
-  user_id=user_id），无越权面。
+  创建"当前用户自有"的 PerfTestScenario（services/ai/agent_service._build_tools 内
+  闭包注入 user_id），无越权面。
 
 会话生命周期：
 - 同步端点统一加 @release_session（deps.release_session）

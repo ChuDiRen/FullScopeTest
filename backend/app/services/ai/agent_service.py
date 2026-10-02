@@ -1,0 +1,357 @@
+"""
+deepagents 智能体服务 —— 平台 AI 能力的 Agent 化实现
+
+与 copilot 的两段式 Function Calling 不同，这里使用 langchain-ai/deepagents
+（基于 langgraph）构建真正的智能体循环：
+
+- 多步推理：模型可以连续调用工具、观察结果、再决定下一步，直到完成任务
+- 任务规划：内置 write_todos 工具，多步任务先列计划再执行
+- 虚拟文件系统：内置 ls/read_file/write_file/edit_file（内存态，不落盘）
+- 每轮对话结束写入 AIInvocationLog（feature='agent_chat'）
+
+模型仍走 OpenAI 兼容协议（AI_ASSISTANT_BASE_URL/KEY/MODEL），未配置 key 或
+deepagents 未安装时文档化降级（degraded=True，不抛 500）。
+
+工具全部按 user_id 收敛到当前用户自有数据（越权铁律），只读工具加属主过滤。
+"""
+
+import json
+import time
+from typing import Any, Dict, List, Optional
+
+from ...extensions import db
+from ...models.ai_invocation_log import AIInvocationLog
+from ...core.logging import get_logger
+
+logger = get_logger(__name__)
+
+DEFAULT_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_MODEL = "gpt-4o-mini"
+
+AGENT_SYSTEM_PROMPT = """你是"大熊AI测试平台"的智能体（Agent），帮助用户完成测试相关任务。
+
+你可以：
+- 创建和管理性能测试场景（Locust 压测）
+- 查询最近失败的 Web UI 测试
+- 查询用户的 API 测试用例
+- 对多步任务先用 write_todos 列出计划，再逐步执行并更新状态
+
+工作准则：
+- 用户的意图明确时才执行创建类操作；信息不足时先询问，不要编造参数
+- 回答用中文，结论先行，简洁专业
+- 工具返回的数据是唯一事实来源，不要虚构测试结果"""
+
+
+def _resolve_config(config: Dict[str, Any]) -> Dict[str, str]:
+    """配置解析：显式 config > 环境变量 > 默认值（与 AIServiceBase 一致）"""
+    import os
+
+    return {
+        "base_url": str(
+            config.get("AI_ASSISTANT_BASE_URL")
+            or os.environ.get("AI_ASSISTANT_BASE_URL")
+            or DEFAULT_BASE_URL
+        ).rstrip("/"),
+        "api_key": str(
+            config.get("AI_ASSISTANT_API_KEY")
+            or os.environ.get("AI_ASSISTANT_API_KEY")
+            or ""
+        ).strip(),
+        "model": str(
+            config.get("AI_ASSISTANT_MODEL")
+            or os.environ.get("AI_ASSISTANT_MODEL")
+            or DEFAULT_MODEL
+        ),
+        "timeout": int(
+            config.get("AI_ASSISTANT_TIMEOUT")
+            or os.environ.get("AI_ASSISTANT_TIMEOUT")
+            or 60
+        ),
+    }
+
+
+def _build_tools(user_id: int) -> List[Any]:
+    """构建当前用户作用域内的智能体工具（闭包注入 user_id，属主过滤铁律）"""
+    from langchain_core.tools import tool
+
+    @tool
+    def create_performance_test(
+        name: str,
+        target_url: str = "http://example.com",
+        concurrent_users: int = 10,
+        duration_seconds: int = 60,
+    ) -> str:
+        """创建一个新的性能测试场景（Locust 压测）。用户明确要求创建压测/性能测试时使用。"""
+        from ...models.perf_test_scenario import PerfTestScenario
+
+        script_content = (
+            "from locust import HttpUser, task, between\n\n"
+            "class QuickstartUser(HttpUser):\n"
+            "    wait_time = between(1, 5)\n\n"
+            "    @task\n"
+            "    def test_target(self):\n"
+            '        self.client.get("/")\n'
+        )
+        scenario = PerfTestScenario(
+            name=name,
+            description=f"Agent created: {concurrent_users} VUs for {duration_seconds}s",
+            target_url=target_url,
+            user_count=concurrent_users,
+            duration=duration_seconds,
+            script_content=script_content,
+            status="pending",
+            user_id=user_id,
+        )
+        db.session.add(scenario)
+        db.session.commit()
+        return json.dumps(
+            {
+                "status": "success",
+                "scenario_id": scenario.id,
+                "message": f"已创建性能测试场景 '{name}'（并发 {concurrent_users}，时长 {duration_seconds} 秒）",
+            },
+            ensure_ascii=False,
+        )
+
+    @tool
+    def query_failed_web_tests(limit: int = 5) -> str:
+        """查询当前用户最近的失败 Web UI 测试脚本。用户询问失败测试/测试结果时使用。"""
+        from sqlalchemy import select
+        from ...models.web_test_script import WebTestScript
+
+        rows = db.session.scalars(
+            select(WebTestScript)
+            .filter_by(status="failed", user_id=user_id)
+            .order_by(WebTestScript.updated_at.desc())
+            .limit(max(1, min(int(limit), 20)))
+        ).all()
+        if not rows:
+            return json.dumps({"status": "success", "data": [], "message": "最近没有失败的 Web 测试"}, ensure_ascii=False)
+        return json.dumps(
+            {"status": "success", "data": [{"id": r.id, "name": r.name, "time": str(r.updated_at)} for r in rows]},
+            ensure_ascii=False,
+        )
+
+    @tool
+    def query_recent_api_cases(limit: int = 5) -> str:
+        """查询当前用户最近的 API 测试用例（只读）。用户询问已有用例、想基于用例继续工作时使用。"""
+        from sqlalchemy import select
+        from ...models.api_test_case import ApiTestCase
+
+        rows = db.session.scalars(
+            select(ApiTestCase)
+            .filter_by(user_id=user_id)
+            .order_by(ApiTestCase.id.desc())
+            .limit(max(1, min(int(limit), 20)))
+        ).all()
+        return json.dumps(
+            {
+                "status": "success",
+                "data": [{"id": r.id, "name": r.name, "method": r.method, "url": r.url} for r in rows],
+            },
+            ensure_ascii=False,
+        )
+
+    @tool
+    def list_performance_scenarios(limit: int = 5) -> str:
+        """列出当前用户已有的性能测试场景（只读），含状态与并发/时长配置。"""
+        from sqlalchemy import select
+        from ...models.perf_test_scenario import PerfTestScenario
+
+        rows = db.session.scalars(
+            select(PerfTestScenario)
+            .filter_by(user_id=user_id)
+            .order_by(PerfTestScenario.id.desc())
+            .limit(max(1, min(int(limit), 20)))
+        ).all()
+        return json.dumps(
+            {
+                "status": "success",
+                "data": [
+                    {"id": r.id, "name": r.name, "target_url": r.target_url, "status": r.status,
+                     "vus": r.user_count, "duration": r.duration}
+                    for r in rows
+                ],
+            },
+            ensure_ascii=False,
+        )
+
+    return [create_performance_test, query_failed_web_tests, query_recent_api_cases, list_performance_scenarios]
+
+
+def _to_langchain_messages(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """前端历史消息 → langgraph 消息（assistant 角色名映射为 ai）"""
+    out = []
+    for msg in messages or []:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        if not content:
+            continue
+        if role == "assistant":
+            role = "ai"
+        elif role not in ("user", "system"):
+            role = "user"
+        out.append({"role": role, "content": content})
+    return out
+
+
+def _extract_steps(result: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """从 langgraph 终态提取可展示的执行轨迹（工具调用 + 工具结果）"""
+    steps: List[Dict[str, Any]] = []
+    for msg in result.get("messages", []):
+        tool_calls = getattr(msg, "tool_calls", None)
+        if tool_calls:
+            for tc in tool_calls:
+                steps.append(
+                    {
+                        "type": "tool",
+                        "name": tc.get("name", "unknown"),
+                        "args": tc.get("args", {}),
+                        "result": None,
+                    }
+                )
+        if type(msg).__name__ == "ToolMessage":
+            content = msg.content
+            if not isinstance(content, str):
+                content = json.dumps(content, ensure_ascii=False, default=str)
+            if steps and steps[-1]["type"] == "tool" and steps[-1]["result"] is None:
+                steps[-1]["result"] = content[:2000]
+    return steps
+
+
+def _record_log(
+    *,
+    user_id: Optional[int],
+    prompt: str,
+    response: Optional[str],
+    success: bool,
+    latency_ms: int,
+    model_name: str,
+    total_tokens: int = 0,
+    error_message: Optional[str] = None,
+    error_type: Optional[str] = None,
+    extra_metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """写入 AIInvocationLog（失败不阻断主流程）"""
+    try:
+        log = AIInvocationLog(
+            user_id=user_id,
+            feature="agent_chat",
+            prompt_version_id=None,
+            prompt=prompt[:10000],
+            model_name=model_name,
+            temperature=0.3,
+            response=response[:5000] if response else None,
+            success=success,
+            error_message=error_message[:2000] if error_message else None,
+            error_type=error_type,
+            latency_ms=latency_ms,
+            total_tokens=total_tokens,
+            metadata_json=extra_metadata,
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Failed to record agent invocation log", error=str(exc))
+
+
+def _degraded(reply: str, model: str = "") -> Dict[str, Any]:
+    return {"reply": reply, "steps": [], "todos": [], "degraded": True, "model": model}
+
+
+def run_agent_chat(
+    messages: List[Dict[str, str]],
+    user_id: int,
+    config: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    执行 deepagents 智能体对话。
+
+    Returns:
+        {"reply": 最终回复, "steps": [{type,name,args,result}], "todos": 计划列表,
+         "degraded": 是否降级, "model": 模型名}
+    """
+    cfg = _resolve_config(config)
+    prompt_text = "\n".join(f"[{m.get('role')}] {m.get('content', '')}" for m in messages or [])[:10000]
+
+    if not cfg["api_key"]:
+        reply = (
+            "智能体尚未配置模型服务。请在后端环境变量中设置 AI_ASSISTANT_API_KEY"
+            "（可选 AI_ASSISTANT_BASE_URL / AI_ASSISTANT_MODEL，默认 "
+            f"{DEFAULT_BASE_URL} + {DEFAULT_MODEL}），配置后即可使用完整智能体能力。"
+        )
+        _record_log(
+            user_id=user_id, prompt=prompt_text, response=None, success=False,
+            latency_ms=0, model_name=cfg["model"],
+            error_message="AI_ASSISTANT_API_KEY is not configured", error_type="auth_error",
+        )
+        return _degraded(reply, cfg["model"])
+
+    try:
+        from deepagents import create_deep_agent
+        from langchain_openai import ChatOpenAI
+    except ImportError as exc:
+        reply = f"智能体组件未安装（{exc.__class__.__name__}），请先安装依赖：pip install deepagents langchain-openai"
+        _record_log(
+            user_id=user_id, prompt=prompt_text, response=None, success=False,
+            latency_ms=0, model_name=cfg["model"],
+            error_message=str(exc), error_type="dependency_missing",
+        )
+        return _degraded(reply, cfg["model"])
+
+    llm = ChatOpenAI(
+        model=cfg["model"],
+        api_key=cfg["api_key"],
+        base_url=cfg["base_url"],
+        temperature=0.3,
+        timeout=cfg["timeout"],
+    )
+    agent = create_deep_agent(model=llm, tools=_build_tools(user_id), system_prompt=AGENT_SYSTEM_PROMPT)
+
+    start_time = time.monotonic()
+    try:
+        result = agent.invoke(
+            {"messages": _to_langchain_messages(messages)},
+            config={"recursion_limit": 40},
+        )
+    except Exception as exc:
+        latency_ms = int((time.monotonic() - start_time) * 1000)
+        logger.error("Agent invocation failed", error=str(exc))
+        _record_log(
+            user_id=user_id, prompt=prompt_text, response=None, success=False,
+            latency_ms=latency_ms, model_name=cfg["model"],
+            error_message=str(exc), error_type="agent_error",
+        )
+        return _degraded(f"智能体执行失败：{exc}", cfg["model"])
+
+    latency_ms = int((time.monotonic() - start_time) * 1000)
+    result_messages = result.get("messages", [])
+    reply = ""
+    if result_messages:
+        reply = getattr(result_messages[-1], "content", "") or ""
+        if not isinstance(reply, str):
+            reply = json.dumps(reply, ensure_ascii=False, default=str)
+
+    usage = getattr(result_messages[-1] if result_messages else None, "usage_metadata", None) or {}
+    todos = [
+        {"content": t.get("content") or t.get("task", ""), "status": t.get("status", "pending")}
+        for t in (result.get("todos") or [])
+        if isinstance(t, dict)
+    ]
+    steps = _extract_steps(result)
+
+    _record_log(
+        user_id=user_id, prompt=prompt_text, response=reply, success=True,
+        latency_ms=latency_ms, model_name=cfg["model"],
+        total_tokens=int(usage.get("total_tokens", 0) or 0),
+        extra_metadata={"steps": len(steps)},
+    )
+
+    return {
+        "reply": reply,
+        "steps": steps,
+        "todos": todos,
+        "degraded": False,
+        "model": cfg["model"],
+    }
