@@ -12,7 +12,7 @@ dashboard_config / global_search / gitlab_webhooks）
    状态更新以 is_active 覆盖；test 端点 stub 掉真实 HTTP 发送）
 5. 他人资源 404：notifications 配置、alert_rules 规则/日志、
    dashboard 布局隔离、comments 详情
-6. 公开端点：branding GET、webhook-debugger 接收器、
+6. 公开端点：branding GET、
    gitlab webhook 事件分发
 
 本文件所有测试依赖本机 Redis 不可用：autouse fixture 将
@@ -206,7 +206,6 @@ class TestUnauthenticated401:
             # branding（GET 公开，PUT 需鉴权）
             ("put", "/api/v1/branding/config", {"platform_name": "X"}),
             # webhook_debugger
-            ("get", "/api/v1/webhook-debugger", None),
             # swagger_gen
             ("post", "/api/v1/ai/generate-cases-from-swagger", {"swagger_content": "openapi: 3.0.0"}),
             # dashboard_config
@@ -872,64 +871,8 @@ class TestGlobalSearch:
 
 
 # ---------------------------------------------------------------------------
-# 7. webhook 调试器（公开接收器）与 GitLab webhook
+# 7. GitLab webhook
 # ---------------------------------------------------------------------------
-
-class TestWebhookDebugger:
-    def test_create_and_receive_requests(self, v2_client, app, make_user, auth_headers):
-        user_id = make_user(_uname())
-        headers = auth_headers(user_id)
-
-        # 列表为空
-        resp = v2_client.get("/api/v1/webhook-debugger", headers=headers)
-        assert resp.status_code == 200, resp.text
-
-        # 创建（201）
-        resp = v2_client.post(
-            "/api/v1/webhook-debugger", headers=headers, json={"name": "debug-1"}
-        )
-        assert resp.status_code == 200, resp.text
-        token = resp.json()["data"]["token"]
-        assert token
-
-        # 公开接收器：无鉴权 POST → 裸 JSON 体 {"ok": true} + CORS 回显
-        resp = v2_client.post(
-            f"/api/v1/webhook/{token}?src=ci",
-            json={"action": "opened"},
-            headers={"Origin": "http://example.com"},
-        )
-        assert resp.status_code == 200, resp.text
-        assert resp.json() == {"ok": True}
-        assert resp.headers["content-type"].startswith("application/json")
-        assert resp.headers["access-control-allow-origin"] == "http://example.com"
-
-        # GET 方法同样可接收
-        resp = v2_client.get(f"/api/v1/webhook/{token}")
-        assert resp.status_code == 200
-        assert resp.json() == {"ok": True}
-
-        # 查询日志（鉴权）
-        resp = v2_client.get(f"/api/v1/webhook-debugger/{token}/requests", headers=headers)
-        assert resp.status_code == 200, resp.text
-        data = resp.json()["data"]
-        assert data["total"] == 2
-        assert data["requests"][0]["method"] in ("GET", "POST")  # 倒序，最新在前
-        assert data["requests"][0]["query_params"].get("src") in (None, "ci")
-
-        # 清空日志
-        resp = v2_client.delete(f"/api/v1/webhook-debugger/{token}/requests", headers=headers)
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["message"] == "日志已清空"
-        resp = v2_client.get(f"/api/v1/webhook-debugger/{token}/requests", headers=headers)
-        assert resp.json()["data"]["total"] == 0
-
-        # 未知 token：接收器 404（error_response 信封）、日志 404
-        resp = v2_client.post("/api/v1/webhook/does-not-exist", json={"a": 1})
-        assert resp.status_code == 404, resp.text
-        assert resp.json()["code"] == 404
-        resp = v2_client.get("/api/v1/webhook-debugger/does-not-exist/requests", headers=headers)
-        assert resp.status_code == 404, resp.text
-
 
 class TestGitlabWebhooks:
     def test_event_ignored_public(self, v2_client):

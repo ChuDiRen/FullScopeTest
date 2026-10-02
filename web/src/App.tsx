@@ -32,8 +32,6 @@ const VisualRegressionHistory = lazy(() => import('./pages/VisualRegressionHisto
 const AIInsightsDashboard = lazy(() => import('./pages/AIInsightsDashboard'))
 const PromptManagement = lazy(() => import('./pages/PromptManagement'))
 const AiAssistantConfig = lazy(() => import('./pages/AiAssistantConfig'))
-const OrganizationList = lazy(() => import('./pages/organizations/OrganizationList'))
-const OrganizationDetail = lazy(() => import('./pages/organizations/OrganizationDetail'))
 const AuditLogs = lazy(() => import('./pages/AuditLogs'))
 const ApiTokens = lazy(() => import('./pages/ApiTokens'))
 const TestPlans = lazy(() => import('./pages/TestPlans'))
@@ -44,11 +42,8 @@ const QualityGates = lazy(() => import('./pages/QualityGates'))
 const TriggerRules = lazy(() => import('./pages/TriggerRules'))
 const NotificationSettings = lazy(() => import('./pages/NotificationSettings'))
 const TeamMetrics = lazy(() => import('./pages/TeamMetrics'))
-const Integrations = lazy(() => import('./pages/Integrations'))
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'))
 const MockServers = lazy(() => import('./pages/MockServers'))
-const HealthMonitor = lazy(() => import('./pages/HealthMonitor'))
-const WebhookDebugger = lazy(() => import('./pages/WebhookDebugger'))
 const DataFactory = lazy(() => import('./pages/DataFactory'))
 const FlakyTestDashboard = lazy(() => import('./pages/FlakyTestDashboard'))
 const TestCaseTemplates = lazy(() => import('./pages/TestCaseTemplates'))
@@ -230,26 +225,6 @@ function App() {
           />
         </Route>
 
-        {/* 组织管理 */}
-        <Route path="organizations">
-          <Route
-            index
-            element={
-              <Suspense fallback={<PageLoading />}>
-                <OrganizationList />
-              </Suspense>
-            }
-          />
-          <Route
-            path=":orgId"
-            element={
-              <Suspense fallback={<PageLoading />}>
-                <OrganizationDetail />
-              </Suspense>
-            }
-          />
-        </Route>
-
         {/* AI 统计看板 */}
         <Route
           path="ai-insights"
@@ -338,16 +313,6 @@ function App() {
           }
         />
 
-        {/* 集成管理 */}
-        <Route
-          path="integrations"
-          element={
-            <Suspense fallback={<PageLoading />}>
-              <Integrations />
-            </Suspense>
-          }
-        />
-
         {/* 触发规则 */}
         <Route
           path="trigger-rules"
@@ -400,26 +365,6 @@ function App() {
           }
         />
 
-
-        {/* API 健康监控 */}
-        <Route
-          path="health-monitor"
-          element={
-            <Suspense fallback={<PageLoading />}>
-              <HealthMonitor />
-            </Suspense>
-          }
-        />
-
-        {/* Webhook 调试器 */}
-        <Route
-          path="webhook-debugger"
-          element={
-            <Suspense fallback={<PageLoading />}>
-              <WebhookDebugger />
-            </Suspense>
-          }
-        />
 
         {/* API Token 管理 */}
         <Route
