@@ -152,5 +152,4 @@ def process_copilot_chat(
         "content": result["reply"],
         "steps": result.get("steps", []),
         "todos": result.get("todos", []),
-        "degraded": result.get("degraded", False),
     }

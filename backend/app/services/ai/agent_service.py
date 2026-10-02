@@ -1,5 +1,5 @@
 """
-deepagents 智能体服务 —— 平台 AI 能力的 Agent 化实现
+deepagents 智能体服务 —— 平台 AI 能力的 Agent 化实现（默认 DeepSeek）
 
 与 copilot 的两段式 Function Calling 不同，这里使用 langchain-ai/deepagents
 （基于 langgraph）构建真正的智能体循环：
@@ -9,8 +9,10 @@ deepagents 智能体服务 —— 平台 AI 能力的 Agent 化实现
 - 虚拟文件系统：内置 ls/read_file/write_file/edit_file（内存态，不落盘）
 - 每轮对话结束写入 AIInvocationLog（feature='agent_chat'）
 
-模型仍走 OpenAI 兼容协议（AI_ASSISTANT_BASE_URL/KEY/MODEL），未配置 key 或
-deepagents 未安装时文档化降级（degraded=True，不抛 500）。
+模型走 OpenAI 兼容协议，默认 DeepSeek（https://api.deepseek.com/v1 + deepseek-chat）。
+
+降级策略：**没有降级**。未配置 key、依赖缺失或执行失败一律写失败日志后抛异常，
+由路由层返回明确错误，绝不返回伪造的兜底回复。
 
 工具全部按 user_id 收敛到当前用户自有数据（越权铁律），只读工具加属主过滤。
 """
@@ -25,8 +27,8 @@ from ...core.logging import get_logger
 
 logger = get_logger(__name__)
 
-DEFAULT_BASE_URL = "https://api.openai.com/v1"
-DEFAULT_MODEL = "gpt-4o-mini"
+DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
+DEFAULT_MODEL = "deepseek-chat"
 
 AGENT_SYSTEM_PROMPT = """你是"大熊AI测试平台"的智能体（Agent），帮助用户完成测试相关任务。
 
@@ -256,49 +258,40 @@ def _record_log(
         logger.error("Failed to record agent invocation log", error=str(exc))
 
 
-def _degraded(reply: str, model: str = "") -> Dict[str, Any]:
-    return {"reply": reply, "steps": [], "todos": [], "degraded": True, "model": model}
-
-
 def run_agent_chat(
     messages: List[Dict[str, str]],
     user_id: int,
     config: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
-    执行 deepagents 智能体对话。
+    执行 deepagents 智能体对话。无降级：任何失败写日志后抛异常。
 
     Returns:
         {"reply": 最终回复, "steps": [{type,name,args,result}], "todos": 计划列表,
-         "degraded": 是否降级, "model": 模型名}
+         "model": 模型名}
     """
     cfg = _resolve_config(config)
     prompt_text = "\n".join(f"[{m.get('role')}] {m.get('content', '')}" for m in messages or [])[:10000]
 
     if not cfg["api_key"]:
-        reply = (
-            "智能体尚未配置模型服务。请在后端环境变量中设置 AI_ASSISTANT_API_KEY"
-            "（可选 AI_ASSISTANT_BASE_URL / AI_ASSISTANT_MODEL，默认 "
-            f"{DEFAULT_BASE_URL} + {DEFAULT_MODEL}），配置后即可使用完整智能体能力。"
-        )
+        error_msg = "AI_ASSISTANT_API_KEY is not configured"
         _record_log(
             user_id=user_id, prompt=prompt_text, response=None, success=False,
             latency_ms=0, model_name=cfg["model"],
-            error_message="AI_ASSISTANT_API_KEY is not configured", error_type="auth_error",
+            error_message=error_msg, error_type="auth_error",
         )
-        return _degraded(reply, cfg["model"])
+        raise RuntimeError(error_msg)
 
     try:
         from deepagents import create_deep_agent
         from langchain_openai import ChatOpenAI
     except ImportError as exc:
-        reply = f"智能体组件未安装（{exc.__class__.__name__}），请先安装依赖：pip install deepagents langchain-openai"
         _record_log(
             user_id=user_id, prompt=prompt_text, response=None, success=False,
             latency_ms=0, model_name=cfg["model"],
             error_message=str(exc), error_type="dependency_missing",
         )
-        return _degraded(reply, cfg["model"])
+        raise RuntimeError(f"智能体依赖缺失：pip install deepagents langchain-openai（{exc}）") from exc
 
     llm = ChatOpenAI(
         model=cfg["model"],
@@ -323,7 +316,7 @@ def run_agent_chat(
             latency_ms=latency_ms, model_name=cfg["model"],
             error_message=str(exc), error_type="agent_error",
         )
-        return _degraded(f"智能体执行失败：{exc}", cfg["model"])
+        raise
 
     latency_ms = int((time.monotonic() - start_time) * 1000)
     result_messages = result.get("messages", [])
@@ -352,6 +345,5 @@ def run_agent_chat(
         "reply": reply,
         "steps": steps,
         "todos": todos,
-        "degraded": False,
         "model": cfg["model"],
     }

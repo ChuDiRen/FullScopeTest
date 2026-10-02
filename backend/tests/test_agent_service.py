@@ -44,35 +44,30 @@ def make_user(app):
     return _make
 
 
-def test_run_agent_chat_degrades_without_api_key(app, make_user, monkeypatch):
-    """未配置 API key：返回降级回复而不是抛 500（copilot 面板拿到中文提示）"""
+def test_run_agent_chat_raises_without_api_key(app, make_user, monkeypatch):
+    """无降级：未配置 API key 直接抛 RuntimeError（先写失败日志）"""
     from app.services.ai import agent_service
 
     uid = make_user(_uname("agent"))
     monkeypatch.delenv("AI_ASSISTANT_API_KEY", raising=False)
 
-    result = agent_service.run_agent_chat(
-        [{"role": "user", "content": "创建压测"}], uid, {"AI_ASSISTANT_API_KEY": ""}
-    )
-    assert result["degraded"] is True
-    assert "AI_ASSISTANT_API_KEY" in result["reply"]
-    assert result["steps"] == []
-    assert result["todos"] == []
+    with pytest.raises(RuntimeError, match="AI_ASSISTANT_API_KEY"):
+        agent_service.run_agent_chat(
+            [{"role": "user", "content": "创建压测"}], uid, {"AI_ASSISTANT_API_KEY": ""}
+        )
 
 
-def test_process_copilot_chat_contract_without_api_key(app, make_user, monkeypatch):
-    """process_copilot_chat 对外契约：role/content 字段必须存在（前端只读 content）"""
+def test_process_copilot_chat_propagates_error(app, make_user, monkeypatch):
+    """process_copilot_chat 不吞异常：错误向上传播，路由层转 500"""
     from app.utils.ai_copilot import process_copilot_chat
 
     uid = make_user(_uname("agent"))
     monkeypatch.delenv("AI_ASSISTANT_API_KEY", raising=False)
 
-    reply = process_copilot_chat(
-        [{"role": "user", "content": "hi"}], uid, {"AI_ASSISTANT_API_KEY": ""}
-    )
-    assert reply["role"] == "assistant"
-    assert isinstance(reply["content"], str) and reply["content"]
-    assert reply["degraded"] is True
+    with pytest.raises(RuntimeError, match="AI_ASSISTANT_API_KEY"):
+        process_copilot_chat(
+            [{"role": "user", "content": "hi"}], uid, {"AI_ASSISTANT_API_KEY": ""}
+        )
 
 
 def test_to_langchain_messages_role_mapping():

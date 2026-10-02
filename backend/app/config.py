@@ -120,10 +120,10 @@ class BaseConfig:
 
     # AI Assistant (API test workspace)
     AI_ASSISTANT_ENABLED = os.environ.get('AI_ASSISTANT_ENABLED', 'true').strip().lower() == 'true'
-    AI_ASSISTANT_BASE_URL = os.environ.get('AI_ASSISTANT_BASE_URL', 'https://api.openai.com/v1')
+    AI_ASSISTANT_BASE_URL = os.environ.get('AI_ASSISTANT_BASE_URL', 'https://api.deepseek.com/v1')
     AI_ASSISTANT_API_KEY = os.environ.get('AI_ASSISTANT_API_KEY', '')
-    AI_ASSISTANT_MODEL = os.environ.get('AI_ASSISTANT_MODEL', 'gpt-4o-mini')
-    AI_ASSISTANT_TIMEOUT = _env_int('AI_ASSISTANT_TIMEOUT', 30)
+    AI_ASSISTANT_MODEL = os.environ.get('AI_ASSISTANT_MODEL', 'deepseek-chat')
+    AI_ASSISTANT_TIMEOUT = _env_int('AI_ASSISTANT_TIMEOUT', 60)
     AI_VISION_BASE_URL = os.environ.get('AI_VISION_BASE_URL', AI_ASSISTANT_BASE_URL)
     AI_VISION_API_KEY = os.environ.get('AI_VISION_API_KEY', AI_ASSISTANT_API_KEY)
     AI_VISION_MODEL = os.environ.get('AI_VISION_MODEL', 'gpt-4o-mini')
