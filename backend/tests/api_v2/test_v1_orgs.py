@@ -101,7 +101,7 @@ class TestUnauthenticated:
     def test_org_member_endpoints_401(self, v2_client):
         resp = v2_client.delete("/api/v1/organizations/1/members/2")
         assert resp.status_code == 401
-        resp = v2_client.get("/api/v1/roles/system")
+        resp = v2_client.get("/api/v1/organizations/1/roles")
         assert resp.status_code == 401
 
 
@@ -578,11 +578,6 @@ class TestOrganizations:
         resp = v2_client.get(f"/api/v1/organizations/{org_id}/roles", headers=headers_c)
         assert resp.status_code == 403
         assert resp.json()["message"] == "不属于该组织"
-
-        # 系统角色定义（任意登录用户）
-        resp = v2_client.get("/api/v1/roles/system", headers=headers_c)
-        assert resp.status_code == 200, resp.text
-        assert len(resp.json()["data"]) > 0
 
         # A 移除 B
         resp = v2_client.delete(

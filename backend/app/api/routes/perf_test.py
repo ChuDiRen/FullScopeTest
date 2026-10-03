@@ -273,14 +273,6 @@ class TestUser(HttpUser):
     return script
 
 
-# ==================== 健康检查 ====================
-
-@router.get("/health")
-def perf_test_health():
-    """性能测试模块健康检查"""
-    return success_response(message="性能测试模块正常")
-
-
 # ==================== AI 脚本生成 ====================
 
 @router.post("/ai/generate")

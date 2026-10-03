@@ -31,17 +31,6 @@ def _create_scenario(client, headers, name=None):
 
 
 # ====================================================================
-# 健康检查
-# ====================================================================
-
-class TestPerfTestHealth:
-    def test_health_returns_ok(self, client):
-        resp = client.get("/api/v1/perf-test/health")
-        assert resp.status_code == 200
-        assert resp.json()["code"] == 200
-
-
-# ====================================================================
 # 场景 CRUD
 # ====================================================================
 

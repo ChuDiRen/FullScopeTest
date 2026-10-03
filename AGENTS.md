@@ -8,8 +8,7 @@ AI 驱动的全链路自动化测试平台（API 测试 / Web UI 自动化 / APP
 
 - `backend/app/fastapi_app.py` — FastAPI 主应用入口（`create_fastapi_app`，模块级 `app` 惰性创建）；`app/api/v2/middleware.py` — ASGI 中间件（DB 会话作用域/限流/安全头/body 限制）
 - `backend/app/api/v2/deps.py` — FastAPI 共享依赖（get_current_user/get_admin_user/client_ip/release_session 等）
-- `backend/app/api/routes/` — 主路由层（约 310 条，路径 100% 兼容 `/api/v1/*`，自动发现注册：模块内定义 `router` 即生效；目录名 routes 只代表代码组织，与 URL 版本无关）
-- `backend/app/api/v2/`（auth/test_cases/api_tests/perf_tests/ui_tests）— FastAPI 原生 v2 增强接口（`/api/v2/*`）
+- `backend/app/api/routes/` — 主路由层（唯一业务接口层，路径 100% 兼容 `/api/v1/*`，自动发现注册：模块内定义 `router` 即生效；目录名 routes 只代表代码组织，与 URL 版本无关）。**v2 双轨层已整体下线（2026-10-02 冗余审计：37 条零消费者）**，`app/api/v2/` 仅保留 deps.py（共享鉴权依赖，v1 路由全部在用）与 middleware.py（ASGI 中间件），禁止在该目录新增业务路由
 - `backend/app/core/runtime.py` — 运行时核心：配置（get_config）、请求上下文（ctx）、DB 生命周期、init_runtime()
 - `backend/app/core/jwt.py` — PyJWT 令牌；`backend/app/core/passwords.py` — scrypt 哈希（纯 hashlib，格式 `scrypt$n$r$p$salt$hash`）
 - `backend/app/database.py` — SQLAlchemy 2.0 数据层（`Base` 声明式基类、ContextVar 作用域 `db.session`、`select()` 查询、`paginate()` 分页助手）

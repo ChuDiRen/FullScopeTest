@@ -146,10 +146,6 @@ class TestAuthRequired:
             ("get", f"{BASE}/integrations/github/auth"),
             ("get", f"{BASE}/integrations/github/status"),
             ("post", f"{BASE}/integrations/github/unbind"),
-            # github_checks（3）
-            ("post", f"{BASE}/github-checks/1/create"),
-            ("post", f"{BASE}/github-checks/1/update"),
-            ("post", f"{BASE}/github-checks/1/complete"),
         ],
     )
     def test_protected_endpoints_require_auth(self, v2_client, method, url):
@@ -555,24 +551,6 @@ class TestOwnershipIsolation:
         assert resp.status_code == 200, resp.text
         assert resp.json()["data"]["pagination"]["total"] == 0
 
-    def test_other_users_test_run_check_404(self, v2_client, app, make_user, auth_headers):
-        """github-checks：他人项目的 TestRun → 404（project 归属校验）"""
-        owner_id = make_user(_username())
-        other_id = make_user(_username())
-        owner_headers = auth_headers(owner_id)
-        other_headers = auth_headers(other_id)
-
-        project_id = _make_project(app, owner_id)
-        run_id = _make_test_run(app, project_id)
-
-        resp = v2_client.post(
-            f"{BASE}/github-checks/{run_id}/create",
-            json={"repo_full_name": "o/r", "head_sha": "a" * 40},
-            headers=other_headers,
-        )
-        assert resp.status_code == 404, resp.text
-        assert resp.json()["message"] == "测试运行记录不存在"
-
     def test_github_unbind_without_binding_404(self, v2_client, make_user, auth_headers):
         """未绑定 GitHub 时解绑 → 404（与 v1 一致）"""
         headers = auth_headers(make_user(_username()))
@@ -670,104 +648,3 @@ class TestGithubIntegration:
         assert resp.json()["message"] == "GitHub 账号已解绑"
         resp = v2_client.post(f"{BASE}/integrations/github/unbind", headers=headers)
         assert resp.status_code == 404, resp.text
-
-
-class TestGithubChecks:
-    def test_check_run_lifecycle_with_mocked_service(
-        self, v2_client, app, make_user, auth_headers, monkeypatch
-    ):
-        """create → update → complete（create_check_service 打桩，零真实 GitHub 外呼）"""
-        user_id = make_user(_username())
-        headers = auth_headers(user_id)
-        project_id = _make_project(app, user_id)
-        run_id = _make_test_run(app, project_id)
-        _make_integration(app, user_id)
-
-        import app.api.routes.github_checks as gc_module
-
-        calls = []
-
-        class _FakeService:
-            def start_test_check_run(self, test_run, repo_full_name, head_sha):
-                calls.append(("start", repo_full_name, head_sha))
-                return {"id": 424242, "status": "queued"}
-
-            def update_test_progress(self, repo, check_run_id, test_run, current_step=None):
-                calls.append(("update", repo, check_run_id, current_step))
-                return {"id": check_run_id, "status": "in_progress"}
-
-            def complete_test_check_run(self, repo, check_run_id, test_run, report_url=None):
-                calls.append(("complete", repo, check_run_id, report_url))
-                return {"id": check_run_id, "status": "completed", "conclusion": "success"}
-
-        monkeypatch.setattr(gc_module, "create_check_service", lambda integration: _FakeService())
-
-        # create
-        resp = v2_client.post(
-            f"{BASE}/github-checks/{run_id}/create",
-            json={"repo_full_name": "acme/widget", "head_sha": "a" * 40},
-            headers=headers,
-        )
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        assert body["data"]["id"] == 424242
-        assert body["message"] == "Check Run 创建成功"
-
-        # create 缺参数 → 400
-        resp = v2_client.post(
-            f"{BASE}/github-checks/{run_id}/create", json={"repo_full_name": "o/r"}, headers=headers
-        )
-        assert resp.status_code == 400, resp.text
-
-        # update / complete
-        resp = v2_client.post(
-            f"{BASE}/github-checks/{run_id}/update",
-            json={"current_step": "执行中"},
-            headers=headers,
-        )
-        assert resp.status_code == 200, resp.text
-        assert body["data"]["id"] == 424242
-
-        resp = v2_client.post(
-            f"{BASE}/github-checks/{run_id}/complete",
-            json={"report_url": "https://example.test/report"},
-            headers=headers,
-        )
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["data"]["status"] == "completed"
-
-        # TestRun 回写 check_run_id/repo（与 v1 一致）
-        from app.extensions import db
-        from app.models.test_run import TestRun
-
-        # 零外呼断言：fake service 全部 3 次调用被路由消费
-        assert [c[0] for c in calls] == ["start", "update", "complete"]
-
-    def test_check_run_without_integration_404(self, v2_client, app, make_user, auth_headers):
-        """未绑定 GitHub 集成 → 404（与 v1 一致，service 不应被调用）"""
-        user_id = make_user(_username())
-        headers = auth_headers(user_id)
-        project_id = _make_project(app, user_id)
-        run_id = _make_test_run(app, project_id)
-
-        resp = v2_client.post(
-            f"{BASE}/github-checks/{run_id}/create",
-            json={"repo_full_name": "o/r", "head_sha": "a" * 40},
-            headers=headers,
-        )
-        assert resp.status_code == 404, resp.text
-        assert resp.json()["message"] == "未找到 GitHub 集成信息"
-
-    def test_check_run_without_check_run_binding_400(self, v2_client, app, make_user, auth_headers):
-        """TestRun 未关联 Check Run 时 update/complete → 400（与 v1 一致）"""
-        user_id = make_user(_username())
-        headers = auth_headers(user_id)
-        project_id = _make_project(app, user_id)
-        run_id = _make_test_run(app, project_id)
-        _make_integration(app, user_id)
-
-        resp = v2_client.post(
-            f"{BASE}/github-checks/{run_id}/update", json={}, headers=headers
-        )
-        assert resp.status_code == 400, resp.text
-        assert resp.json()["message"] == "此测试运行没有关联的 Check Run"

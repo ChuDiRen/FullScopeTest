@@ -198,13 +198,6 @@ def generate_doc_html(doc):
 # ==================== 文档模板 ====================
 
 
-@router.get("/api/v1/docs/health")
-@release_session
-def docs_health():
-    """文档模块健康检查（公开端点，v1 无 @jwt_required，保持公开）"""
-    return _success(message="文档模块正常")
-
-
 # ==================== 文档分类 ====================
 
 @router.get("/api/v1/docs/categories")

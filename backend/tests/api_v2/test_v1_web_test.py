@@ -2,7 +2,7 @@
 v1 Web 自动化测试路由平迁测试（/api/v1/web-test/*，源：app/api/web_test.py）
 
 覆盖：
-1. 公开端点 health 无鉴权 200；全部受保护端点未登录 401
+1. 全部受保护端点未登录 401
 2. 创建脚本 → 列表 → 详情 → 更新 → 删除、用例集 CRUD 全链路 200（响应信封与 v1 一致）
 3. 访问/更新/删除/执行 他人脚本与用例集、他人视觉快照 → 404（IDOR 属主过滤验证）
 4. 执行类端点（脚本运行/用例集批量运行）Celery 任务全 mock，返回 task_id；
@@ -131,15 +131,6 @@ def _create_script(v2_client, headers, name=None, **extra) -> int:
 # ---------------------------------------------------------------------------
 
 class TestWebTestAuth:
-    def test_health_public(self, v2_client):
-        """健康检查是 v1 公开端点，无鉴权应 200"""
-        resp = v2_client.get(f"{BASE}/health")
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        assert body["code"] == 200
-        assert body["message"] == "Web 测试模块正常"
-        assert "timestamp" in body
-
     @pytest.mark.parametrize(
         "method,url",
         [

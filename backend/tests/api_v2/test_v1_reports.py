@@ -2,11 +2,10 @@
 v1 reports 平迁路由测试（FastAPI 实现，自 backend/app/api/reports.py 平迁）
 
 覆盖：
-1. 公开端点 /api/v1/reports/health 200
-2. 未登录访问受保护端点 → 401
-3. 创建测试报告数据（项目/执行记录/报告）→ 列表/详情 200 且字段正确
-4. 访问他人报告/执行记录 → 404（IDOR 修复验证）
-5. 导出端点返回正确 Content-Type 与 Content-Disposition
+1. 未登录访问受保护端点 → 401
+2. 创建测试报告数据（项目/执行记录/报告）→ 列表/详情 200 且字段正确
+3. 访问他人报告/执行记录 → 404（IDOR 修复验证）
+4. 导出端点返回正确 Content-Type 与 Content-Disposition
 """
 
 import uuid
@@ -84,14 +83,6 @@ def _make_report(app, project_id: int, run_id: int, **extra) -> int:
 # ---------------------------------------------------------------------------
 
 class TestReportsAuth:
-    def test_health_public(self, v2_client):
-        """健康检查是 v1 公开端点，无鉴权应 200"""
-        resp = v2_client.get("/api/v1/reports/health")
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        assert body["code"] == 200
-        assert body["message"] == "报告模块正常"
-
     @pytest.mark.parametrize(
         "method,url",
         [

@@ -2,7 +2,7 @@
 v1 性能测试路由平迁测试（/api/v1/perf-test/*，源：app/api/perf_test.py）
 
 覆盖：
-1. 未登录 401（health 无需登录 200）
+1. 未登录 401
 2. 创建压测场景 → 查询（列表 + 详情）
 3. 访问他人场景 404（IDOR 修复：GET/PUT/DELETE/run 越权一律 404）
 4. 启动压测：Celery apply_async 被 mock，绝不真实派发，返回 task_id
@@ -74,11 +74,6 @@ def test_unauthenticated_returns_401(v2_client):
     assert v2_client.post(f"{BASE}/ai/generate", json={"prompt": "x"}).status_code == 401
     assert v2_client.get(f"{BASE}/results").status_code == 401
     assert v2_client.get(f"{BASE}/baselines").status_code == 401
-    # health 无需登录
-    r = v2_client.get(f"{BASE}/health")
-    assert r.status_code == 200
-    body = r.json()
-    assert body["code"] == 200 and body["message"] == "性能测试模块正常"
 
 
 # ---------------------------------------------------------------------------

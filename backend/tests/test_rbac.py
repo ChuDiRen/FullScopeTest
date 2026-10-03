@@ -541,27 +541,6 @@ class TestSeedSystemRoles:
 class TestRoleManagementAPI:
     """角色管理 API 端点测试"""
 
-    def test_list_system_roles(self, app, client, no_rate_limit):
-        """GET /roles/system — 无需组织上下文"""
-        from app.services.permission_service import seed_system_roles
-        from app.extensions import db
-        seed_system_roles()
-        db.session.commit()
-
-        headers, user_id, _ = _register_and_login(client)
-
-        resp = client.get('/api/v1/roles/system', headers=headers)
-        assert resp.status_code == 200
-        data = resp.json()
-        role_names = {r['name'] for r in data['data']}
-        assert 'admin' in role_names
-        assert 'viewer' in role_names
-
-        # 清理
-        from app.models.role import Role
-        db.session.execute(delete(Role).filter_by(is_system=True))
-        db.session.commit()
-
     def test_list_org_roles_includes_system_roles(self, app, client, no_rate_limit):
         """GET /organizations/:id/roles — 包含系统角色"""
         from app.services.permission_service import seed_system_roles

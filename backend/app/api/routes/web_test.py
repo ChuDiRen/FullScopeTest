@@ -349,15 +349,6 @@ def _get_collection_or_404(collection_id: int, user_id: int):
     return collection, None
 
 
-# ==================== 健康检查 ====================
-
-@router.get("/api/v1/web-test/health")
-@release_session
-def web_test_health():
-    """Web 测试模块健康检查（公开端点，v1 无 @jwt_required，保持公开）"""
-    return _success(message="Web 测试模块正常")
-
-
 # ==================== AI 能力 ====================
 
 @router.post("/api/v1/web-test/ai/generate")

@@ -287,15 +287,6 @@ def _ensure_project_accessible(user_id: int, project_id: Optional[int]) -> bool:
     return project_id in _accessible_project_ids(user_id)
 
 
-# ==================== 健康检查 ====================
-
-@router.get("/api/v1/reports/health")
-@_release_session
-def reports_health():
-    """报告模块健康检查（公开端点，v1 无 @jwt_required，保持公开）"""
-    return _success(message="报告模块正常")
-
-
 # ==================== 测试执行记录 ====================
 
 @router.get("/api/v1/test-runs")

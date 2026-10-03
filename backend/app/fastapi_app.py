@@ -1,9 +1,8 @@
 """
 大熊AI测试平台 FastAPI 主应用（唯一生产后端，零 Flask）
 
-- /api/v1/* : 原 Flask 蓝图的等价实现（app/api/routes/，路径 100% 兼容）
-- /api/v2/* : FastAPI 原生增强接口（app/api/v2/）
-- /health*  : 健康检查（app/api/routes/health.py，供 compose healthcheck）
+- /api/v1/* : 全部业务接口（app/api/routes/，路径 100% 兼容）
+- /health*  : 健康检查（app/api/routes/health.py，供 compose healthcheck / k8s 探针）
 
 运行：uvicorn app.fastapi_app:app --host 0.0.0.0 --port 5000 --workers 4
 """
@@ -252,25 +251,6 @@ def register_routes(app: FastAPI):
         app.include_router(router)
         registered += len(router.routes)
     logger.info("v1 routes registered", count=registered)
-
-    # v2 增强接口（FastAPI 原生）
-    from .api.v2.auth import router as auth_router
-    from .api.v2.test_cases import router as test_cases_router
-    from .api.v2.api_tests import router as api_tests_router
-    from .api.v2.ui_tests import router as ui_tests_router
-    from .api.v2.perf_tests import router as perf_tests_router
-    from .api.v2.openapi_docs import router as openapi_router
-
-    app.include_router(auth_router, prefix="/api/v2/auth")
-    app.include_router(test_cases_router, prefix="/api/v2/test-cases")
-    app.include_router(api_tests_router, prefix="/api/v2/api-tests")
-    app.include_router(ui_tests_router, prefix="/api/v2/ui-tests")
-    app.include_router(perf_tests_router, prefix="/api/v2/perf-tests")
-    app.include_router(openapi_router, prefix="/api/v2")
-
-    @app.get("/api/v2/health")
-    async def v2_health():
-        return {"status": "ok", "version": "2.1.0"}
 
 
 def register_metrics(app: FastAPI):

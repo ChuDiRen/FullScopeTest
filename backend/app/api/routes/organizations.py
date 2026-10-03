@@ -468,11 +468,3 @@ def delete_role(
         return _error(400, str(e))
 
     return _success(message="角色已删除")
-
-
-@router.get("/api/v1/roles/system")
-@release_session
-def list_system_roles(user: User = Depends(_current_user)):
-    """获取所有系统角色定义"""
-    roles = permission_service.get_system_roles()
-    return _success(data=roles)

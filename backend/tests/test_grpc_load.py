@@ -177,10 +177,10 @@ def test_v1_update_http_to_grpc(app, client, no_rate_limit):
     assert "GrpcUser" in data["script_content"]
 
 
-def test_v2_create_grpc_scenario(app, client, no_rate_limit):
+def test_create_grpc_scenario(app, client, no_rate_limit):
     headers = _auth_headers(client)
-    resp = client.post("/api/v2/perf-tests/scenarios", headers=headers, json={
-        "name": "v2-grpc-hello",
+    resp = client.post("/api/v1/perf-test/scenarios", headers=headers, json={
+        "name": "grpc-hello",
         "target_url": "grpc://127.0.0.1:59999",
         "protocol": "grpc",
         "proto_content": HELLO_PROTO,
@@ -189,7 +189,7 @@ def test_v2_create_grpc_scenario(app, client, no_rate_limit):
         "user_count": 2, "spawn_rate": 2, "duration": 10,
     })
     assert resp.status_code == 200, resp.text
-    data = resp.json()
+    data = resp.json()["data"]
     assert data["protocol"] == "grpc"
     assert "GrpcUser" in data["script_content"]
 

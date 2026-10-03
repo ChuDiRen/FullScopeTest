@@ -2,7 +2,7 @@
 v1 docs 平迁路由测试（FastAPI 实现，自 backend/app/api/docs.py 平迁）
 
 覆盖：
-1. 公开端点 /api/v1/docs/health 200；未登录访问其余 8 条受保护路由 → 401
+1. 未登录访问 8 条受保护路由 → 401
 2. 创建 → 列表 → 详情 → 更新 → 删除全链路（含分类/模板/分类与关键词筛选/导出）
 3. 访问/修改他人资源 → 404（IDOR 修复验证：文档按 Project.owner_id 归属过滤）
 
@@ -68,14 +68,6 @@ def _make_doc(app, project_id: int, user_id: int, **extra) -> int:
 # ---------------------------------------------------------------------------
 
 class TestDocsAuth:
-    def test_health_public(self, v2_client):
-        """健康检查是 v1 公开端点，无鉴权应 200"""
-        resp = v2_client.get(f"{DOCS_BASE}/health")
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        assert body["code"] == 200
-        assert body["message"] == "文档模块正常"
-
     @pytest.mark.parametrize(
         "method,url",
         [

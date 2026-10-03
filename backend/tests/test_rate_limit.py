@@ -83,7 +83,7 @@ class TestRateLimitMiddleware:
         try:
             with patch("app.services.rate_limit_service.sliding_window_rate_limit", _mock_block_all), \
                  patch("app.services.rate_limit_service.get_rate_limit_headers", _mock_retry_headers):
-                resp = client.get("/api/v1/web-test/health")
+                resp = client.get("/api/v1/api-test/health")
         finally:
             get_config()["RATELIMIT_ENABLED"] = False
         assert resp.status_code == 429
@@ -99,7 +99,7 @@ class TestRateLimitMiddleware:
         get_config()["RATELIMIT_ENABLED"] = True
         try:
             with patch("app.services.rate_limit_service.sliding_window_rate_limit", _capture):
-                client.get("/api/v1/web-test/health")
+                client.get("/api/v1/api-test/health")
         finally:
             get_config()["RATELIMIT_ENABLED"] = False
         assert len(captured_keys) >= 1

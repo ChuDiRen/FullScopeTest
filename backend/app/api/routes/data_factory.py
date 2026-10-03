@@ -16,13 +16,6 @@ router = APIRouter(prefix="/api/v1/ai/data-factory", tags=["data-factory"])
 MAX_COUNT = 10000
 
 
-@router.get("/templates")
-@release_session
-def list_templates(user: User = Depends(get_current_user)):
-    """可用的数据模板列表"""
-    return {"code": 200, "data": get_data_factory_service().get_templates()}
-
-
 @router.post("/generate")
 @release_session
 def generate(data: Dict[str, Any] = Depends(json_body), user: User = Depends(get_current_user)):
