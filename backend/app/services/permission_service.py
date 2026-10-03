@@ -89,14 +89,6 @@ def get_user_role_name(user_id: int, organization_id: int) -> Optional[str]:
 
 # ── 角色管理 ──────────────────────────────────────────────────────────────────
 
-def get_system_roles() -> list[dict]:
-    """获取所有系统角色列表"""
-    roles = db.session.scalars(select(Role).filter_by(is_system=True, is_active=True)).all()
-    if not roles:
-        # 数据库中尚无系统角色，返回常量
-        return _build_system_role_dicts()
-    return [r.to_dict() for r in roles]
-
 
 def get_organization_roles(organization_id: int) -> list[dict]:
     """

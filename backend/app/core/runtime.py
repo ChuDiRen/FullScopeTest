@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import threading
+from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
 from types import SimpleNamespace
@@ -232,6 +233,24 @@ def session_teardown(exc: Optional[BaseException] = None) -> None:
             db.session.remove()
         except Exception:
             pass
+
+
+@contextmanager
+def task_session_scope():
+    """后台线程（Celery worker / APScheduler）的独立数据库会话作用域。
+
+    db.session 的 scopefunc 基于 _session_scope ContextVar；ASGI 中间件每请求
+    set 新令牌，但后台线程池拿到的都是默认值 None——threads 池下并发任务会
+    共享同一个 scoped session，互相 commit/rollback 踩踏（IllegalStateChangeError）
+    且写入丢失。与中间件同款：执行前放置新令牌，结束后复位。
+    """
+    from ..database import _session_scope
+
+    token = _session_scope.set(object())
+    try:
+        yield
+    finally:
+        _session_scope.reset(token)
 
 
 def shutdown_runtime() -> None:

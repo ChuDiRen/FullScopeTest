@@ -342,9 +342,16 @@ def mock_server_proxy(
         if "Content-Type" not in result.get("headers", {}):
             headers["Content-Type"] = "application/json"
 
-        # 添加 Mock 标识
+        # 添加 Mock 标识；HTTP header 仅允许 latin-1，规则名含非 ASCII 时转 URL 编码
         if result.get("rule_name"):
-            headers["X-Mock-Rule"] = result["rule_name"]
+            rule_name = str(result["rule_name"])
+            try:
+                rule_name.encode("latin-1")
+            except UnicodeEncodeError:
+                from urllib.parse import quote
+
+                rule_name = quote(rule_name)
+            headers["X-Mock-Rule"] = rule_name
         headers["X-Mock-Server-ID"] = str(server_id)
 
         return Response(

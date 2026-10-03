@@ -148,10 +148,17 @@ const PerfTestScenarios = () => {
 
   useEffect(() => {
     loadScenarios()
-    // 定时刷新状态（每5秒）
+  }, [])
+
+  // 有场景执行中才开启 5 秒轮询（空闲时不打接口）
+  const hasRunning = runningIds.length > 0
+  useEffect(() => {
+    if (!hasRunning) return
+    // 定时刷新状态（每5秒，仅执行中）
     const interval = setInterval(loadScenarios, 5000)
     return () => clearInterval(interval)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasRunning])
 
   // 创建场景
   const handleCreate = async (rawValues: Record<string, unknown>) => {

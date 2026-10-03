@@ -170,38 +170,41 @@ def remove_job(task_id):
 
 def execute_scheduled_task(task_id):
     """执行定时任务（调度器后台线程中运行）"""
-    from .core.runtime import ensure_runtime, session_teardown
+    from .core.runtime import ensure_runtime, session_teardown, task_session_scope
 
     ensure_runtime()
-    try:
-        from .models.scheduled_task import ScheduledTask
-        from .tasks import run_api_collection_task, run_web_collection_task, run_perf_scenario_task
-
-        task = db.session.get(ScheduledTask, task_id)
-        if not task or not task.is_active:
-            return
-
-        logger.info("开始执行定时任务", task_name=task.name, task_id=task.id)
-
+    # APScheduler 线程同样需要独立 session 作用域（与 Celery worker 同因：
+    # 线程池拿到的 ContextVar 都是默认 None，会共享同一个 scoped session）
+    with task_session_scope():
         try:
-            celery_task = None
-            if task.target_type == "api_collection":
-                celery_task = run_api_collection_task.delay(task.target_id, None)
-            elif task.target_type == "web_collection":
-                celery_task = run_web_collection_task.delay(task.target_id, None)
-            elif task.target_type == "perf_scenario":
-                celery_task = run_perf_scenario_task.delay(task.target_id)
-            else:
-                logger.error("未知的任务目标类型", target_type=task.target_type)
+            from .models.scheduled_task import ScheduledTask
+            from .tasks import run_api_collection_task, run_web_collection_task, run_perf_scenario_task
+
+            task = db.session.get(ScheduledTask, task_id)
+            if not task or not task.is_active:
                 return
 
-            # 发送通知
-            send_notification(task, "started", celery_task.id if celery_task else None)
-        except Exception as e:
-            logger.error("定时任务执行失败", error=str(e))
-            send_notification(task, "failed", error=str(e))
-    finally:
-        session_teardown()
+            logger.info("开始执行定时任务", task_name=task.name, task_id=task.id)
+
+            try:
+                celery_task = None
+                if task.target_type == "api_collection":
+                    celery_task = run_api_collection_task.delay(task.target_id, None)
+                elif task.target_type == "web_collection":
+                    celery_task = run_web_collection_task.delay(task.target_id, None)
+                elif task.target_type == "perf_scenario":
+                    celery_task = run_perf_scenario_task.delay(task.target_id)
+                else:
+                    logger.error("未知的任务目标类型", target_type=task.target_type)
+                    return
+
+                # 发送通知
+                send_notification(task, "started", celery_task.id if celery_task else None)
+            except Exception as e:
+                logger.error("定时任务执行失败", error=str(e))
+                send_notification(task, "failed", error=str(e))
+        finally:
+            session_teardown()
 
 
 def send_notification(task, status, task_id=None, error=None):

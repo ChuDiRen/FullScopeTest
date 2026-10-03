@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Card, Table, Tag, Space, Typography, Empty, Button, Tooltip, Spin } from "antd"
 import { HistoryOutlined, LineChartOutlined, ReloadOutlined } from "@ant-design/icons"
 import { useTranslation } from "react-i18next"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 
 const { Text } = Typography
 
@@ -34,9 +34,9 @@ const ResponseHistory: React.FC<ResponseHistoryProps> = ({ caseId, onSelectHisto
     if (!caseId) { setHistory([]); return }
     setLoading(true)
     try {
-      const res = await api.get("/api-test/history", { params: { case_id: caseId, limit: 30 } })
-      if (res.data?.code === 200) {
-        setHistory(res.data.data || [])
+      const res = await (api.get("/api-test/history", { params: { case_id: caseId, limit: 30 } }) as unknown as ApiResponse<HistoryItem[]>)
+      if (res.code === 200) {
+        setHistory(res.data || [])
       }
     } catch (err) {
       // 静默处理

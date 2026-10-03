@@ -112,8 +112,10 @@ class BaseConfig:
     # Celery 可靠性：死信队列 + 任务重试
     CELERY_TASK_ACKS_LATE = True
     CELERY_TASK_REJECT_ON_WORKER_LOST = True
+    # 队列名必须与 worker 消费队列一致：compose/本地 worker 均未绑 -Q，
+    # Celery 默认消费 "celery" 队列；此前发往 "default" 会导致任务无人消费
     CELERY_TASK_ROUTES = {
-        'tasks.*': {'queue': 'default'},
+        'tasks.*': {'queue': 'celery'},
     }
     CELERY_TASK_DEFAULT_RETRY_DELAY = 60  # 重试间隔 60 秒
     CELERY_TASK_MAX_RETRIES = 3

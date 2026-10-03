@@ -11,7 +11,7 @@ import {
   ReloadOutlined, MobileOutlined, AppleOutlined, AndroidOutlined, ApiOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from "react-i18next"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 
 const { Text } = Typography
 
@@ -44,10 +44,10 @@ const DeviceManager: React.FC = () => {
   const fetchDevices = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get("/app-test/devices", { params: { server_url: serverUrl } })
-      if (res.data?.code === 200) {
-        setDevices(res.data.data?.devices || [])
-        setAppiumStatus(res.data.data?.server_status || null)
+      const res = await (api.get("/app-test/devices", { params: { server_url: serverUrl } }) as unknown as ApiResponse<{ devices: DeviceInfo[]; server_status: AppiumStatus | null }>)
+      if (res.code === 200) {
+        setDevices(res.data?.devices || [])
+        setAppiumStatus(res.data?.server_status || null)
       }
     } catch {
       setAppiumStatus({ url: serverUrl, connected: false })

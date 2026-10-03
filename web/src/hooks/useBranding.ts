@@ -4,7 +4,7 @@
  * 前端启动时获取品牌配置，动态应用到 CSS 变量和页面标题。
  */
 import { useState, useEffect } from 'react'
-import api from '@/services/api'
+import api, { type ApiResponse } from '@/services/api'
 
 interface BrandingConfig {
   platform_name: string
@@ -33,11 +33,10 @@ export function useBranding() {
   useEffect(() => {
     const fetchBranding = async () => {
       try {
-        const res = await api.get('/branding/config')
-        if (res.data?.code === 200 && res.data?.data) {
-          const config = res.data.data as BrandingConfig
-          setBranding(config)
-          applyBranding(config)
+        const res = await (api.get('/branding/config') as unknown as ApiResponse<BrandingConfig>)
+        if (res.code === 200 && res.data) {
+          setBranding(res.data)
+          applyBranding(res.data)
         }
       } catch {
         // 品牌配置获取失败时使用默认值

@@ -8,7 +8,7 @@ import { Card, Button, Space, Typography, Select, message, Empty } from "antd"
 import { FileTextOutlined, DownloadOutlined, ApiOutlined, CopyOutlined } from "@ant-design/icons"
 import { useTranslation } from "react-i18next"
 import MonacoEditor from "@monaco-editor/react"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 
 const { Text } = Typography
 
@@ -22,7 +22,8 @@ const ApiDocumentation: React.FC = () => {
 
   useEffect(() => {
     api.get("/api-test/collections").then(res => {
-      if (res.data?.code === 200) setCollections(res.data.data || [])
+      const r = res as unknown as ApiResponse
+      if (r.code === 200) setCollections((r.data as Record<string, unknown>[]) || [])
     }).catch(() => {});
   }, [])
 
@@ -30,9 +31,9 @@ const ApiDocumentation: React.FC = () => {
     if (!collectionId) { message.warning(t("apiDocsGen.selectCollectionWarning")); return }
     setLoading(true)
     try {
-      const res = await api.post("/swagger/generate", { collection_id: collectionId, format })
-      if (res.data?.code === 200) {
-        setSpec(typeof res.data.data === "string" ? res.data.data : JSON.stringify(res.data.data, null, 2))
+      const res = await (api.post("/swagger/generate", { collection_id: collectionId, format }) as unknown as ApiResponse)
+      if (res.code === 200) {
+        setSpec(typeof res.data === "string" ? res.data : JSON.stringify(res.data, null, 2))
         message.success(t("apiDocsGen.generateSuccess"))
       }
     } catch { message.error(t("apiDocsGen.generateFailed")) } finally { setLoading(false) }

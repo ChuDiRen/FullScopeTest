@@ -334,50 +334,40 @@ def run_app_script(script_id: int, user: User = Depends(_current_user)):
         db.session.commit()
 
         try:
-            import subprocess
-            import sys
-            import tempfile
             import os
+
+            from app.utils.sandbox import execute_script
 
             work_dir = os.path.join(str(Path(__file__).resolve().parents[3]), "data", "app_tests", str(script_id))
             os.makedirs(work_dir, exist_ok=True)
 
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8", dir=work_dir) as f:
-                f.write(script.script_content)
-                temp_file = f.name
+            # 与 Celery 任务同款沙箱：AST 检查 + 最小化 env（不继承后端密钥）+ 审计日志
+            sandbox_result = execute_script(
+                script_content=script.script_content,
+                user_id=user_id,
+                timeout=300,
+                work_dir=work_dir,
+                script_id=script_id,
+                script_type="app",
+            )
 
-            try:
-                start_time = __import__("time").time()
-                result = subprocess.run(
-                    [sys.executable, temp_file],
-                    capture_output=True,
-                    text=True,
-                    timeout=300,
-                    cwd=work_dir,
-                )
-                duration = __import__("time").time() - start_time
-                success = result.returncode == 0
+            success = sandbox_result["success"]
+            script.status = "passed" if success else "failed"
+            script.last_result = {
+                "success": success,
+                "duration": sandbox_result["duration"],
+                "stdout": sandbox_result["stdout"],
+                "stderr": sandbox_result["stderr"],
+                "return_code": sandbox_result.get("return_code"),
+                "error": sandbox_result.get("error"),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            }
+            db.session.commit()
 
-                script.status = "passed" if success else "failed"
-                script.last_result = {
-                    "success": success,
-                    "duration": duration,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "return_code": result.returncode,
-                    "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
-                }
-                db.session.commit()
-
-                return _success(
-                    data={"script_id": script.id, "status": script.status, "result": script.last_result},
-                    message="脚本执行完成",
-                )
-            finally:
-                try:
-                    os.unlink(temp_file)
-                except Exception:
-                    pass
+            return _success(
+                data={"script_id": script.id, "status": script.status, "result": script.last_result},
+                message="脚本执行完成",
+            )
 
         except Exception as e:
             script.status = "failed"

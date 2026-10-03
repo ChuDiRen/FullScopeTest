@@ -27,7 +27,7 @@ def make_celery():
         # 可靠性配置
         task_acks_late=cfg.get("CELERY_TASK_ACKS_LATE", True),
         task_reject_on_worker_lost=cfg.get("CELERY_TASK_REJECT_ON_WORKER_LOST", True),
-        task_routes=cfg.get("CELERY_TASK_ROUTES", {"tasks.*": {"queue": "default"}}),
+        task_routes=cfg.get("CELERY_TASK_ROUTES", {"tasks.*": {"queue": "celery"}}),
         task_default_retry_delay=cfg.get("CELERY_TASK_DEFAULT_RETRY_DELAY", 60),
         task_max_retries=cfg.get("CELERY_TASK_MAX_RETRIES", 3),
         # 死信队列优先级配置
@@ -45,11 +45,16 @@ def make_celery():
         reject_on_worker_lost = True
 
         def __call__(self, *args, **kwargs):
+            from .core.runtime import task_session_scope
+
             ensure_runtime()
-            try:
-                return self.run(*args, **kwargs)
-            finally:
-                session_teardown()
+            # threads/gevent 池下并发任务必须各自持有独立 session 作用域，
+            # 否则共享 None 作用域互相踩踏（写入丢失/IllegalStateChangeError）
+            with task_session_scope():
+                try:
+                    return self.run(*args, **kwargs)
+                finally:
+                    session_teardown()
 
         def on_failure(self, exc, task_id, args, kwargs, einfo):
             """任务最终失败时（重试耗尽）记录告警日志"""

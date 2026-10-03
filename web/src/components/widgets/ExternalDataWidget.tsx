@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Card, Space, Typography, Spin, Button } from "antd"
 import { ApiOutlined, ReloadOutlined, SettingOutlined } from "@ant-design/icons"
-import api from "@/services/api"
+import api, { type ApiResponse } from "@/services/api"
 
 const { Text } = Typography
 
@@ -18,7 +18,7 @@ const ExternalDataWidget: React.FC<Props> = ({ title = "External", apiUrl, refre
 
   const fetchData = useCallback(async () => {
     if (!apiUrl) return; setLoading(true); setError(null)
-    try { const res = await api.post("/dashboard/external-data", { url: apiUrl, path: dataPath }); if (res.data?.code === 200) setValue(String(res.data.data?.value ?? "-")) }
+    try { const res = await (api.post("/dashboard/external-data", { url: apiUrl, path: dataPath }) as unknown as ApiResponse); if (res.code === 200) setValue(String((res.data as { value?: unknown })?.value ?? "-")) }
     catch (e: any) { setError(e.message || "Failed") } finally { setLoading(false) }
   }, [apiUrl, dataPath])
 

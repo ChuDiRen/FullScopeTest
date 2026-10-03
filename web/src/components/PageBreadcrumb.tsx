@@ -33,7 +33,7 @@ const ROUTE_LABEL_MAP: Record<string, string> = {
   docs: 'sidebar.documents',
   'quality-gates': 'sidebar.qualityGates',
   'test-plans': 'sidebar.testPlans',
-  'test-plan-runs': 'testPlan.runDetail',
+  'test-plan-runs': 'testPlans.runDetail',
   'ai-insights': 'sidebar.aiInsights',
   'visual-history': 'sidebar.visualRegression',
   'api-tokens': 'sidebar.apiTokens',
