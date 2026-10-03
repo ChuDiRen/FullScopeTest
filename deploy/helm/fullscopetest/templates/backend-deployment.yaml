@@ -42,13 +42,13 @@ spec:
             {{- toYaml .Values.backend.resources | nindent 12 }}
           livenessProbe:
             httpGet:
-              path: /api/v1/health/live
+              path: /health/live
               port: {{ .Values.backend.service.port }}
             initialDelaySeconds: 30
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /api/v1/health/ready
+              path: /health/ready
               port: {{ .Values.backend.service.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
