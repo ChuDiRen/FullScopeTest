@@ -16,7 +16,7 @@ const ROUTE_LABEL_MAP: Record<string, string> = {
   'api-test': 'sidebar.apiTest',
   workspace: 'apiTest.workspace',
   collections: 'apiTest.collections',
-  environments: 'apiTest.environments',
+  environments: 'apiTest.environments.title',
   'web-test': 'sidebar.webTest',
   scripts: 'webTest.scripts',
   'app-test': 'sidebar.appTest',
@@ -51,6 +51,12 @@ const ROUTE_LABEL_MAP: Record<string, string> = {
   'test-templates': 'sidebar.testTemplates',
 }
 
+// 完整路径映射：同名路径段（如 scripts）在不同模块下需要不同文案
+const ROUTE_FULLPATH_MAP: Record<string, string> = {
+  '/web-test/scripts': 'sidebar.uiScripts',
+  '/app-test/scripts': 'sidebar.appScripts',
+}
+
 // 纯前缀段：不产生独立面包屑条目，仅用于路径拼接
 const PREFIX_SEGMENTS = new Set(['admin'])
 
@@ -80,7 +86,7 @@ const PageBreadcrumb: React.FC = () => {
 
         const path = '/' + pathSegments.slice(0, originalIndex + 1).join('/')
         const isLast = originalIndex === pathSegments.length - 1
-        const labelKey = ROUTE_LABEL_MAP[segment]
+        const labelKey = ROUTE_FULLPATH_MAP[path] ?? ROUTE_LABEL_MAP[segment]
         const label = labelKey ? t(labelKey) : segment
 
         acc.push({

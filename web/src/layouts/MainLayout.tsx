@@ -10,7 +10,7 @@ import {
   MobileOutlined,
   ThunderboltOutlined,
   BarChartOutlined,
-  FileTextOutlined,
+  DatabaseOutlined,
   SettingOutlined,
   UserOutlined,
   LogoutOutlined,
@@ -22,9 +22,7 @@ import {
   DeleteOutlined,
   PushpinOutlined,
   PushpinFilled,
-  TeamOutlined,
   FileSearchOutlined,
-  ExperimentOutlined,
   SunOutlined,
   MoonOutlined,
   SyncOutlined,
@@ -361,7 +359,8 @@ const MainLayout = () => {
   ]
 
   // Sidebar nav configuration
-  // 结构：四大核心测试 + 测试计划一级直达；报告/质量、AI、工程集成、协作、平台管理归组收纳
+  // 结构（工作流维度）：工作台 → 四类测试对象（接口/Web/App/性能）→ 质量与报告
+  // → AI 提效 → 集成与协作 → 平台管理；路由零改动，仅菜单归组
   const sidebarNav = [
     { icon: <HomeOutlined />, label: t('sidebar.dashboard'), path: '/dashboard' },
     { icon: <ApiOutlined />, label: t('sidebar.apiTest'), path: '/api-test', children: [
@@ -373,10 +372,10 @@ const MainLayout = () => {
       { label: t('sidebar.testTemplates'), path: '/test-templates' },
     ]},
     { icon: <GlobalOutlined />, label: t('sidebar.webTest'), path: '/web-test', children: [
-      { label: t('sidebar.scripts'), path: '/web-test/scripts' },
+      { label: t('sidebar.uiScripts'), path: '/web-test/scripts' },
     ]},
     { icon: <MobileOutlined />, label: t('sidebar.appTest'), path: '/app-test', children: [
-      { label: t('sidebar.scripts'), path: '/app-test/scripts' },
+      { label: t('sidebar.appScripts'), path: '/app-test/scripts' },
       ...(isAdmin ? [{ label: t('sidebar.deviceManager'), path: '/app-test/devices' }] : []),
     ]},
     { icon: <ThunderboltOutlined />, label: t('sidebar.perfTest'), path: '/perf-test', children: [
@@ -386,12 +385,12 @@ const MainLayout = () => {
       { label: t('sidebar.perfDashboard'), path: '/perf-test/dashboard' },
       { label: t('sidebar.alertRules'), path: '/perf-test/alerts' },
     ]},
-    { icon: <ExperimentOutlined />, label: t('sidebar.testPlans'), path: '/test-plans' },
     {
       icon: <BarChartOutlined />,
       label: t('sidebar.qualityReports'),
       path: '/reports',
       children: [
+        { label: t('sidebar.testPlans'), path: '/test-plans' },
         { label: t('sidebar.reports'), path: '/reports' },
         ...(isMember ? [
           { label: t('sidebar.reportSchedules'), path: '/report-schedules' },
@@ -399,36 +398,28 @@ const MainLayout = () => {
         ] : []),
         { label: t('sidebar.qualityGates'), path: '/quality-gates' },
         { label: t('sidebar.flakyTests'), path: '/flaky-tests' },
+        { label: t('sidebar.teamMetrics'), path: '/team-metrics' },
       ],
     },
-    // AI 助手分组：子项「AI 对话」唤起全局 Copilot 面板（onClick 拦截，无路由），「Prompt 管理」为独立页面
+    // AI 助手分组：AI 洞察/配置/Prompt 管理；Copilot 对话由右下角悬浮球唤起
     {
       icon: <MessageOutlined />,
       label: t('sidebar.aiAssistant'),
       path: '/ai-assistant',
       children: [
-        { label: t('sidebar.aiChat'), path: '/ai-assistant' },
-        { label: t('sidebar.dataFactory'), path: '/data-factory' },
         { label: t('sidebar.aiInsights'), path: '/ai-insights' },
         { label: t('sidebar.aiConfig'), path: '/ai-assistant/config' },
         { label: t('sidebar.promptManagement'), path: '/ai-assistant/prompts' },
       ],
     },
+    { icon: <DatabaseOutlined />, label: t('sidebar.dataFactory'), path: '/data-factory' },
     {
       icon: <SyncOutlined />,
-      label: t('sidebar.engineeringIntegration'),
+      label: t('sidebar.integrationCollab'),
       path: '/ci-cd',
       children: [
         { label: t('sidebar.cicd'), path: '/ci-cd' },
         { label: t('sidebar.triggerRules'), path: '/trigger-rules' },
-      ],
-    },
-    {
-      icon: <FileTextOutlined />,
-      label: t('sidebar.collaboration'),
-      path: '/docs',
-      children: [
-        { label: t('sidebar.teamMetrics'), path: '/team-metrics' },
         { label: t('sidebar.documents'), path: '/docs' },
       ],
     },
@@ -440,14 +431,12 @@ const MainLayout = () => {
         { label: t('sidebar.settings'), path: '/settings' },
         { label: t('sidebar.notifications'), path: '/notification-settings' },
         { label: t('sidebar.apiTokens'), path: '/api-tokens' },
-        ...(isAdmin ? [{ label: t('sidebar.auditLogs'), path: '/audit-logs' }] : []),
+        ...(isAdmin ? [
+          { label: t('sidebar.auditLogs'), path: '/audit-logs' },
+          { label: t('sidebar.userManagement'), path: '/admin/users' },
+        ] : []),
       ],
     },
-  ]
-
-  // 管理员专属菜单
-  const adminNav = [
-    { icon: <TeamOutlined />, label: t('sidebar.userManagement') || '用户管理', path: '/admin/users' },
   ]
 
   // Track expanded sidebar groups
@@ -556,20 +545,6 @@ const MainLayout = () => {
                 navigate(p); if (isMobile) setMobileDrawerOpen(false)
               }}
               onToggle={() => toggleGroup(item.path)}
-            />
-          ))}
-          {/* 管理员专属菜单 */}
-          {isAdmin && adminNav.map(item => (
-            <SidebarItem
-              key={item.path}
-              icon={item.icon}
-              label={item.label}
-              path={item.path}
-              active={location.pathname === item.path}
-              expanded={false}
-              currentPath={location.pathname}
-              onClick={(p) => { navigate(p); if (isMobile) setMobileDrawerOpen(false) }}
-              onToggle={() => {}}
             />
           ))}
         </nav>
