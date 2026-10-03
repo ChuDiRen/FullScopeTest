@@ -35,13 +35,22 @@ DEFAULT_MODEL = "deepseek-chat"
 AGENT_SYSTEM_PROMPT = """你是"大熊AI测试平台"的智能体（Agent），帮助用户完成测试相关任务。
 
 你可以：
+- 检索并调用平台全部业务接口（300+ 条：API 测试/Web UI/APP/性能压测/测试计划/报告/Mock/环境等）
 - 抓取 API 文档 URL 并解析出端点清单（自动发现 Redoc/Swagger UI 背后的 OpenAPI 规范）
 - 对目标接口发真实请求做探活验证
 - 创建和管理性能测试场景（Locust 压测）
 - 为已创建的压测场景生成定制化 Locust 业务脚本
 - 查询最近失败的 Web UI 测试
 - 查询用户的 API 测试用例
+- 用 load_skill 随时查阅平台能力手册（工具规范/业务域地图/工作流）
 - 对多步任务先用 write_todos 列出计划，再逐步执行并更新状态
+
+平台接口调用规范：
+- 要调用平台接口时：先 search_platform_apis 查到准确路径模板，再 call_platform_api 执行
+- call_platform_api 以当前用户身份执行，属主过滤由路由层强制；查不到别人的资源属正常，不要重试
+- 平台信封 {"code": 200, ...}，创建类也返回 200；400 参数错误、404 多为不属当前用户
+- DELETE 必须来自用户明确意图；批量删除先列出将删的 id 让用户确认
+- 首次接触某业务域任务时可用 load_skill 查看对应工作流（如"典型工作流"章节）
 
 API 文档分析流程（用户给出 API 文档/接口文档 URL，或要求"分析这个 API 生成压测"时）：
 1. 先 fetch_api_docs 抓取并解析端点清单（接受文档页 URL 或 openapi.json 直链）
@@ -295,6 +304,88 @@ def _build_tools(user_id: int, config: Dict[str, Any] = None) -> List[Any]:
             return json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False)
 
     @tool
+    def search_platform_apis(keyword: str, limit: int = 15) -> str:
+        """按关键字检索平台接口目录，拿到可调用的接口路径模板与参数定义。
+
+        调用平台任何接口前先用本工具查准路径（call_platform_api 只接受目录里的模板）。
+        keyword 匹配路径/摘要/标签，支持中文与英文，如"性能"、"scenario"、"用例"。
+
+        Args:
+            keyword: 检索关键字（空串返回目录前 15 条）
+            limit: 最多返回条数（默认 15，上限 30）
+        """
+        from .platform_api_registry import get_catalog, search_apis
+
+        try:
+            hits = search_apis(keyword, limit)
+            return json.dumps(
+                {
+                    "status": "success",
+                    "total_in_catalog": len(get_catalog()),
+                    "matches": hits,
+                },
+                ensure_ascii=False,
+            )
+        except Exception as exc:
+            return json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False)
+
+    @tool
+    def call_platform_api(
+        method: str,
+        path: str,
+        path_values: str = "",
+        query_json: str = "",
+        body_json: str = "",
+    ) -> str:
+        """以当前用户身份调用平台任意接口（完整鉴权与属主过滤，等同用户亲自操作）。
+
+        path 必须是 search_platform_apis 返回的路径模板原样（含 {param} 占位符）。
+        返回 {status: HTTP状态码, body: 响应文本}；平台成功统一 200，404 多为资源不属当前用户。
+
+        Args:
+            method: HTTP 方法（GET/POST/PUT/DELETE/PATCH）
+            path: 接口路径模板，如 /api/v1/perf-test/scenarios/{scenario_id}
+            path_values: 路径占位符取值 JSON 字符串（如 '{"scenario_id": 12}'，可为空）
+            query_json: 查询参数 JSON 字符串（可为空）
+            body_json: 请求体 JSON 字符串（POST/PUT/PATCH 时使用，可为空）
+        """
+        from .platform_api_registry import dispatch
+
+        def _loads(raw: str, field: str, default):
+            if not raw or not str(raw).strip():
+                return default
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{field} 不是合法 JSON: {exc}") from exc
+
+        try:
+            result = dispatch(
+                user_id,
+                method,
+                path,
+                path_values=_loads(path_values, "path_values", {}),
+                query=_loads(query_json, "query_json", {}),
+                body=_loads(body_json, "body_json", None),
+            )
+            return json.dumps({"status": "success", "http_status": result["status"], "body": result["body"]}, ensure_ascii=False)
+        except Exception as exc:
+            return json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False)
+
+    @tool
+    def load_skill(section: str = "") -> str:
+        """查阅平台能力手册（SKILL.md）：工具规范、业务域地图、典型工作流。
+
+        接触陌生业务域任务、或忘记调用规范时使用。
+
+        Args:
+            section: 章节名关键字（如"工作流"、"调用规范"）；空串返回全文
+        """
+        from .platform_api_registry import load_skill_doc
+
+        return load_skill_doc(section)
+
+    @tool
     def query_failed_web_tests(limit: int = 5) -> str:
         """查询当前用户最近的失败 Web UI 测试脚本。用户询问失败测试/测试结果时使用。"""
         from sqlalchemy import select
@@ -358,6 +449,9 @@ def _build_tools(user_id: int, config: Dict[str, Any] = None) -> List[Any]:
         )
 
     return [
+        search_platform_apis,
+        call_platform_api,
+        load_skill,
         fetch_api_docs,
         probe_api_endpoint,
         create_performance_test,

@@ -265,7 +265,7 @@ def test_agent_tools_include_doc_tools(app):
     tools = _build_tool_map()
     assert "fetch_api_docs" in tools
     assert "probe_api_endpoint" in tools
-    assert len(tools) == 7
+    assert len(tools) == 10
 
 
 def test_tool_fetch_api_docs(app, monkeypatch, pass_safety):
