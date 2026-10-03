@@ -447,6 +447,13 @@ def validate_url_safety(url: str) -> tuple:
     if not hostname:
         return False, "URL 缺少主机名"
 
+    # 白名单优先（与 url_safety.is_safe_url 同源：SSRF_ALLOWLIST_HOSTS）。
+    # 测试平台压测/调试自身或本机服务是合法核心场景，两套校验器行为必须一致。
+    from .url_safety import _get_allowlist_hosts
+
+    if hostname.lower() in _get_allowlist_hosts():
+        return True, ""
+
     # 检查是否为 IP 地址
     try:
         ip = ipaddress.ip_address(hostname)

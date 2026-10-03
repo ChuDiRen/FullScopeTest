@@ -21,6 +21,7 @@ IDOR 修复（按项目归属过滤，越权/不存在 → 404）：
 content_type 仅 json/yaml），不放宽。
 """
 
+import json
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -342,3 +343,131 @@ def _save_cases_to_db(
 
     db.session.commit()
     return saved_count
+
+
+# ---------------------------------------------------------------------------
+# 用例集 → OpenAPI 文档生成（确定性代码，零 AI 依赖）
+# ---------------------------------------------------------------------------
+
+
+def _case_path(url: str) -> str:
+    """用例 URL → OpenAPI path（去掉 scheme://host，保留 path 与查询串以外部分）"""
+    from urllib.parse import urlparse
+
+    url = (url or "").strip()
+    if url.startswith(("http://", "https://")):
+        path = urlparse(url).path or "/"
+    else:
+        path = url if url.startswith("/") else "/" + url
+    return path or "/"
+
+
+def _build_openapi_from_cases(cases, collection_name: str) -> dict:
+    """把用例行装配为 OpenAPI 3.0 文档（同 path+method 去重，首见优先）"""
+    spec: dict = {
+        "openapi": "3.0.3",
+        "info": {"title": collection_name or "Generated API", "version": "1.0.0"},
+        "paths": {},
+    }
+    seen = set()
+    for case in cases:
+        method = (case.method or "GET").upper()
+        if method not in ("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"):
+            continue
+        path = _case_path(case.url)
+        key = (path, method)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        operation: dict = {"summary": (case.name or "")[:120]}
+        if case.description:
+            operation["description"] = str(case.description)[:500]
+
+        parameters = []
+        for name, value in (case.params or {}).items():
+            parameters.append({
+                "name": str(name), "in": "query", "required": False,
+                "schema": {"type": "string"}, "example": value,
+            })
+        for name, value in (case.headers or {}).items():
+            if str(name).lower() == "content-type":
+                continue
+            parameters.append({
+                "name": str(name), "in": "header", "required": False,
+                "schema": {"type": "string"}, "example": value,
+            })
+        if parameters:
+            operation["parameters"] = parameters
+
+        if method in ("POST", "PUT", "PATCH", "DELETE") and case.body:
+            body_type = (case.body_type or "json").lower()
+            if body_type == "json" or isinstance(case.body, dict):
+                operation["requestBody"] = {
+                    "content": {"application/json": {"example": case.body}},
+                }
+            else:
+                operation["requestBody"] = {
+                    "content": {"text/plain": {"example": str(case.body)}},
+                }
+
+        operation["responses"] = {"200": {"description": "Successful response"}}
+        spec["paths"].setdefault(path, {})[method.lower()] = operation
+    return spec
+
+
+@router.post("/api/v1/swagger/generate")
+@release_session
+def generate_api_documentation(
+    data: Dict[str, Any] = Depends(json_body),
+    user: User = Depends(get_current_user),
+):
+    """
+    从测试用例集生成 OpenAPI 3.0 文档（ApiDocumentation 页面的"生成文档"按钮）
+
+    Body: {collection_id: int, format: "yaml" | "json"}
+    返回 data 为 spec 字符串；用例集不存在/不属当前用户 → 404
+    """
+    data = data or {}
+    collection_id = data.get("collection_id")
+    fmt = (data.get("format") or "yaml").strip().lower()
+    if not collection_id:
+        return _error(400, "缺少 collection_id")
+    if fmt not in ("yaml", "json"):
+        return _error(400, "format 仅支持 yaml / json")
+
+    try:
+        from app.models.api_test_case import ApiTestCase, ApiTestCollection
+
+        collection = db.session.scalar(
+            select(ApiTestCollection).filter_by(id=int(collection_id), user_id=user.id)
+        )
+        if not collection:
+            return _error(404, "用例集不存在")
+
+        cases = db.session.scalars(
+            select(ApiTestCase).filter_by(collection_id=collection.id, user_id=user.id)
+        ).all()
+        if not cases:
+            return _error(400, "用例集内没有用例，无法生成文档")
+
+        spec = _build_openapi_from_cases(cases, collection.name)
+        if fmt == "yaml":
+            import yaml as yaml_lib
+
+            spec_text = yaml_lib.safe_dump(spec, allow_unicode=True, sort_keys=False)
+            media = "application/x-yaml"
+        else:
+            spec_text = json.dumps(spec, ensure_ascii=False, indent=2)
+            media = "application/json"
+
+        return _success(
+            data=spec_text,
+            message=f"已从 {len(cases)} 条用例生成 OpenAPI 文档",
+            code=200,
+        )
+    except ValueError as exc:
+        return _error(400, str(exc))
+    except Exception as exc:
+        logger.error("生成 API 文档失败", error=str(exc))
+        return _error(500, f"生成失败: {str(exc)}")
